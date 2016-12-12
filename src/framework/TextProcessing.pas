@@ -4,7 +4,7 @@ unit TextProcessing;
 interface
 
 uses
-	USystem, Utils, UClasses;
+	USystem, Utils, UMath, UClasses;
 
 type
 	StringTokenizer = object
@@ -70,6 +70,7 @@ uses
 
 	function StringTokenizer.Tail: string;
 	begin
+		SkipWhitespace;
 		result := USystem.ToString(s, rest);
 	end;
 
@@ -223,7 +224,7 @@ uses
 
 	function StringTokenizer.Highlight(a, b: size_t): string;
 	begin
-		result := StrStuff(StrStuff(Source, 1 + Consumed + b, 0, '<'), 1 + size_t(s - src) + a, 0, '>');
+		result := StrStuff(StrStuff(Source, 1 + Consumed + min(b, rest), 0, '<'), 1 + size_t(s - src) + a, 0, '>');
 	end;
 
 	function StringTokenizer.ExpectedError(a, b: size_t; const what: string): Exception;

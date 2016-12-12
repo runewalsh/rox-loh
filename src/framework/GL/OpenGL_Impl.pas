@@ -148,109 +148,7 @@ type
 		function _GetRTImage(var fb: GLRenderTarget; format: GLImageFormat; mrtN: uint): pointer; virtual;
 	end;
 
-implementation
-
-uses
-	MMSystem, GLBase;
-
-type
-	gl = OpenGL_Headers.gl;
-
 const
-	GLBoolEnum: array[boolean] of gl.enum = (gl.FALSE, gl.TRUE);
-	GLTypeEnums: array[GLType] of gl.enum =
-	(
-		gl.FLOAT_TYPE, gl.FLOAT_VEC2, gl.FLOAT_VEC3, gl.FLOAT_VEC4,
-		gl.FLOAT_MAT4,
-		gl.UNSIGNED_INT, gl.UNSIGNED_BYTE, gl.UNSIGNED_SHORT,
-		0,
-		gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT,
-		gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE,
-		gl.HALF_FLOAT, gl.HALF_FLOAT, gl.HALF_FLOAT, gl.HALF_FLOAT,
-		gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT,
-		gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE,
-		gl.SIGNED_INT, gl.SIGNED_SHORT, gl.SIGNED_BYTE,
-		gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE,
-		gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT,
-		gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE,
-		gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT
-	);
-
-	GLAsAttrib: array[GLType] of record
-		enum: gl.enum;
-		count: sint;
-		normalized: gl.enum;
-	end =
-	(
-		(enum: gl.FLOAT_TYPE;     count: 1; normalized: gl.FALSE), // GLtype_Float
-		(enum: gl.FLOAT_TYPE;     count: 2; normalized: gl.FALSE), // GLtype_Vec2
-		(enum: gl.FLOAT_TYPE;     count: 3; normalized: gl.FALSE), // GLtype_Vec3
-		(enum: gl.FLOAT_TYPE;     count: 4; normalized: gl.FALSE), // GLtype_Vec4
-		(enum: gl.FLOAT_MAT4;     count: 1; normalized: gl.FALSE), // GLtype_Mat4
-		(enum: gl.UNSIGNED_INT;   count: 1; normalized: gl.FALSE), // GLtype_Uint32
-		(enum: gl.UNSIGNED_BYTE;  count: 1; normalized: gl.FALSE), // GLtype_Ubyte
-		(enum: gl.UNSIGNED_SHORT; count: 1; normalized: gl.FALSE), // GLtype_Uint16
-		(enum: 0;                 count: -1; normalized: gl.FALSE), // GLtype_Sampler
-		(enum: gl.SIGNED_SHORT;   count: 1; normalized: gl.TRUE), // GLtype_Ni16
-		(enum: gl.SIGNED_SHORT;   count: 2; normalized: gl.TRUE), // GLtype_Vec2Ni16
-		(enum: gl.SIGNED_SHORT;   count: 3; normalized: gl.TRUE), // GLtype_Vec3Ni16
-		(enum: gl.SIGNED_SHORT;   count: 4; normalized: gl.TRUE), // GLtype_Vec4Ni16
-		(enum: gl.SIGNED_BYTE;    count: 1; normalized: gl.TRUE), // GLtype_Ni8
-		(enum: gl.SIGNED_BYTE;    count: 2; normalized: gl.TRUE), // GLtype_Vec2Ni8
-		(enum: gl.SIGNED_BYTE;    count: 3; normalized: gl.TRUE), // GLtype_Vec3Ni8
-		(enum: gl.SIGNED_BYTE;    count: 4; normalized: gl.TRUE), // GLtype_Vec4Ni8
-		(enum: gl.HALF_FLOAT;     count: 1; normalized: gl.FALSE), // GLtype_Half
-		(enum: gl.HALF_FLOAT;     count: 2; normalized: gl.FALSE), // GLtype_Vec2Half
-		(enum: gl.HALF_FLOAT;     count: 3; normalized: gl.FALSE), // GLtype_Vec3Half
-		(enum: gl.HALF_FLOAT;     count: 4; normalized: gl.FALSE), // GLtype_Vec4Half
-		(enum: gl.UNSIGNED_SHORT; count: 1; normalized: gl.TRUE), // GLtype_Nui16
-		(enum: gl.UNSIGNED_SHORT; count: 2; normalized: gl.TRUE), // GLtype_Vec2Nui16
-		(enum: gl.UNSIGNED_SHORT; count: 3; normalized: gl.TRUE), // GLtype_Vec3Nui16
-		(enum: gl.UNSIGNED_SHORT; count: 4; normalized: gl.TRUE), // GLtype_Vec4Nui16
-		(enum: gl.UNSIGNED_BYTE;  count: 1; normalized: gl.TRUE), // GLtype_Nui8
-		(enum: gl.UNSIGNED_BYTE;  count: 2; normalized: gl.TRUE), // GLtype_Vec2Nui8
-		(enum: gl.UNSIGNED_BYTE;  count: 3; normalized: gl.TRUE), // GLtype_Vec3Nui8
-		(enum: gl.UNSIGNED_BYTE;  count: 4; normalized: gl.TRUE), // GLtype_Vec4Nui8
-		(enum: gl.SIGNED_INT;     count: 1; normalized: gl.FALSE), // GLtype_Int32
-		(enum: gl.SIGNED_SHORT;   count: 1; normalized: gl.FALSE), // GLtype_Int16
-		(enum: gl.SIGNED_BYTE;    count: 1; normalized: gl.FALSE), // GLtype_Int8
-		(enum: gl.UNSIGNED_BYTE;  count: 2; normalized: gl.FALSE), // GLtype_Vec2ui8
-		(enum: gl.UNSIGNED_BYTE;  count: 3; normalized: gl.FALSE), // GLtype_Vec3ui8
-		(enum: gl.UNSIGNED_BYTE;  count: 4; normalized: gl.FALSE), // GLtype_Vec4ui8
-		(enum: gl.UNSIGNED_SHORT; count: 2; normalized: gl.FALSE), // GLtype_Vec2ui16
-		(enum: gl.UNSIGNED_SHORT; count: 3; normalized: gl.FALSE), // GLtype_Vec3ui16
-		(enum: gl.UNSIGNED_SHORT; count: 4; normalized: gl.FALSE), // GLtype_Vec4ui16
-		(enum: gl.SIGNED_BYTE;    count: 2; normalized: gl.FALSE), // GLtype_Vec2i8
-		(enum: gl.SIGNED_BYTE;    count: 3; normalized: gl.FALSE), // GLtype_Vec3i8
-		(enum: gl.SIGNED_BYTE;    count: 4; normalized: gl.FALSE), // GLtype_Vec4i8
-		(enum: gl.SIGNED_SHORT;   count: 2; normalized: gl.FALSE), // GLtype_Vec2i16
-		(enum: gl.SIGNED_SHORT;   count: 3; normalized: gl.FALSE), // GLtype_Vec3i16
-		(enum: gl.SIGNED_SHORT;   count: 4; normalized: gl.FALSE)  // GLtype_Vec4i16
-	);
-
-	GLTextureTargetEnums: array[GLTextureTarget] of gl.enum =
-	(
-		gl.TEXTURE_1D, gl.TEXTURE_2D, gl.TEXTURE_3D,
-		gl.TEXTURE_CUBE_MAP
-	);
-
-	GLBufferTargetEnums: array[GLBufferTarget] of gl.enum =
-	(
-		gl.ARRAY_BUFFER, gl.ELEMENT_ARRAY_BUFFER, gl.UNIFORM_BUFFER
-	);
-
-	GLCubeSideEnums: array[GLCubeSide] of gl.enum =
-	(
-		gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_X,
-		gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
-		gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, gl.TEXTURE_CUBE_MAP_POSITIVE_Z
-	);
-
-	GLRenderBufferEnums: array[GLRenderBuffer] of gl.enum =
-	(
-		gl.COLOR_ATTACHMENT0, gl.DEPTH_ATTACHMENT
-	);
-
 	GLFormats: array[GLImageFormat] of
 		record
 			components, internalFormat: gl.enum;
@@ -365,6 +263,109 @@ const
 			components: gl.DEPTH_COMPONENT; internalFormat: gl.DEPTH_COMPONENT24;
 			ctype: gl.FLOAT_TYPE
 		)
+	);
+
+	GLAsAttrib: array[GLType] of record
+		enum: gl.enum;
+		count: sint;
+		normalized: gl.enum;
+	end =
+	(
+		(enum: gl.FLOAT_TYPE;     count: 1; normalized: gl.FALSE), // GLtype_Float
+		(enum: gl.FLOAT_TYPE;     count: 2; normalized: gl.FALSE), // GLtype_Vec2
+		(enum: gl.FLOAT_TYPE;     count: 3; normalized: gl.FALSE), // GLtype_Vec3
+		(enum: gl.FLOAT_TYPE;     count: 4; normalized: gl.FALSE), // GLtype_Vec4
+		(enum: gl.FLOAT_MAT4;     count: 1; normalized: gl.FALSE), // GLtype_Mat4
+		(enum: gl.UNSIGNED_INT;   count: 1; normalized: gl.FALSE), // GLtype_Uint32
+		(enum: gl.UNSIGNED_BYTE;  count: 1; normalized: gl.FALSE), // GLtype_Ubyte
+		(enum: gl.UNSIGNED_SHORT; count: 1; normalized: gl.FALSE), // GLtype_Uint16
+		(enum: 0;                 count: -1; normalized: gl.FALSE), // GLtype_Sampler
+		(enum: gl.SIGNED_SHORT;   count: 1; normalized: gl.TRUE), // GLtype_Ni16
+		(enum: gl.SIGNED_SHORT;   count: 2; normalized: gl.TRUE), // GLtype_Vec2Ni16
+		(enum: gl.SIGNED_SHORT;   count: 3; normalized: gl.TRUE), // GLtype_Vec3Ni16
+		(enum: gl.SIGNED_SHORT;   count: 4; normalized: gl.TRUE), // GLtype_Vec4Ni16
+		(enum: gl.SIGNED_BYTE;    count: 1; normalized: gl.TRUE), // GLtype_Ni8
+		(enum: gl.SIGNED_BYTE;    count: 2; normalized: gl.TRUE), // GLtype_Vec2Ni8
+		(enum: gl.SIGNED_BYTE;    count: 3; normalized: gl.TRUE), // GLtype_Vec3Ni8
+		(enum: gl.SIGNED_BYTE;    count: 4; normalized: gl.TRUE), // GLtype_Vec4Ni8
+		(enum: gl.HALF_FLOAT;     count: 1; normalized: gl.FALSE), // GLtype_Half
+		(enum: gl.HALF_FLOAT;     count: 2; normalized: gl.FALSE), // GLtype_Vec2Half
+		(enum: gl.HALF_FLOAT;     count: 3; normalized: gl.FALSE), // GLtype_Vec3Half
+		(enum: gl.HALF_FLOAT;     count: 4; normalized: gl.FALSE), // GLtype_Vec4Half
+		(enum: gl.UNSIGNED_SHORT; count: 1; normalized: gl.TRUE), // GLtype_Nui16
+		(enum: gl.UNSIGNED_SHORT; count: 2; normalized: gl.TRUE), // GLtype_Vec2Nui16
+		(enum: gl.UNSIGNED_SHORT; count: 3; normalized: gl.TRUE), // GLtype_Vec3Nui16
+		(enum: gl.UNSIGNED_SHORT; count: 4; normalized: gl.TRUE), // GLtype_Vec4Nui16
+		(enum: gl.UNSIGNED_BYTE;  count: 1; normalized: gl.TRUE), // GLtype_Nui8
+		(enum: gl.UNSIGNED_BYTE;  count: 2; normalized: gl.TRUE), // GLtype_Vec2Nui8
+		(enum: gl.UNSIGNED_BYTE;  count: 3; normalized: gl.TRUE), // GLtype_Vec3Nui8
+		(enum: gl.UNSIGNED_BYTE;  count: 4; normalized: gl.TRUE), // GLtype_Vec4Nui8
+		(enum: gl.SIGNED_INT;     count: 1; normalized: gl.FALSE), // GLtype_Int32
+		(enum: gl.SIGNED_SHORT;   count: 1; normalized: gl.FALSE), // GLtype_Int16
+		(enum: gl.SIGNED_BYTE;    count: 1; normalized: gl.FALSE), // GLtype_Int8
+		(enum: gl.UNSIGNED_BYTE;  count: 2; normalized: gl.FALSE), // GLtype_Vec2ui8
+		(enum: gl.UNSIGNED_BYTE;  count: 3; normalized: gl.FALSE), // GLtype_Vec3ui8
+		(enum: gl.UNSIGNED_BYTE;  count: 4; normalized: gl.FALSE), // GLtype_Vec4ui8
+		(enum: gl.UNSIGNED_SHORT; count: 2; normalized: gl.FALSE), // GLtype_Vec2ui16
+		(enum: gl.UNSIGNED_SHORT; count: 3; normalized: gl.FALSE), // GLtype_Vec3ui16
+		(enum: gl.UNSIGNED_SHORT; count: 4; normalized: gl.FALSE), // GLtype_Vec4ui16
+		(enum: gl.SIGNED_BYTE;    count: 2; normalized: gl.FALSE), // GLtype_Vec2i8
+		(enum: gl.SIGNED_BYTE;    count: 3; normalized: gl.FALSE), // GLtype_Vec3i8
+		(enum: gl.SIGNED_BYTE;    count: 4; normalized: gl.FALSE), // GLtype_Vec4i8
+		(enum: gl.SIGNED_SHORT;   count: 2; normalized: gl.FALSE), // GLtype_Vec2i16
+		(enum: gl.SIGNED_SHORT;   count: 3; normalized: gl.FALSE), // GLtype_Vec3i16
+		(enum: gl.SIGNED_SHORT;   count: 4; normalized: gl.FALSE)  // GLtype_Vec4i16
+	);
+
+implementation
+
+uses
+	MMSystem, GLBase;
+
+type
+	gl = OpenGL_Headers.gl;
+
+const
+	GLBoolEnum: array[boolean] of gl.enum = (gl.FALSE, gl.TRUE);
+	GLTypeEnums: array[GLType] of gl.enum =
+	(
+		gl.FLOAT_TYPE, gl.FLOAT_VEC2, gl.FLOAT_VEC3, gl.FLOAT_VEC4,
+		gl.FLOAT_MAT4,
+		gl.UNSIGNED_INT, gl.UNSIGNED_BYTE, gl.UNSIGNED_SHORT,
+		0,
+		gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT,
+		gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE,
+		gl.HALF_FLOAT, gl.HALF_FLOAT, gl.HALF_FLOAT, gl.HALF_FLOAT,
+		gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT,
+		gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE,
+		gl.SIGNED_INT, gl.SIGNED_SHORT, gl.SIGNED_BYTE,
+		gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE, gl.UNSIGNED_BYTE,
+		gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT, gl.UNSIGNED_SHORT,
+		gl.SIGNED_BYTE, gl.SIGNED_BYTE, gl.SIGNED_BYTE,
+		gl.SIGNED_SHORT, gl.SIGNED_SHORT, gl.SIGNED_SHORT
+	);
+
+	GLTextureTargetEnums: array[GLTextureTarget] of gl.enum =
+	(
+		gl.TEXTURE_1D, gl.TEXTURE_2D, gl.TEXTURE_3D,
+		gl.TEXTURE_CUBE_MAP
+	);
+
+	GLBufferTargetEnums: array[GLBufferTarget] of gl.enum =
+	(
+		gl.ARRAY_BUFFER, gl.ELEMENT_ARRAY_BUFFER, gl.UNIFORM_BUFFER
+	);
+
+	GLCubeSideEnums: array[GLCubeSide] of gl.enum =
+	(
+		gl.TEXTURE_CUBE_MAP_NEGATIVE_X, gl.TEXTURE_CUBE_MAP_POSITIVE_X,
+		gl.TEXTURE_CUBE_MAP_NEGATIVE_Y, gl.TEXTURE_CUBE_MAP_POSITIVE_Y,
+		gl.TEXTURE_CUBE_MAP_NEGATIVE_Z, gl.TEXTURE_CUBE_MAP_POSITIVE_Z
+	);
+
+	GLRenderBufferEnums: array[GLRenderBuffer] of gl.enum =
+	(
+		gl.COLOR_ATTACHMENT0, gl.DEPTH_ATTACHMENT
 	);
 
 	function GetInteger(enum: gl.enum): gl.int;

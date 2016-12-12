@@ -587,7 +587,7 @@ type
 		function GetLevelDataSize(level: uint): size_t;
 		function DimsToStr(level: uint): string;
 		function RowSize: size_t; cinline
-		function PlaneSize: size_t; cinline
+		function PlaneSize(level: uint = 0): size_t; cinline
 		function Defaced(level: uint): uint;
 	end;
 
@@ -617,7 +617,7 @@ type
 		procedure Prepare(newTarget: GLTextureTarget; const newSize: UintSize3; newFormat: GLImageFormat; newFlags: TextureImageFlags = []);
 		procedure FreeData;
 		procedure Save(const stream: string; const opts: string = '');
-		procedure Save(const stream: string; const sizes: UintVec2; format: GLImageFormat; data: pointer; takeThisData: boolean = no); static;
+		procedure Save(const stream: string; const sizes: UintVec2; format: GLImageFormat; data: pointer; takeThisData: boolean = no; const opts: string = ''); static;
 		procedure Save(const stream: string; level: uint);
 		procedure CheckSaveTarget(supported: GLTextureTargets; const fmt: string);
 		function ValidateCoord(x, y, z, level: uint): boolean;
@@ -3422,13 +3422,12 @@ var
 
 	function TextureImageInfo.GetPixelsCount(level: uint): uint;
 	begin
-		result := GetLevelDimension(level, 0) * GetLevelDimension(level, 1) * GetLevelDimension(level, 2);
+		result := LevelSize(level).Product;
 	end;
 
 	function TextureImageInfo.GetLevelDataSize(level: uint): size_t;
 	begin
-		result := GetTextureDataSize(GetLevelDimension(level, 0), GetLevelDimension(level, 1),
-			GetLevelDimension(level, 2), format);
+		result := GetTextureDataSize(LevelSize(level), format);
 	end;
 
 	function TextureImageInfo.DimsToStr(level: uint): string;
@@ -3441,9 +3440,9 @@ var
 		result := GLImageFormatsInfo[format].pixelSize * size_t(size.x);
 	end;
 
-	function TextureImageInfo.PlaneSize: size_t;
+	function TextureImageInfo.PlaneSize(level: uint = 0): size_t;
 	begin
-		result := GetTextureDataSize(size.xy, format);
+		result := GetTextureDataSize(LevelSizeXY(level), format);
 	end;
 
 	function TextureImageInfo.Defaced(level: uint): uint;
@@ -3472,7 +3471,7 @@ var
 	{$ifdef Debug} Log('Изображение сохранено в ' + StreamPath.Log(stream), logOK); {$endif}
 	end;
 
-	procedure TextureImage.Save(const stream: string; const sizes: UintVec2; format: GLImageFormat; data: pointer; takeThisData: boolean = no);
+	procedure TextureImage.Save(const stream: string; const sizes: UintVec2; format: GLImageFormat; data: pointer; takeThisData: boolean = no; const opts: string = '');
 	var
 		flags: TextureImageFlags;
 		temp: TextureImage;
@@ -3482,7 +3481,7 @@ var
 		temp.Init(GLtexture_2D, sizes, format, flags);
 		temp.ReplaceLevelWithOwnPointer(0, data);
 		try
-			temp.Save(stream);
+			temp.Save(stream, opts);
 		finally
 			if not takeThisData then temp.ReplaceLevelWithOwnPointer(0, nil, yes);
 			temp.Done;

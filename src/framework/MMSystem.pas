@@ -102,19 +102,21 @@ uses
 {$ifdef Profile}, Profile {$endif};
 
 	function StartLoadResource(const stream: string; param: pointer): pointer;
+	type
+		Cookie = WindowCaption.Cookie; {$if sizeof(Cookie) > sizeof(pointer)} {$error don't fits} {$endif}
 	var
 		mm: pMultimediaSystem absolute param;
-		uid: PtrUint absolute result;
+		uid: WindowCaption.Cookie absolute result;
 	begin
-		uid := mm^.window.SetCaptionNote('загрузка: ' + StreamPath.Human(stream));
+		uid := mm^.window.caption.SetNote('загрузка: ' + StreamPath.Human(stream));
 	end;
 
 	procedure EndLoadResource(result, param: pointer);
 	var
 		mm: pMultimediaSystem absolute param;
-		uid: PtrUint absolute result;
+		uid: WindowCaption.Cookie absolute result;
 	begin
-		mm^.window.RemoveCaptionNote(uid);
+		mm^.window.caption.RemoveNote(uid);
 	end;
 
 type
@@ -242,7 +244,7 @@ type
 		end;
 
 		if not window.Open then raise Error('');
-		window.CaptionSuffix := '[загрузка...]';
+		window.caption.suffix := '[загрузка...]';
 		ResourcePool.Shared^.SetCallbacks(@StartLoadResource, @EndLoadResource, @self);
 
 		if not gl.InitContext(UintVec2.Make(window.sizeX, window.sizeY)) then raise Error('');
@@ -388,12 +390,12 @@ type
 		if FrameNo > 0 then
 		begin
 			GetCPULoad(cpuFull, cpuKernel, cpuUser);
-			window.CaptionSuffix := '[FPS: ' + ToString(frameDynamics.AveragePerSec, FloatFormat.MaxAfterPoint(1)) + ']' +
+			window.caption.suffix := '[FPS: ' + ToString(frameDynamics.AveragePerSec, FloatFormat.MaxAfterPoint(1)) + ']' +
 				'   [CPU: ' + ToString(cpuFull * 100, FloatFormat.MaxAfterPoint(0)) + '% = '
 				+ 'K:' + ToString(cpuKernel * 100, FloatFormat.MaxAfterPoint(0)) + '% + '
 				+ 'U:' + ToString(cpuUser * 100, FloatFormat.MaxAfterPoint(0)) + '%]';
 		end else
-			window.CaptionSuffix := '[компиляция шейдеров и всё такое...]';
+			window.caption.suffix := '[компиляция шейдеров и всё такое...]';
 
 		result := window.Process(@keyboard, @mouse, @gamepad);
 		if not result then exit;
@@ -475,7 +477,7 @@ type
 	begin
 		result := yes;
 		Sound.GlobalPause;
-		window.CaptionSuffix := '[окно не активно]';
+		window.caption.suffix := '[окно не активно]';
 		repeat
 			if not window.Process(@keyboard, @mouse, @gamepad) then
 			begin
@@ -1102,7 +1104,7 @@ type
 		name: string;
 		time, total: float;
 	begin
-		if pMultimediaSystem(ss.ToSelf)^.bgm.CurrentTrack(name, time, total) then
+		if pMultimediaSystem(ss.ToSelf)^.bgm.CurrentTrack(@name, @time, @total) then
 		begin
 			ss.PushString(name);
 			ss.PushFloat(time);

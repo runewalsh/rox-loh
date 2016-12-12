@@ -92,10 +92,12 @@ type
 	pAspectPair = ^AspectPair;
 	AspectPair = object
 		aspect, invAspect: float;
+		function Empty: AspectPair; static;
 		function Make(const size: Vec2): AspectPair; static;
 		function Make(size: Vec2; rotated: boolean; const fix: float = 1.0): AspectPair; static;
 		function Aspect2(method: Aspect2Method; const mul: float): Vec2;
 		function Aspect2Item(method: Aspect2Method; dim: uint; const mul: float): float;
+		procedure Fix(const by: float);
 		function ReverseCombined(const ap: AspectPair): AspectPair;
 	const
 		Identity: AspectPair = (aspect: 1.0; invAspect: 1.0);
@@ -715,6 +717,12 @@ uses
 	end;
 {$endif}
 
+	function AspectPair.Empty: AspectPair;
+	begin
+		result.aspect := 1.0;
+		result.invAspect := 1.0;
+	end;
+
 	function AspectPair.Make(const size: Vec2): AspectPair;
 	begin
 		if size.y <> 0.0 then result.aspect := size.aspect else result.aspect := 1.0;
@@ -743,6 +751,12 @@ uses
 			if dim = 0 then result := mul else result := mul * invAspect
 		else
 			if dim = 0 then result := mul * aspect else result := mul;
+	end;
+
+	procedure AspectPair.Fix(const by: float);
+	begin
+		aspect *= by;
+		invAspect /= by;
 	end;
 
 	function AspectPair.ReverseCombined(const ap: AspectPair): AspectPair;

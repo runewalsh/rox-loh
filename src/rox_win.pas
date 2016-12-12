@@ -1,10 +1,10 @@
 {$include opts.inc}
-unit rox_mm;
+unit rox_win;
 
 interface
 
 uses
-	ctypes, Windows, USystem, DynamicLoader, UMath, Utils, Human, Windowing, Input, GLUtils, Audio;
+	ctypes, Windows, USystem, Errors, DynamicLoader, UMath, Utils, Human, Windowing, Input, GLUtils, Audio, rox_state;
 
 	procedure Warning(const msg: string);
 
@@ -15,14 +15,21 @@ type
 	CursorEnum = (DefaultCursor, Cursor0, Cursor1, Cursor2);
 	RepaintProc = procedure(param: pointer);
 
-	PlainWindow = object
+	pWindow = ^Window;
+	Window = object
 		rect: WindowRect;
-		mouse: UintVec2;
+		viewport: UintVec2;
+		winMouse: UintVec2;
+		vpMouse: Vec2;
+		caption: WindowCaption;
+		state: StateManager;
 		procedure Invalidate;
+		procedure Verify;
 		procedure Open;
 		procedure Close;
-		function Process: boolean;
+		function Process(const dt: float): boolean;
 		procedure SwapBuffers;
+		procedure RequestClose;
 
 		property pos: IntVec2 read rect.pos write rect.pos;
 		property size: UintVec2 read rect.size write rect.size;
@@ -37,6 +44,8 @@ type
 		oglLoaded, openSucceed, active, wasDeactivated: boolean;
 		cursors: array[CursorEnum] of HCURSOR;
 		activeCursor, realCursor: CursorEnum;
+		magic: array[0 .. 3] of char;
+		redraws: uint;
 		function QueryRect(client: boolean): WindowRect;
 		function ClientToScreen(const rect: WindowRect; style: dword): WindowRect;
 		procedure CleanupRenderingContext;
@@ -44,25 +53,24 @@ type
 		procedure ChangeCursor(cur: HCURSOR);
 
 		function RunWindowProc(wnd: hWnd; msg: Windows.UINT; wparam: wParam; lparam: lParam): lResult;
+		procedure Redraw;
+		procedure UpdateViewport(const rect: WindowRect);
+		procedure UpdateNormalizedMouse(const winMouse: UintVec2);
+	const
+		CorrectMagic = 'WND~';
+		IncorrectMagic = '!wnd';
 	public
-		onRepaint: RepaintProc;
-		onRepaintParam: pointer;
 		property Cursor: CursorEnum read activeCursor write activeCursor;
 		property GLContextOwner: Thread.ID read rcThread;
 		property GLContext: HGLRC read rc;
 		property WasDeactivatedDuringLastProcess: boolean read wasDeactivated;
+		property RedrawsDuringLastProcess: uint read redraws;
 	end;
-
-var
-	window: PlainWindow;
-	bgm: MusicPlayer;
-	viewportAp: AspectPair;
-	mouse: Vec2;
 
 implementation
 
 uses
-	rox_gl, rox_gfx;
+	rox_gl, rox_ui, rox_gfx;
 
 type
 	Win = WindowsSpecific;
@@ -84,11 +92,11 @@ type
 		null: pointer;
 	begin
 		null := @pointer(nil^);
-		result := PlainWindow((null + GetWindowLongPtrW(wnd, GWL_USERDATA))^).RunWindowProc(wnd, msg, wparam, lparam);
+		result := Window((null + GetWindowLongPtrW(wnd, GWL_USERDATA))^).RunWindowProc(wnd, msg, wparam, lparam);
 	end;
 	function AnimateWindow(hwnd: HWND; dwTime: DWORD; dwFlags: DWORD): BOOL; stdcall; external user32;
 
-	procedure PlainWindow.Invalidate;
+	procedure Window.Invalidate;
 	begin
 		handle := 0;
 		classh := 0;
@@ -96,17 +104,30 @@ type
 		rc := 0;
 		rcThread := 0;
 		oglLoaded := no;
-		mouse := UintVec2.Zero;
+		winMouse := UintVec2.Zero;
+		vpMouse := Vec2.Zero;
+		caption.Invalidate;
+		state.Invalidate;
 
 		activeCursor := DefaultCursor;
 		realCursor := DefaultCursor;
 		Zero(@cursors, sizeof(cursors));
 		openSucceed := no;
 		active := yes;
-		onRepaint := nil; onRepaintParam := nil;
+		magic := IncorrectMagic;
 	end;
 
-	procedure PlainWindow.Open;
+	procedure Window.Verify;
+	begin
+		if not Assigned(@self) or (magic <> CorrectMagic) then raise Error('Окно не валидно.');
+	end;
+
+	procedure OnUpdateCaption(const cap: string; param: pointer);
+	begin
+		if Window(param^).handle <> 0 then SetWindowTextW(Window(param^).handle, pWideChar(UTF8Decode(cap)));
+	end;
+
+	procedure Window.Open;
 	var
 		wc: WNDCLASSW;
 		style: dword;
@@ -117,9 +138,12 @@ type
 	begin
 		Invalidate;
 		try
+			magic := CorrectMagic;
 			size := ShrinkToAspect((ScreenSize * 2) div 3, ScreenAspect);
-			classn := UTF8Decode('Главное окно');
+			caption.Init(@OnUpdateCaption, nil, @self);
+			caption.base := '(´・ω・`)';
 
+			classn := UTF8Decode('Главное окно');
 			Zero(@wc, sizeof(wc));
 			wc.lpszClassName := pWideChar(classn);
 			wc.lpfnWndProc := @WindowProc;
@@ -134,7 +158,7 @@ type
 			rect.pos := (IntVec2(ScreenSize) - self.size) div 2;
 			onScreen := ClientToScreen(rect, style);
 
-			handle := CreateWindowW(pWideChar(classn), pWideChar(UTF8Decode('(´・ω・`)')), style,
+			handle := CreateWindowW(pWideChar(classn), pWideChar(UTF8Decode(caption.Join)), style,
 				onScreen.pos.x, onScreen.pos.y, onScreen.size.x, onScreen.size.y, 0, 0, 0, nil);
 			if handle = 0 then raise Win.OperationFailed('открыть окно (CreateWindow)');
 
@@ -144,8 +168,6 @@ type
 				err := GetLastError;
 				if err <> 0 then raise Win.OperationFailed('выставить пользовательский указатель в окне (SetWindowLongPtrW)');
 			end;
-
-			AnimateWindow(handle, 200, AW_ACTIVATE or AW_BLEND);
 
 			dc := GetDC(handle);
 			if dc = 0 then raise Win.OperationFailed('получить контекст устройства (GetDC)');
@@ -171,7 +193,7 @@ type
 			rcThread := Thread.Current;
 
 			gl.Load;
-			rox_gfx.InitGL;
+			rox_gfx.InitGL(@self);
 			oglLoaded := yes;
 
 			cursors[DefaultCursor] := Windows.LoadCursor(0, IDC_ARROW);
@@ -179,6 +201,10 @@ type
 
 			cursors[Cursor0] := LoadCursor(Paths.Data + 'cursors/Pulse_Glass.ani');
 			cursors[Cursor1] := LoadCursor(Paths.Data + 'cursors/Pulse_Glass_Working.ani');
+
+			state.Init(@self);
+			UpdateViewport(rect);
+			if not AnimateWindow(handle, 200, AW_ACTIVATE or AW_BLEND) then raise Win.OperationFailed('отобразить окно (AnimateWindow)');
 			openSucceed := yes;
 		except
 			Close;
@@ -186,9 +212,12 @@ type
 		end;
 	end;
 
-	procedure PlainWindow.Close;
+	procedure Window.Close;
 	begin
+		state.Done;
+		openSucceed := no;
 		CleanupRenderingContext;
+		caption.Done;
 		if handle <> 0 then
 		begin
 			if not DestroyWindow(handle) then WindowsWarning('уничтожить окно (DestroyWindow)');
@@ -200,15 +229,17 @@ type
 			if not UnregisterClassW(pWideChar(classn), 0) then WindowsWarning('уничтожить класс окна (UnregisterClassW)');
 			classh := 0;
 		end;
+		Invalidate;
 	end;
 
-	function PlainWindow.Process: boolean;
+	function Window.Process(const dt: float): boolean;
 	var
 		message: MSG;
+		mouseAction: rox_ui.MouseAction;
 		key: KeyboardKey;
-		down: boolean;
 	begin
 		wasDeactivated := no;
+		redraws := 0;
 		if handle = 0 then exit(no);
 		result := yes;
 		repeat
@@ -226,28 +257,59 @@ type
 				WM_QUIT: result := no;
 				WM_SYSKEYDOWN, WM_KEYDOWN, WM_SYSKEYUP, WM_KEYUP:
 					begin
-						down := (message.message = WM_SYSKEYDOWN) or (message.message = WM_KEYDOWN);
+						// down := (message.message = WM_SYSKEYDOWN) or (message.message = WM_KEYDOWN);
 						if Win.DecryptKey(message.wparam, key) then
-						{$ifdef use_console} Con.WriteLine(KeyboardKeyIds[key]) {$endif};
+						begin
+							if (message.message = WM_KEYDOWN) then
+								case key of
+									key_NumPlus: state.bgm.Rewind(+5);
+									key_NumMinus: state.bgm.Rewind(-5);
+								end;
+						end;
 					end;
-				WM_MOUSEMOVE: mouse := UintVec2.Make(GET_X_LPARAM(message.lParam), GET_Y_LPARAM(message.lParam));
-				WM_LBUTTONDOWN, WM_RBUTTONDOWN, WM_LBUTTONUP, WM_RBUTTONUP: ;
+				WM_MOUSEMOVE:
+					begin
+						winMouse := UintVec2.Make(GET_X_LPARAM(message.lParam), GET_Y_LPARAM(message.lParam));
+						UpdateNormalizedMouse(winMouse);
+					end;
+				WM_LBUTTONDOWN, WM_LBUTTONUP, WM_RBUTTONDOWN, WM_RBUTTONUP:
+					begin
+						case message.message of
+							WM_LBUTTONDOWN: mouseAction := MouseLClick;
+							WM_LBUTTONUP: mouseAction := MouseLRelease;
+							WM_RBUTTONDOWN: mouseAction := MouseRClick;
+							WM_RBUTTONUP: mouseAction := MouseRRelease;
+							else raise ExhaustiveCase(message.message, 'MouseMessage');
+						end;
+						state.HandleMouse(mouseAction, vpMouse);
+					end;
 				WM_MOUSEWHEEL:
 					begin
-					{$ifdef use_console} Con.WriteLine(ToString(TWMMouseWheel(addr(message.message)^).WheelDelta / WHEEL_DELTA)); {$endif}
+						// TWMMouseWheel(addr(message.message)^).WheelDelta / WHEEL_DELTA
 					end;
 			end;
 			TranslateMessage(message);
 			DispatchMessage(message);
 		until no;
+
+		if result then
+		begin
+			state.Update(dt);
+			Redraw;
+		end;
 	end;
 
-	procedure PlainWindow.SwapBuffers;
+	procedure Window.SwapBuffers;
 	begin
 		Windows.SwapBuffers(dc);
 	end;
 
-	function PlainWindow.QueryRect(client: boolean): WindowRect;
+	procedure Window.RequestClose;
+	begin
+		PostMessage(handle, WM_CLOSE, 0, 0);
+	end;
+
+	function Window.QueryRect(client: boolean): WindowRect;
 	var
 		r: Windows.RECT;
 	begin
@@ -259,7 +321,7 @@ type
 		result := WindowRect.Make(IntVec2.Make(r.left, r.top), UintVec2.Make(max(r.right - r.left, 0), max(r.bottom - r.top, 0)));
 	end;
 
-	function PlainWindow.ClientToScreen(const rect: WindowRect; style: dword): WindowRect;
+	function Window.ClientToScreen(const rect: WindowRect; style: dword): WindowRect;
 	var
 		wr: Windows.RECT;
 		b: IntVec2;
@@ -278,7 +340,7 @@ type
 		end;
 	end;
 
-	procedure PlainWindow.CleanupRenderingContext;
+	procedure Window.CleanupRenderingContext;
 	begin
 		if oglLoaded then
 		begin
@@ -306,7 +368,7 @@ type
 		end;
 	end;
 
-	function PlainWindow.LoadCursor(const fn: string): HCURSOR;
+	function Window.LoadCursor(const fn: string): HCURSOR;
 	var
 		code: dword;
 	begin
@@ -318,7 +380,7 @@ type
 		end;
 	end;
 
-	procedure PlainWindow.ChangeCursor(cur: HCURSOR);
+	procedure Window.ChangeCursor(cur: HCURSOR);
 	begin
 		if cur <> 0 then
 		begin
@@ -328,7 +390,7 @@ type
 		end;
 	end;
 
-	function PlainWindow.RunWindowProc(wnd: hWnd; msg: Windows.UINT; wparam: wParam; lparam: lParam): lResult;
+	function Window.RunWindowProc(wnd: hWnd; msg: Windows.UINT; wparam: wParam; lparam: lParam): lResult;
 	var
 		ht: uint;
 		activated: boolean;
@@ -362,9 +424,12 @@ type
 							realCursor := DefaultCursor;
 						end;
 				end;
-			WM_MOVE, WM_SIZE: rect := QueryRect(yes);
-			WM_PAINT:
-				if Assigned(onRepaint) then onRepaint(onRepaintParam);
+			WM_MOVE, WM_SIZE:
+				begin
+					rect := QueryRect(yes);
+					UpdateViewport(rect);
+				end;
+			WM_PAINT: Redraw;
 			WM_DESTROY:
 				begin
 					CleanupRenderingContext;
@@ -377,18 +442,28 @@ type
 		Result := DefWindowProcW(wnd, msg, wparam, lparam);
 	end;
 
-	procedure Init;
+	procedure Window.Redraw;
 	begin
-		bgm.Init;
+		gl.Viewport((size.x - viewport.x) div 2, (size.y - viewport.y) div 2, viewport.x, viewport.y);
+		gl.Clear(gl.COLOR_BUFFER_BIT or gl.DEPTH_BUFFER_BIT);
+		state.Draw;
+		inc(redraws);
+		CleanupGLGraveyard;
+		SwapBuffers;
 	end;
 
-	procedure Done;
+	procedure Window.UpdateViewport(const rect: WindowRect);
 	begin
-		bgm.Done;
+		viewport := ShrinkToAspect(rect.size, ScreenAspect);
+		state.HandleViewportChange(viewport);
 	end;
 
-initialization
-	window.Invalidate;
-	&Unit('rox_mm').Initialize(@Init, @Done);
+	procedure Window.UpdateNormalizedMouse(const winMouse: UintVec2);
+	begin
+		vpMouse := 2 * (IntVec2(winMouse) - (size - viewport) div 2) / max(viewport, UintVec2.Ones) - Vec2.Ones;
+		vpMouse.y := -vpMouse.y;
+		state.HandleMouse(MouseMove, vpMouse);
+	end;
+
 end.
 

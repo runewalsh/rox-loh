@@ -33,6 +33,45 @@ type
 	);
 	WindowFlags = set of WindowFlag;
 
+	WindowCaption = object
+	type
+		Cookie = object
+			function Empty: Cookie; static;
+		private
+			uid: uint;
+		end;
+		LockProc = procedure(lock: boolean; param: pointer);
+		UpdateProc = procedure(const cap: string; param: pointer);
+
+		procedure Invalidate;
+		procedure Init(onUpdate: UpdateProc; onLock: LockProc; param: pointer);
+		procedure Done;
+		procedure SetNote(var c: Cookie; const text: string);
+		function SetNote(const text: string): Cookie;
+		procedure RemoveNote(var c: Cookie);
+		function Join: string;
+
+	private type
+		pNoteDesc = ^NoteDesc;
+		NoteDesc = record
+			uid: uint;
+			text: string;
+		end;
+	var
+		_base, _suffix: string;
+		notes: array of NoteDesc;
+		onUpdate: UpdateProc;
+		onLock: LockProc;
+		param: pointer;
+		function FindNote(uid: uint; throw: boolean): sint;
+		procedure SetBase(const value: string);
+		procedure SetSuffix(const value: string);
+		procedure SetAndUpdate(var part: string; const value: string; lock: boolean);
+	public
+		property Base: string read _base write SetBase;
+		property Suffix: string read _suffix write SetSuffix;
+	end;
+
 	Comd = object
 	type
 		scoped_enum_ Op = (Open, TiCh, SetFullscreen, Terminate, _CommandCompleted);
@@ -43,7 +82,11 @@ type
 		end;
 
 		Open = object(Base) end; pOpen = ^Open;
-		TiCh = object(Base) end; pTiCh = ^TiCh;
+
+		pTiCh = ^TiCh;
+		TiCh = object(Base)
+			title: string;
+		end;
 
 		pSetFullscreen = ^SetFullscreen;
 		SetFullscreen = object(Base)
@@ -104,16 +147,8 @@ type
 
 	pWindow = ^Window;
 	Window = object
-	private type
-		CaptionNote = record
-			uid: uint;
-			text: string;
-		end;
-	var
+	private
 		_rect: WindowRect;
-		_captionBase, _captionSuffix, _caption, _ldCaption: string;
-		capNotes: array of CaptionNote;
-		_nextCapNoteUid: uint;
 		_flags: WindowFlags;
 		_thread: Thread;
 		_tlock: ThreadLock;
@@ -132,9 +167,6 @@ type
 		procedure _RawSetFlag(flag: WindowFlag; value: boolean);
 		function _GetFlag(flag: WindowFlag): boolean;
 		procedure _SetFlag(flag: WindowFlag; value: boolean);
-		procedure _SetCaptionBase(const value: string);
-		procedure _SetCaptionSuffix(const value: string);
-		procedure _UpdateCaption;
 		procedure _ForceVSync(value: boolean);
 		procedure _SetFullscreen(value, internal: boolean);
 		procedure HandleActivation(activated: boolean);
@@ -156,6 +188,7 @@ type
 		handle: {$ifdef Windows} Windows.HANDLE {$else} {$error Window.handle: ???} {$endif};
 		msaaSamples: sint;
 		glMajor, glMinor: uint;
+		caption: WindowCaption;
 
 		procedure Initialize;
 		procedure Finalize;
@@ -176,12 +209,6 @@ type
 
 		property SizeX: uint read _rect.size.data[0];
 		property SizeY: uint read _rect.size.data[1];
-
-		property CaptionBase: string read _captionBase write _SetCaptionBase;
-		property CaptionSuffix: string read _captionSuffix write _SetCaptionSuffix;
-		function SetCaptionNote(uid: uint; const text: string): uint;
-		function SetCaptionNote(text: string): uint;
-		procedure RemoveCaptionNote(uid: uint);
 
 		property ForwardGL: boolean index window_ForwardGL read _GetFlag write _SetFlag;
 	{$ifdef Debug} property DebugGL: boolean index window_DebugGL read _GetFlag write _SetFlag; {$endif}
@@ -234,6 +261,98 @@ uses
 	begin
 		result.pos := pos;
 		result.size := size;
+	end;
+
+	function WindowCaption.Cookie.Empty: Cookie;
+	begin
+		result.uid := 0;
+	end;
+
+	procedure WindowCaption.Invalidate;
+	begin
+		notes := nil;
+	end;
+
+	procedure WindowCaption.Init(onUpdate: UpdateProc; onLock: LockProc; param: pointer);
+	begin
+		self.onUpdate := onUpdate;
+		self.onLock := onLock;
+		self.param := param;
+	end;
+
+	procedure WindowCaption.Done;
+	begin
+		Assert(length(notes) = 0);
+	end;
+
+	procedure WindowCaption.SetNote(var c: Cookie; const text: string);
+	var
+		i: sint;
+	begin
+		if Assigned(onLock) then onLock(yes, param);
+		try
+			if c.uid = 0 then
+			begin
+				repeat inc(c.uid); until FindNote(c.uid, no) < 0;
+				i := length(notes);
+				SetLength(notes, i + 1);
+				notes[i].uid := c.uid;
+			end else
+				i := FindNote(c.uid, yes);
+			SetAndUpdate(notes[i].text, text, no);
+		finally
+			if Assigned(onLock) then onLock(no, param);
+		end;
+	end;
+
+	function WindowCaption.SetNote(const text: string): Cookie;
+	begin
+		result := Cookie.Empty;
+		SetNote(result, text);
+	end;
+
+	procedure WindowCaption.RemoveNote(var c: Cookie);
+	var
+		i: sint;
+	begin
+		if c.uid = 0 then exit;
+		if Assigned(onLock) then onLock(yes, param);
+		i := FindNote(c.uid, yes);
+		for i := i to High(notes) - 1 do
+			notes[i] := notes[i + 1];
+		SetLength(notes, length(notes) - 1);
+		if Assigned(onUpdate) then onUpdate(Join, param);
+		if Assigned(onLock) then onLock(no, param);
+		c.uid := 0;
+	end;
+
+	function WindowCaption.Join: string;
+	var
+		i: sint;
+	begin
+		result := Continued(_base, '   ', _suffix);
+		for i := 0 to High(notes) do
+			result := Continued(result, '   ', '[' + notes[i].text + ']');
+	end;
+
+	function WindowCaption.FindNote(uid: uint; throw: boolean): sint;
+	begin
+		result := Index(uid, pointer(pNoteDesc(notes)) + fieldoffset NoteDesc _ uid _, length(notes), sizeof(NoteDesc));
+		if (result < 0) and throw then raise Error('Часть заголовка окна не найдена.');
+	end;
+
+	procedure WindowCaption.SetBase(const value: string); begin SetAndUpdate(_base, value, yes); end;
+	procedure WindowCaption.SetSuffix(const value: string); begin SetAndUpdate(_suffix, value, yes); end;
+
+	procedure WindowCaption.SetAndUpdate(var part: string; const value: string; lock: boolean);
+	begin
+		if lock and Assigned(onLock) then onLock(yes, param);
+		if value <> part then
+		begin
+			part := value;
+			if Assigned(onUpdate) then onUpdate(Join, param);
+		end;
+		if lock and Assigned(onLock) then onLock(no, param);
 	end;
 
 	procedure Callback.MMove.Setup(const pos: UintVec2; silent: boolean);
@@ -1055,95 +1174,22 @@ type
 		Result := DefWindowProcW(wnd, msg, wparam, lparam);
 	end;
 
-	procedure Window._UpdateCaption;
+	procedure OnUpdateCaption(const cap: string; param: pointer);
 	var
-		i: sint;
+		TiCh: Comd.pTiCh;
 	begin
-		_caption := _captionBase;
-		if _captionSuffix <> '' then
+		if pWindow(param)^.handle <> 0 then
 		begin
-			if _caption <> '' then _caption += '   ';
-			_caption += _captionSuffix;
+			TiCh := Comd.pTiCh(pWindow(param)^.LockPut(Comd.Op.TiCh, sizeof(Comd.TiCh)));
+			System.Initialize(TiCh^);
+			TiCh^.title := cap;
+			pWindow(param)^.UnlockPut;
 		end;
-		for i := 0 to High(capNotes) do
-			_caption += '   [' + capNotes[i].text + ']';
-
-		if _caption <> _ldCaption then
-		begin
-			LockPut(Comd.Op.TiCh, sizeof(Comd.TiCh));
-			UnlockPut;
-		end;
-		_ldCaption := _caption;
 	end;
 
-	procedure Window._SetCaptionBase(const value: string);
+	procedure OnLockUnlockCaption(lock: boolean; param: pointer);
 	begin
-		_Lock;
-		if value <> _captionBase then
-		begin
-			_captionBase := value;
-			_UpdateCaption;
-		end;
-		_Unlock;
-	end;
-
-	procedure Window._SetCaptionSuffix(const value: string);
-	begin
-		_Lock;
-		if value <> _captionSuffix then
-		begin
-			_captionSuffix := value;
-			_UpdateCaption;
-		end;
-		_Unlock;
-	end;
-
-	function Window.SetCaptionNote(uid: uint; const text: string): uint;
-	var
-		id: sint;
-	begin
-		_Lock;
-		id := -1;
-		if uid > 0 then
-		begin
-			result := uid;
-			id := Index(uid, pointer(capNotes) + fieldoffset CaptionNote _ uid _, length(capNotes), sizeof(CaptionNote));
-			Assert(id >= 0, 'Caption note #' + ToString(uid) + ' not found');
-		end;
-
-		if id < 0 then
-		begin
-			id := length(capNotes);
-			SetLength(capNotes, id + 1);
-			result := _nextCapNoteUid;
-			capNotes[id].uid := result;
-			if _nextCapNoteUid < High(_nextCapNoteUid) then inc(_nextCapNoteUid) else _nextCapNoteUid := 1;
-		end;
-		if capNotes[id].text <> text then
-		begin
-			capNotes[id].text := text;
-			_UpdateCaption;
-		end;
-		_Unlock;
-	end;
-
-	function Window.SetCaptionNote(text: string): uint;
-	begin
-		result := SetCaptionNote(0, text);
-	end;
-
-	procedure Window.RemoveCaptionNote(uid: uint);
-	var
-		i: sint;
-	begin
-		_Lock;
-		i := Index(uid, pointer(capNotes) + fieldoffset CaptionNote _ uid _, length(capNotes), sizeof(CaptionNote));
-		Assert(i >= 0, 'Caption note #' + ToString(uid) + ' not found');
-		for i := i to High(capNotes) - 1 do
-			capNotes[i] := capNotes[i + 1];
-		SetLength(capNotes, length(capNotes) - 1);
-		_UpdateCaption;
-		_Unlock;
+		if lock then pWindow(param)^._Lock else pWindow(param)^._Unlock;
 	end;
 
 	procedure Window.Initialize;
@@ -1160,14 +1206,9 @@ type
 		immediateLock.Init;
 		cmdFinished.Init;
 		_callbacks.Init;
-		_nextCapNoteUid := 1;
-		capNotes := nil;
+		caption.Init(@OnUpdateCaption, @OnLockUnlockCaption, @self);
 		_inputEnabled := 0;
-
-		_caption := '';
-		_ldCaption := '';
-		_captionBase := '%% :3 %%';
-		_captionSuffix := '';
+		caption.base := '%% :3 %%';
 
 		msaaSamples := 0;
 		glMajor := gl.REC_MAJOR_VERSION;
@@ -1201,6 +1242,7 @@ type
 			dispose(pGamepadInternal(_gamepads[i]));
 		end;
 		_gamepads := nil;
+		caption.Done;
 		_callbacks.Done;
 		immediateLock.Done;
 		cmdFinished.Done;
@@ -1386,7 +1428,6 @@ type
 		if not _CreateWindow then goto _finally_;
 		if largeIcon <> 0 then SetClassLongW(handle, GCL_HICON, largeIcon);
 		if smallIcon <> 0 then SetClassLongW(handle, GCL_HICONSM, smallIcon);
-		_UpdateCaption;
 
 		if _CreateGLContext then
 		begin
@@ -1607,7 +1648,8 @@ type
 				begin
 					CommandSize(sizeof(Comd.TiCh));
 					_Lock;
-					SetWindowTextW(handle, pWideChar(UTF8Decode(_caption)));
+					SetWindowTextW(handle, pWideChar(UTF8Decode(Comd.pTiCh(cmd)^.title)));
+					System.Finalize(Comd.pTiCh(cmd)^);
 					_Unlock;
 				end;
 			Comd.Op.SetFullscreen:
@@ -1737,7 +1779,7 @@ type
 		result := no;
 		_style := WS_SYSMENU or WS_CAPTION or WS_SIZEBOX or WS_CLIPCHILDREN or WS_CLIPSIBLINGS;
 		screenRect := ClientRectToScreenRect(_rect);
-		handle := CreateWindowW(pWideChar(classNameW), pWideChar(UTF8Decode(_caption)), _style,
+		handle := CreateWindowW(pWideChar(classNameW), pWideChar(UTF8Decode(caption.Join)), _style,
 		                        screenRect.pos.x, screenRect.pos.y, screenRect.size.x, screenRect.size.y, 0, 0, 0, nil);
 		if handle = 0 then
 		begin

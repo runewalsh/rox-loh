@@ -36,12 +36,18 @@ type
 		DeleteTextures: procedure(n: sizei; textures: puint); stdcall;
 		BindTexture: procedure(target: enum; texture: uint); stdcall;
 		TexImage2D: procedure(target: enum; level: int; internalformat: int; width: sizei; height: sizei; border: int; format: enum; &type: enum; data: pointer); stdcall;
+		TexImage3D: procedure(target: enum; level: int; internalformat: int; width: sizei; height: sizei; depth: sizei; border: int; format: enum; type_: enum; pixels: pointer); stdcall;
+		CompressedTexImage2D: procedure(target: enum; level: int; internalformat: enum; width: sizei; height: sizei; border: int; imageSize: sizei; data: pointer); stdcall;
+		CompressedTexImage3D: procedure(target: enum; level: int; internalformat: enum; width: sizei; height: sizei; depth: sizei; border: int; imageSize: sizei; data: pointer); stdcall;
 		TexParameteri: procedure(target, pname: enum; param: int); stdcall;
+		TexParameterf: procedure(target, pname: enum; param: float); stdcall;
 
 		Viewport: procedure(x: int; y: int; width: sizei; height: sizei); stdcall;
 		ClearColor: procedure(red: clampf; green: clampf; blue: clampf; alpha: clampf); stdcall;
 		Clear: procedure(mask: bitfield); stdcall;
 		BlendFunc: procedure(sfactor, dfactor: enum); stdcall;
+		DepthFunc: procedure(func: enum); stdcall;
+		DepthMask: procedure(flag: boolean); stdcall;
 
 		DrawArrays: procedure(mode: enum; first: int; count: sizei); stdcall;
 		DrawElements: procedure(mode: enum; count: sizei; type_: enum; indices: pointer); stdcall;
@@ -52,6 +58,9 @@ type
 		BufferSubData: procedure(target: enum; offset: intptr; size: sizeiptr; data: pointer); stdcall;
 
 	const
+		TRUE = 1;
+		FALSE = 0;
+
 		NO_ERROR          = 0;
 		INVALID_ENUM      = $0500;
 		INVALID_VALUE     = $0501;
@@ -71,6 +80,9 @@ type
 		SRC_ALPHA = $0302;
 		ONE_MINUS_SRC_ALPHA = $0303;
 
+		LESS = $0201;
+		LEQUAL = $0203;
+
 		UNSIGNED_BYTE  = $1401;
 		SIGNED_SHORT   = $1402;
 		UNSIGNED_SHORT = $1403;
@@ -81,15 +93,18 @@ type
 
 		TEXTURE0 = $84C0;
 		TEXTURE_2D = $0DE1;
+		TEXTURE_3D = $806F;
 		TEXTURE_MAG_FILTER = $2800;
 		TEXTURE_MIN_FILTER = $2801;
 		TEXTURE_WRAP_S     = $2802;
 		TEXTURE_WRAP_T     = $2803;
+		TEXTURE_WRAP_R     = $8072;
 		NEAREST = $2600;
 		LINEAR = $2601;
 		LINEAR_MIPMAP_LINEAR = $2703;
 		&REPEAT = $2901;
 		CLAMP_TO_EDGE = $812F;
+		TEXTURE_LOD_BIAS = $8501;
 
 		RGB            = $1907;
 		RGBA           = $1908;
@@ -123,6 +138,14 @@ type
 			TexCoordPointer: procedure(size: int; &type: enum; stride: sizei; data: pointer); stdcall;
 			ColorPointer: procedure(size: int; &type: enum; stride: sizei; data: pointer); stdcall;
 			TexEnvi: procedure(target, pname: enum; param: int); stdcall;
+			Color4f: procedure(r, g, b, a: float); stdcall;
+		end;
+
+		DXT = class
+		const
+			RGB_S3TC_DXT1  = $83F0;
+			RGBA_S3TC_DXT1 = $83F1;
+			RGBA_S3TC_DXT5 = $83F3;
 		end;
 
 		class function InlineErrorDescription(err: enum): string;
@@ -182,12 +205,18 @@ implementation
 		.Func(@gl.DeleteTextures, 'DeleteTextures')^
 		.Func(@gl.BindTexture, 'BindTexture')^
 		.Func(@gl.TexImage2D, 'TexImage2D')^
+		.Func(@gl.TexImage3D, 'TexImage3D')^
+		.Func(@gl.CompressedTexImage2D, 'CompressedTexImage2D')^
+		.Func(@gl.CompressedTexImage3D, 'CompressedTexImage3D')^
 		.Func(@gl.TexParameteri, 'TexParameteri')^
+		.Func(@gl.TexParameterf, 'TexParameterf')^
 
 		.Func(@gl.Viewport, 'Viewport')^
 		.Func(@gl.ClearColor, 'ClearColor')^
 		.Func(@gl.Clear, 'Clear')^
 		.Func(@gl.BlendFunc, 'BlendFunc')^
+		.Func(@gl.DepthFunc, 'DepthFunc')^
+		.Func(@gl.DepthMask, 'DepthMask')^
 
 		.Func(@gl.DrawArrays, 'DrawArrays')^
 		.Func(@gl.DrawElements, 'DrawElements')^
@@ -202,7 +231,8 @@ implementation
 		.Func(@gl.L.VertexPointer, 'VertexPointer')^
 		.Func(@gl.L.TexCoordPointer, 'TexCoordPointer')^
 		.Func(@gl.L.ColorPointer, 'ColorPointer')^
-		.Func(@gl.L.TexEnvi, 'TexEnvi');
+		.Func(@gl.L.TexEnvi, 'TexEnvi')^
+		.Func(@gl.L.Color4f, 'Color4f');
 	end;
 
 	procedure Init;

@@ -1052,7 +1052,7 @@ var
 	constructor RigidPrimitive.InitBox(sx, sy, sz: float; const newTransform: Transform; partOfCompound: boolean);
 	begin
 		Init(rigid_Box);
-		_newt := Newton.CreateBox(TempWorld, sx, sy, sz, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateBox(TempWorld, sx, sy, sz, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 	end;
@@ -1065,7 +1065,7 @@ var
 	constructor RigidPrimitive.InitSphere(rx, ry, rz: float; const newTransform: Transform; partOfCompound: boolean);
 	begin
 		Init(rigid_Sphere);
-		_newt := Newton.CreateSphere(TempWorld, rx, ry, rz, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateSphere(TempWorld, rx, ry, rz, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 	end;
@@ -1083,7 +1083,7 @@ var
 	constructor RigidPrimitive.InitCapsule(newRadius, newHeight: float; const newTransform: Transform; partOfCompound: boolean);
 	begin
 		Init(rigid_Capsule);
-		_newt := Newton.CreateCapsule(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateCapsule(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 	end;
@@ -1091,7 +1091,7 @@ var
 	constructor RigidPrimitive.InitCone(const newRadius, newHeight: float; const newTransform: Transform; partOfCompound: boolean);
 	begin
 		Init(rigid_Cone);
-		_newt := Newton.CreateCone(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateCone(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 	end;
@@ -1099,7 +1099,7 @@ var
 	constructor RigidPrimitive.InitCylinder(newRadius, newHeight: float; const newTransform: Transform; partOfCompound: boolean);
 	begin
 		Init(rigid_Cylinder);
-		_newt := Newton.CreateCylinder(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateCylinder(TempWorld, newRadius, newHeight, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 	end;
@@ -1141,7 +1141,7 @@ var
 		ncloud := GetMem(length(newCloud) * sizeof(Newton.Vec3));
 		for i := 0 to High(newCloud) do
 			ncloud[i] := newCloud[i];
-		_newt := Newton.CreateConvexHull(TempWorld, length(newCloud), Newton.pFloat(ncloud), sizeof(Newton.Vec3), 0.03, 0, newTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateConvexHull(TempWorld, length(newCloud), Newton.pFloat(ncloud), sizeof(Newton.Vec3), 0.03, 0, newTransform.ToMatrixWoScale);
 		if not partOfCompound then _MakeUnique;
 		CalculateMassProperties;
 		FreeMem(ncloud);
@@ -2048,7 +2048,7 @@ var
 	procedure RigidBody._CreateNewt;
 	begin
 		if Assigned(_newt) then exit;
-		_newt := Newton.CreateBody(_world^._newt, _primitive^._newt, globalTransform.ToMatrix_NoScale);
+		_newt := Newton.CreateBody(_world^._newt, _primitive^._newt, globalTransform.ToMatrixWoScale);
 		Newton.BodySetUserData(_newt, @self);
 		case _kind of
 			rigid_DynamicBody:
@@ -2376,7 +2376,7 @@ var
 	begin
 		inherited _OnApplyTransform;
 		if Assigned(_newt) then
-			Newton.BodySetMatrix(_newt, globalTransform.ToMatrix_NoScale);
+			Newton.BodySetMatrix(_newt, globalTransform.ToMatrixWoScale);
 	end;
 
 	procedure tPhysJoint._CreateNewt;

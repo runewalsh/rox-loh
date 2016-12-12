@@ -205,13 +205,16 @@ type
 		procedure Done;
 		procedure Process(var cam: Camera);
 		function AddTheme(const name: PoolString): ThemeProxy;
-		function CurrentTrack(out name: string; out time, total: float): boolean;
+		function CurrentTrack(name: pString; time, total: pFloat): boolean;
 		procedure Switch;
 		procedure Rewind(const delta: float);
-		function Priority(const theme: PoolString): pModifiableValue;
+		function Priority(const theme: PoolString; throw: boolean = yes): pModifiableValue;
 		function ActiveTheme: PoolString;
 		procedure Save(stream: pStream);
 		procedure Restore(stream: pStream);
+		function Amplitude: float;
+		procedure Spectre(n: uint; freqs: pFloat; ranges: pFloat; amps: pFloat);
+		procedure ResetTheme(const name: PoolString);
 
 	const
 		MasterVolume = 0.5;
@@ -1399,15 +1402,15 @@ const
 		result.th := @themes[id];
 	end;
 
-	function MusicPlayer.CurrentTrack(out name: string; out time, total: float): boolean;
+	function MusicPlayer.CurrentTrack(name: pString; time, total: pFloat): boolean;
 	begin
 		Lock(yes);
 		result := playingItem >= 0;
 		if result then
 		begin
-			name := themes[playingTheme].items[playingItem]^.name;
-			time := playing^.Position;
-			total := playing^.Duration;
+			if Assigned(name) then name^ := themes[playingTheme].items[playingItem]^.name;
+			if Assigned(time) then time^ := playing^.Position;
+			if Assigned(total) then total^ := playing^.Duration;
 		end;
 		Unlock(yes);
 	end;
@@ -1439,9 +1442,12 @@ const
 		Unlock(yes);
 	end;
 
-	function MusicPlayer.Priority(const theme: PoolString): pModifiableValue;
+	function MusicPlayer.Priority(const theme: PoolString; throw: boolean = yes): pModifiableValue;
+	var
+		id: sint;
 	begin
-		result := @themes[FindTheme(theme, yes)].priority;
+		id := FindTheme(theme, throw);
+		if id >= 0 then result := @themes[FindTheme(theme, yes)].priority else result := nil;
 	end;
 
 	function MusicPlayer.ActiveTheme: PoolString;
@@ -1569,6 +1575,34 @@ const
 			playingTheme := -1; // хак, чтобы UpdateTheme дёрнула SwitchTheme
 			UpdateTheme(no);
 		{$ifdef Debug} Log('Состояние плеера после слияния с загруженным:' + EOL + Dump, logDebug); {$endif}
+			Unlock(yes);
+		end;
+	end;
+
+	function MusicPlayer.Amplitude: float;
+	begin
+		Lock(yes);
+		if Assigned(playing) then result := playing^.Amplitude else result := 0;
+		Unlock(yes);
+	end;
+
+	procedure MusicPlayer.Spectre(n: uint; freqs: pFloat; ranges: pFloat; amps: pFloat);
+	begin
+		Lock(yes);
+		if Assigned(playing) then playing^.Spectre(n, freqs, ranges, amps) else Zero(amps, n * sizeof(float));
+		Unlock(yes);
+	end;
+
+	procedure MusicPlayer.ResetTheme(const name: PoolString);
+	var
+		i, id: sint;
+	begin
+		id := FindTheme(name, no);
+		if id >= 0 then
+		begin
+			Lock(yes);
+			for i := 0 to High(themes[id].items) do
+				themes[id].items[i]^.savedPosition := -1;
 			Unlock(yes);
 		end;
 	end;

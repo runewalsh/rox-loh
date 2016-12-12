@@ -550,7 +550,7 @@ var
 implementation
 
 uses
-	GLUtils, MMSystem, Script_EngineAPI
+	GLUtils, MMSystem, Script_EngineAPI, Windowing
 {$ifdef use_serialization}, Serialization {$endif}
 {$ifdef Profile}, Profile {$endif};
 
@@ -1005,7 +1005,7 @@ type
 		bufs: array of pGLBuffer;
 		ver: BinaryShaderVersionInfo;
 	{$ifdef Debug} j, k, nComponents: sint; {$endif}
-		capNote: uint;
+		capNote: WindowCaption.Cookie;
 	begin
 	trace_call('SingleShaderProgram.Init');
 		inherited Init;
@@ -1028,9 +1028,9 @@ type
 		fn := '';
 
 		if ResourcePool.Shared^.Loaded(theParent, @fn) then
-			capNote := mm.window.SetCaptionNote('загрузка шейдера ' + StreamPath.Human(fn) + ', флаги ' + params.Human)
+			capNote := mm.window.caption.SetNote('загрузка шейдера ' + StreamPath.Human(fn) + ', флаги ' + params.Human)
 		else
-			capNote := 0;
+			capNote := WindowCaption.Cookie.Empty;
 
 		if gl.BinaryShadersSupported and ResourcePool.Shared^.Loaded(theParent, @fn) then
 		begin
@@ -1072,7 +1072,7 @@ type
 			_inGL := gl.CreateProgram(gname, sh, info);
 		end;
 
-		if capNote <> 0 then mm.window.RemoveCaptionNote(capNote);
+		mm.window.caption.RemoveNote(capNote);
 
 		if not Assigned(_inGL) then ConstructorFailed;
 

@@ -860,6 +860,7 @@ type
 	function DenormU8(x: GLfloat): uint8;   function NormU8(x: uint8): GLfloat;
 	procedure Convert(inp: pointer; in_type: GLType; outp: pointer; out_type: GLType; count: sint = 1);
 	function GetTextureDataSize(const size: UintVec2; format: GLImageFormat): size_t;
+	function GetTextureDataSize(const size: UintVec3; format: GLImageFormat): size_t;
 	function GetTextureDataSize(w, h: uint; format: GLImageFormat): size_t;
 	function GetTextureDataSize(w, h, d: uint; format: GLImageFormat): size_t;
 	function UniformComponents(ty: GLType): sint;
@@ -2433,6 +2434,11 @@ const
 				GLformat_RGBA_DXT5: result := 16 * max(1, (size.x+3) div 4) * max(1, (size.y+3) div 4);
 				else raise Error('Для {0} не реализован расчёт размера.', GLImageFormatIds[format]);
 			end;
+	end;
+
+	function GetTextureDataSize(const size: UintVec3; format: GLImageFormat): size_t;
+	begin
+		result := GetTextureDataSize(size.xy, format) * size.z;
 	end;
 
 	function GetTextureDataSize(w, h: uint; format: GLImageFormat): size_t;

@@ -138,10 +138,7 @@ const
 			dataSize := 0;
 			loderesult := lodepng.encode_memory(result, lodesize, prepared, size.x, size.y, lodetype, lodebits, Settings[qs], Allocator);
 			if loderesult <> 0 then
-			begin
-				FreeMem(result);
 				raise Error('Ошибка LodePNG, код {0}.', [loderesult]);
-			end;
 			dataSize := lodesize;
 		finally
 			if prepared <> data then FreeMem(prepared);

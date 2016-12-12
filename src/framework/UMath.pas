@@ -217,6 +217,7 @@ type
 {$ifdef unsigned} operator +(const v: vec; const d: int_vec): vec; {$endif}
 {$endif}} all_integer_vectors
 
+	function Rotate(const v: Vec2; const angle: float): Vec2;
 	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
 
 type
@@ -273,7 +274,7 @@ type
 
 		function Rows(const x0, x1, x2, x3, x4, x5, x6, x7, x8: float): Matrix3; static; cinline
 		function Columns(const a, b, c: Vec3): Matrix3; static; cinline
-		function Rotation(const ane: float; const v: Vec3): Matrix3;
+		function RotationN(const ane: float; const v: Vec3): Matrix3;
 
 		property m: MatrixData read data.m write data.m;
 		property l: LinearData read data.l write data.l;
@@ -359,7 +360,7 @@ type
 		scale: float;
 		function FromMatrix(const mat: Matrix4): Transform; static;
 		function ToMatrix: Matrix4;
-		function ToMatrix_NoScale: Matrix4;
+		function ToMatrixWoScale: Matrix4;
 		function Inversed: Transform;
 	const
 		Identity: Transform =
@@ -381,6 +382,24 @@ type
 	operator =(const a, b: Transform): boolean;
 	operator *(const a, b: Transform): Transform;
 	operator *(const t: Transform; const v: Vec3): Vec3;
+
+type
+	Transform2 = object
+		trans: Vec2;
+		rot, scale: float;
+	const
+		Identity: Transform2 = (trans: (data: (0, 0)); rot: 0; scale: 1);
+	end;
+	operator =(const a, b: Transform2): boolean;
+	operator *(const a, b: Transform2): Transform2;
+	operator *(const t: Transform2; const v: Vec2): Vec2;
+
+	function Translate2(const trans: Vec2): Transform2;
+	function Translate2(const x, y: float): Transform2;
+	function Rotate2(const rot: float): Transform2;
+	function Scale2(const scale: float): Transform2;
+	function TranslateRotate2(const trans: Vec2; const rot: float): Transform2;
+	function RotateTranslate2(const rot: float; const trans: Vec2): Transform2;
 
 type
 	pPlane = ^Plane;
@@ -538,7 +557,8 @@ type
 		end;
 		function Subdivide(const divisor: Rect): Subdivision;
 	const
-		OrthoIdentity: Rect = (A: (data: (-1, -1)); B: (data: (-1, -1)));
+		OrthoIdentity: Rect = (A: (data: (-1, -1)); B: (data: (1, 1)));
+		Zero: Rect = (A: (data: (0, 0)); B: (data: (0, 0)));
 	end;
 
 	operator =(const a, b: Rect): boolean;
@@ -1129,6 +1149,16 @@ end_unchecked
 {$ifdef unsigned} operator +(const v: vec; const d: int_vec): vec; {$define op := base_type(base_type_signed(v.item) + d.item)} vec_compo_op {$endif}
 {$endif}} all_integer_vectors
 
+	function Rotate(const v: Vec2; const angle: float): Vec2;
+	var
+		cosa, sina: float;
+	begin
+		cosa := cos(angle);
+		sina := sin(angle);
+		result.x := v.x*cosa - v.y*sina;
+		result.y := v.x*sina + v.y*cosa;
+	end;
+
 	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
 	var
 		rx, ry: uint;
@@ -1328,9 +1358,10 @@ end_unchecked
 		Vec3.LinearData(result.data.m[2]) := c.data;
 	end;
 
-	function Matrix3.Rotation(const ane: float; const v: Vec3): Matrix3;
+	function Matrix3.RotationN(const ane: float; const v: Vec3): Matrix3;
 	begin
-		result := Quaternion.Rotation(ane, v.Normalized).ToMatrix3;
+		Assert(v.IsIdentity, ToString(v));
+		result := Quaternion.Rotation(ane, v).ToMatrix3;
 	end;
 
 	function Mat3(const m4: Matrix4): Matrix3;
@@ -1749,7 +1780,7 @@ end_unchecked
 			result := result * Matrix4.Scaling(scale, scale, scale);
 	end;
 
-	function Transform.ToMatrix_NoScale: Matrix4;
+	function Transform.ToMatrixWoScale: Matrix4;
 	begin
 		result := Matrix4.Translation(tr) * rot.ToMatrix;
 	end;
@@ -1819,8 +1850,8 @@ end_unchecked
 
 	operator *(const a, b: Transform): Transform;
 	begin // result := ByMatrix(a.ToMatrix * b.ToMatrix);
-		result.rot := a.rot * b.rot;
 		result.tr := a * b.tr;
+		result.rot := a.rot * b.rot;
 		result.scale := a.scale * b.scale;
 	end;
 
@@ -1830,6 +1861,63 @@ end_unchecked
 			result := t.tr + t.rot * v
 		else
 			result := t.tr + t.rot * v * t.scale;
+	end;
+
+	operator =(const a, b: Transform2): boolean;
+	begin
+		result := (a.trans = b.trans) and (a.rot = b.rot) and (a.scale = b.scale);
+	end;
+
+	operator *(const a, b: Transform2): Transform2;
+	begin
+		result.trans := a * b.trans;
+		result.rot := a.rot + b.rot;
+		result.scale := a.scale * b.scale;
+	end;
+
+	operator *(const t: Transform2; const v: Vec2): Vec2;
+	begin
+		if t.scale = 1 then
+			result := t.trans + Rotate(v, t.rot)
+		else
+			result := t.trans + Rotate(v, t.rot) * t.scale;
+	end;
+
+	function Translate2(const trans: Vec2): Transform2;
+	begin
+		result.trans := trans;
+		result.rot := 0;
+		result.scale := 1;
+	end;
+
+	function Translate2(const x, y: float): Transform2; begin result := Translate2(Vec2.Make(x, y)); end;
+
+	function Rotate2(const rot: float): Transform2;
+	begin
+		result.trans := Vec2.Zero;
+		result.rot := rot;
+		result.scale := 1;
+	end;
+
+	function Scale2(const scale: float): Transform2;
+	begin
+		result.trans := Vec2.Zero;
+		result.rot := 0;
+		result.scale := scale;
+	end;
+
+	function TranslateRotate2(const trans: Vec2; const rot: float): Transform2;
+	begin
+		result.trans := trans;
+		result.rot := rot;
+		result.scale := 1;
+	end;
+
+	function RotateTranslate2(const rot: float; const trans: Vec2): Transform2;
+	begin
+		result.trans := UMath.Rotate(trans, rot);
+		result.rot := rot;
+		result.scale := 1;
 	end;
 
 	function Plane.Make(const p1, p2, p3: Vec3): Plane;

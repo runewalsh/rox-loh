@@ -7,6 +7,8 @@ interface
 uses
 	USystem, Streams, UClasses, UMath, DynamicLoader, U_GL, GLBase, Utils, DXT, DDS {$ifdef Debug}, ULog {$endif};
 
+	function CrunchPath: string;
+
 implementation
 
 uses
@@ -14,7 +16,7 @@ uses
 
 	function CrunchPath: string;
 	begin
-		result := Paths.MiscLibs + 'crunch.exe';
+		result := {Paths.MiscLibs + 'crunch.exe'}'C:/dev/codec/crunch.exe';
 	end;
 
 type
