@@ -148,6 +148,7 @@ const
 				finally
 					src.Done;
 				end;
+
 				if im.info.GetLevelDimension(lv, 2) > 1 then
 				begin
 					src.Init(f, 'png', ReadPngSize(f));

@@ -122,7 +122,7 @@ implementation
 
 			Idle: ;
 
-			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pAdventure, Init));
+			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pAdventure, Init(nil)));
 		end;
 		if state > Prepare then bgTime := modf(bgTime + dt, PrettyTimeCycle);
 		stateTime += dt;

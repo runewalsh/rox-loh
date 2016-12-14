@@ -3,7 +3,7 @@
 program rox;
 
 uses
-{$ifdef Debug} heaptrc, {$endif} USystem, Utils, UMath, UClasses, GLUtils, Windowing,
+	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl,
 	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure;
 
@@ -71,7 +71,7 @@ begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
-	minFrameTime := Ticks.FromSeconds(1/100);
+	minFrameTime := Ticks.FromSeconds(0/100);
 	ParseCommandLine;
 
 	try
@@ -93,7 +93,7 @@ begin
 			ResetCumTime;
 			lastDt := 0.0;
 
-			window.state.Switch(new(pAdventure, Init));
+			window.state.Switch(new(pAdventure, Init(nil){pMainMenu, Init}));
 			repeat
 				if not window.Process(lastDt) then break;
 				if window.WasDeactivatedDuringLastProcess then ResetCumTime;

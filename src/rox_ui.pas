@@ -133,14 +133,21 @@ uses
 		self.tex := tex;
 		local := Transform2.Identity;
 		size := 1.0;
-		SetLength(self.states, length(states));
-		for i := 0 to High(self.states) do
+		if length(states) = 0 then
 		begin
-			self.states[i] := states[i];
-			self.states[i].ap.Fix(tex^.size.Aspect);
+			SetLength(self.states, 1);
+			self.states[0] := ControlState.Make('default', Rect.ZeroOnes);
+		end else
+		begin
+			SetLength(self.states, length(states));
+			for i := 0 to High(self.states) do
+			begin
+				self.states[i] := states[i];
+				self.states[i].ap.Fix(tex^.size.Aspect);
+			end;
 		end;
+
 		state := 0;
-		if length(states) = 0 then raise Error('У контрола нет состояний.');
 		sizeMethod := asp2_x1;
 		color := Vec4.Ones;
 		rawSize := Vec2.Ones;

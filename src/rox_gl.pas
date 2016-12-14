@@ -39,7 +39,9 @@ type
 		TexImage3D: procedure(target: enum; level: int; internalformat: int; width: sizei; height: sizei; depth: sizei; border: int; format: enum; type_: enum; pixels: pointer); stdcall;
 		CompressedTexImage2D: procedure(target: enum; level: int; internalformat: enum; width: sizei; height: sizei; border: int; imageSize: sizei; data: pointer); stdcall;
 		CompressedTexImage3D: procedure(target: enum; level: int; internalformat: enum; width: sizei; height: sizei; depth: sizei; border: int; imageSize: sizei; data: pointer); stdcall;
+		TexSubImage2D: procedure(target: enum; level: int; xoffset, yoffset: int; width, height: sizei; format, type_: enum; pixels: pointer); stdcall;
 		TexParameteri: procedure(target, pname: enum; param: int); stdcall;
+		TexParameteriv: procedure(target, pname: enum; param: pInt); stdcall;
 		TexParameterf: procedure(target, pname: enum; param: float); stdcall;
 
 		Viewport: procedure(x: int; y: int; width: sizei; height: sizei); stdcall;
@@ -208,7 +210,9 @@ implementation
 		.Func(@gl.TexImage3D, 'TexImage3D')^
 		.Func(@gl.CompressedTexImage2D, 'CompressedTexImage2D')^
 		.Func(@gl.CompressedTexImage3D, 'CompressedTexImage3D')^
+		.Func(@gl.TexSubImage2D, 'TexSubImage2D')^
 		.Func(@gl.TexParameteri, 'TexParameteri')^
+		.Func(@gl.TexParameteriv, 'TexParameteriv')^
 		.Func(@gl.TexParameterf, 'TexParameterf')^
 
 		.Func(@gl.Viewport, 'Viewport')^

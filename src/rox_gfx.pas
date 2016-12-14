@@ -24,6 +24,13 @@ type
 		function Load(s: pStream): pTexture; static;
 	end;
 
+	pImageResource = ^ImageResource;
+	ImageResource = object(&Object)
+		im: TextureImage;
+		constructor Init(s: pStream);
+		destructor Done; virtual;
+	end;
+
 type
 	Quad = object
 	type
@@ -83,6 +90,8 @@ type
 
 	procedure GLGraveyard.Add(kind: ItemKind; handle: gl.uint);
 	begin
+		Assert(Assigned(window), 'Ресурс, зависимый от GL-контекста, пережил уничтожение окна.');
+
 		if (handle = 0) or (Thread.Current = window^.GLContextOwner) then
 			DisposeOf(kind, handle)
 		else
@@ -215,6 +224,18 @@ var
 		result^.ap := AspectPair.Make(result^.size);
 	end;
 
+	constructor ImageResource.Init(s: pStream);
+	begin
+		inherited Init;
+		im.Init(s);
+	end;
+
+	destructor ImageResource.Done;
+	begin
+		im.Done;
+		inherited Done;
+	end;
+
 	procedure Quad.DrawPlain(tex: pTexture; const pos, size, texPos, texSize: Vec2);
 	var
 		q: Quad;
@@ -324,25 +345,29 @@ var
 		end;
 	end;
 
-	function LoadTexture(s: pStream): pObject;
-	begin
-		result := Texture.Load(s);
-	end;
+	function LoadTexture(s: pStream): pObject; begin result := Texture.Load(s); end;
+	function LoadImageResource(s: pStream): pObject; begin result := new(pImageResource, Init(s)); end;
 
 	procedure InitGL(win: pointer {pWindow});
 	begin
 		if Assigned(window) then raise Error('InitGL уже вызвана.');
 		pWindow(win)^.Verify;
 		window := win;
-		ResourcePool.Shared^.Register(TypeOf(Texture), @LoadTexture)^.Tag(GLResourceTag);
+
+		ResourcePool.Shared^
+		.Register(TypeOf(Texture), @LoadTexture)^.Tag(GLResourceTag)^
+		.Register(TypeOf(ImageResource), @LoadImageResource);
+
 		glTrash.Init;
 	end;
 
 	procedure DoneGL;
 	begin
+		if not Assigned(window) then raise Error('InitGL не вызвана.');
 		ResourcePool.Shared^.Deactivate(GLResourceTag);
 		CleanupGLGraveyard;
 		glTrash.Done;
+		window := nil;
 	end;
 
 	procedure CleanupGLGraveyard;

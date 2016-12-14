@@ -114,6 +114,16 @@ const
 		try
 			for tryId := 0 to 1 do
 				case preparedFormat of
+					GLformat_R:
+						begin
+							lodetype := lodepng.CT_GREY;
+							lodebits := 8;
+						end;
+					GLformat_RG:
+						begin
+							lodetype := lodepng.CT_GREY_ALPHA;
+							lodebits := 8;
+						end;
 					GLformat_RGB:
 						begin
 							lodetype := lodepng.CT_RGB;
@@ -273,7 +283,15 @@ const
 					lodePngColorType := lodepng.CT_RGB;
 				end
 			else
-				raise Error('Неподдерживаемый формат цветового пространства, код IHDR — {0}.', ToString(ihdr^.colorType));
+				if (ALPHA_BIT and ihdr^.colorType <> 0) then
+				begin
+					targetFormat := GLformat_RG;
+					lodePngColorType := lodepng.CT_GREY_ALPHA;
+				end else
+				begin
+					targetFormat := GLformat_R;
+					lodePngColorType := lodepng.CT_GREY;
+				end;
 
 			im.Prepare(GLtexture_2D, UintVec2.Make(ihdrWidth, ihdrHeight), targetFormat, [texture_ManualImgs]);
 			if lodepng.decode_memory(decoded, realWidth, realHeight, png^.data, size, lodePngColorType, bitsizeof(uint8), Allocator) <> 0 then

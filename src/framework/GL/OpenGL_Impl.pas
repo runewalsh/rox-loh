@@ -2209,6 +2209,7 @@ type
 		SwizzleEnums: array[GLTextureSwizzleChannel] of gl.enum = (gl.RED, gl.GREEN, gl.BLUE, gl.ALPHA, gl.ZERO, gl.ONE);
 	var
 		i: sint;
+		swizzle: array[0 .. 3] of gl.int;
 	begin
 		_glBindTexture(0, tex.target, tex.id);
 
@@ -2229,8 +2230,10 @@ type
 		if GLtexparam_Aniso in paramFields then
 			gl.TexParameterf(GLTextureTargetEnums[tex.target], gl.TEXTURE_MAX_ANISOTROPY, Clamp(params.anisotropy, 1.0, maxTextureAnisotropy));
 		if GLtexparam_Swizzle in paramFields then
-			for i := 0 to 3 do
-				gl.TexParameteri(GLTextureTargetEnums[tex.target], gl.TEXTURE_SWIZZLE_R + i, SwizzleEnums[params.swizzle[i]]);
+		begin
+			for i := 0 to 3 do swizzle[i] := SwizzleEnums[params.swizzle[i]];
+			gl.TexParameteriv(GLTextureTargetEnums[tex.target], gl.TEXTURE_SWIZZLE_RGBA, @swizzle[0]);
+		end;
 		paranoia('SetTextureParams');
 	end;
 

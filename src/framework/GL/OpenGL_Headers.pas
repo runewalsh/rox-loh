@@ -283,7 +283,7 @@ type
 		TexParameterf: procedure(target: enum; pname: enum; param: float); stdcall;
 		// TexParameterfv: procedure(target: enum; pname: enum; params: pFloat); stdcall;
 		TexParameteri: procedure(target: enum; pname: enum; param: int); stdcall;
-		// TexParameteriv: procedure(target: enum; pname: enum; params: pInt); stdcall;
+		TexParameteriv: procedure(target: enum; pname: enum; params: pInt); stdcall;
 		// TexImage1D: procedure(target: enum; level: int; internalformat: int; width: sizei; border: int; format: enum; type_: enum; pixels: pointer); stdcall;
 		TexImage2D: procedure(target: enum; level: int; internalformat: int; width: sizei; height: sizei; border: int; format: enum; type_: enum; pixels: pointer); stdcall;
 		// DrawBuffer: procedure(mode: enum); stdcall;
@@ -1685,6 +1685,7 @@ var
 		.Func(@gl.PolygonMode,                'PolygonMode')^
 		.Func(@gl.TexParameterf,              'TexParameterf')^
 		.Func(@gl.TexParameteri,              'TexParameteri')^
+		.Func(@gl.TexParameteriv,             'TexParameteriv')^
 		.Func(@gl.TexImage2D,                 'TexImage2D')^
 		.Func(@gl.Clear,                      'Clear')^
 		.Func(@gl.ClearColor,                 'ClearColor')^

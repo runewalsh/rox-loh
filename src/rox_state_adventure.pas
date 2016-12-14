@@ -4,15 +4,17 @@ unit rox_state_adventure;
 interface
 
 uses
-	USystem, Errors, UMath, UClasses, Utils, rox_state, rox_gl, rox_ui, rox_actor;
+	USystem, Errors, UMath, UClasses, Utils, rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_decoration;
 
 type
 	pAdventure = ^Adventure;
 	Adventure = object(State)
 		controls: set of Dir4.Enum;
 		shift: boolean;
+		view: Transform2;
 		player: pActor;
-		constructor Init;
+		location: pLocation;
+		constructor Init(location: pLocation);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
@@ -29,41 +31,66 @@ implementation
 uses
 	rox_state_mainmenu;
 
-	constructor Adventure.Init;
+	constructor Adventure.Init(location: pLocation);
+	var
+		d: pDecoration;
 	begin
+		self.location := MakeRef(location);
 		inherited Init(StateID);
-		player := new(pActor, Init(Vec2.Make(0.12, 0.24), 'player.png', Vec2.Make(1/4, 1)))^.NewRef;
-		player^.AddState('idle', Vec2.Make(0, 0), 1, 1, 0.0, 'idle', []);
-		player^.AddState('walk', Vec2.Make(0, 0), 4, 1, 0.75, 'walk', [MovingState]);
-		player^.pos := Vec2.Make(0.1);
+		view := Transform2.Identity;
+		player := new(pActor, Init(Vec2.Make(0.14, 0.28), 'player.png', Vec2.Make(1/4, 1/8)))^.NewRef;
+		player^.AddState('idle', Vec2.Make(0, 0), 4, 8, 0.0, 'idle', []);
+		player^.AddState('walk', Vec2.Make(0, 0), 4, 8, 0.6, 'walk', [MovingState]);
+		player^.local.trans := Vec2.Make(0.5, -0.3);
+
+		if not Assigned(self.location) then
+			self.location := new(pLocation, Init)^.NewRef;
+		self.location^.Add(player);
+
+		self.location^.AddWall(new(pDecoration, Init('bar_door.png', Translate2(1, 0), Vec2.Make(0.3, 0.3/1*1.3))), Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
+
+		d := new(pDecoration, Init('brick.png', Translate2(0, 0.02), Vec2.Make(1.5, 0.3)))^.NewRef;
+		try
+			d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(5, 1));
+			self.location^.AddWall(d, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
+		finally
+			Release(d);
+		end;
 	end;
 
 	destructor Adventure.Done;
 	begin
 		Release(player);
+		Release(location);
 		inherited Done;
 	end;
 
 	procedure Adventure.HandleUpdate(const dt: float);
 	begin
 		inherited HandleUpdate(dt);
+		self.location^.limits := Rect.Make(-mgr^.nvp, mgr^.nvp);
 		if controls <> [] then
 		begin
 			player^.SwitchToState('walk');
+			player^.rtMethod := NotRotating;
 			player^.MoveBy(0.3 * Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls)).Normalized,
-				IfThen(shift, 0.6, 0.25));
+				IfThen(shift, 1.0, 0.4));
 		end;
-		player^.Update(dt);
+		location^.Update(dt);
 	end;
 
 	procedure Adventure.HandleDraw;
 	begin
 		inherited HandleDraw;
-		player^.Draw(Vec2.Zero);
+		location^.Draw(view);
 	end;
 
 	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2);
 	begin
+		case action of
+			MouseLClick: begin player^.rtMethod := NotRotating; player^.SwitchToState('walk'); player^.MoveTo(view.Inversed * pos, 0.25, nil, nil); end;
+			MouseMove: if player^.mvMethod = NotMoving then player^.RotateTo(view.Inversed * pos);
+		end;
 		inherited HandleMouse(action, pos);
 	end;
 

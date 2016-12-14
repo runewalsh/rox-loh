@@ -220,6 +220,7 @@ type
 {$endif}} all_integer_vectors
 
 	function Rotate(const v: Vec2; const angle: float): Vec2;
+	function ArcTan2(const v: Vec2): float;
 	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
 
 type
@@ -389,6 +390,7 @@ type
 	Transform2 = object
 		trans: Vec2;
 		rot, scale: float;
+		function Inversed: Transform2;
 	const
 		Identity: Transform2 = (trans: (data: (0, 0)); rot: 0; scale: 1);
 	end;
@@ -560,6 +562,7 @@ type
 		function Subdivide(const divisor: Rect): Subdivision;
 	const
 		OrthoIdentity: Rect = (A: (data: (-1, -1)); B: (data: (1, 1)));
+		ZeroOnes: Rect = (A: (data: (0, 0)); B: (data: (1, 1)));
 		Zero: Rect = (A: (data: (0, 0)); B: (data: (0, 0)));
 	end;
 
@@ -576,6 +579,14 @@ type
 		function Make(const pos, size: UintVec2): UintRect; static;
 		function Contains(const point: UintVec2): boolean;
 		function Square: uint;
+	end;
+
+	pCircle = ^Circle;
+	Circle = object
+		center: Vec2;
+		radius: float;
+		function Make(const center: Vec2; radius: Float): Circle; static;
+		function Make(const x, y, radius: Float): Circle; static;
 	end;
 
 	function lerp(const a, b: float; const t: float): float; cinline
@@ -1170,6 +1181,11 @@ end_unchecked
 		sina := sin(angle);
 		result.x := v.x*cosa - v.y*sina;
 		result.y := v.x*sina + v.y*cosa;
+	end;
+
+	function ArcTan2(const v: Vec2): float;
+	begin
+		result := ArcTan2(v.y, v.x);
 	end;
 
 	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
@@ -1802,11 +1818,11 @@ end_unchecked
 	begin
 		result.rot := rot.Inversed;
 		result.tr := result.rot*-tr;
-		if scale <> 0 then
+		if scale = 1 then result.scale := 1 else
 		begin
 			result.scale := 1 / scale;
 			result.tr *= result.scale;
-		end else result.scale := 1;
+		end;
 	end;
 
 	function Translate(const tr: Vec3): Transform;
@@ -1874,6 +1890,17 @@ end_unchecked
 			result := t.tr + t.rot * v
 		else
 			result := t.tr + t.rot * v * t.scale;
+	end;
+
+	function Transform2.Inversed: Transform2;
+	begin
+		result.rot := -rot;
+		result.trans := Rotate(-trans, result.rot);
+		if scale = 1 then result.scale := 1 else
+		begin
+			result.scale := 1 / scale;
+			result.trans *= result.scale;
+		end;
 	end;
 
 	operator =(const a, b: Transform2): boolean;
@@ -2540,6 +2567,19 @@ end_unchecked
 
 	function UintRect.Contains(const point: UintVec2): boolean; begin result := pos.FitsClosed(point) and point.FitsOpen(pos + size); end;
 	function UintRect.Square: uint; begin result := size.Product; end;
+
+	function Circle.Make(const center: Vec2; radius: Float): Circle;
+	begin
+		result.center := center;
+		result.radius := radius;
+	end;
+
+	function Circle.Make(const x, y, radius: Float): Circle;
+	begin
+		result.center.x := x;
+		result.center.y := y;
+		result.radius := radius;
+	end;
 
 	function lerp(const a, b: float; const t: float): float;
 	begin

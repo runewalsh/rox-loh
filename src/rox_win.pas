@@ -426,6 +426,7 @@ type
 			WM_PAINT: Redraw;
 			WM_DESTROY:
 				begin
+					state.Done;
 					CleanupRenderingContext;
 					handle := 0;
 					if openSucceed then PostQuitMessage(0);
