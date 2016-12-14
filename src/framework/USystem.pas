@@ -55,7 +55,7 @@ type
 	uint   = type uint32;   pUint = ^uint;
 	ilong  = type sint64;   pIlong = ^ilong;
 	ulong  = type uint64;   pUlong = ^ulong;
-	integer = record end;   pInteger = ^integer;
+	integer = record end;   pInteger = record end;
 	size_t   = type SizeUint; pSize_t = ^size_t;
 
 	float16 = record
@@ -1067,7 +1067,7 @@ var
 {$ifdef Windows}
 type
 	WindowsSpecific = object
-		function DecryptKey(code: uint; out key: KeyboardKey): boolean; static;
+		function DecryptKey(code: uint; msg: PMSG; out key: KeyboardKey): boolean; static;
 		function CheckVersion(major, minor: sint): boolean; static;
 		function DescribeError(code: dword): string; static;
 		function OperationFailedMessage(const what: string; code: dword = 0): string; static;
@@ -1804,12 +1804,19 @@ type
 	function MoveFileWithProgressW(lpExistingFileName, lpNewFileName: LPCWSTR; lpProgressRoutine: Win.LPPROGRESS_ROUTINE; lpData: pointer;
 		dwFlags: dword): Windows.BOOL; stdcall; external kernel32;
 
-	function WindowsSpecific.DecryptKey(code: uint; out key: KeyboardKey): boolean;
+	function WindowsSpecific.DecryptKey(code: uint; msg: PMSG; out key: KeyboardKey): boolean;
 	begin
 		result := yes;
 		case code of
-			VK_RETURN: key := key_Enter; VK_ESCAPE: key := key_Esc; VK_SPACE: key := key_Space;
-			VK_TAB: key := key_Tab; VK_BACK: key := key_Backspace;
+			VK_RETURN:
+				if Assigned(msg) and (HIWORD(msg^.lParam) and KF_ALTDOWN = KF_ALTDOWN) then
+					key := key_AltEnter
+				else
+					key := key_Enter;
+			VK_SHIFT, VK_LSHIFT: key := key_LShift; VK_RSHIFT: key := key_RShift;
+			VK_CONTROL, VK_LCONTROL: key := key_LCtrl; VK_RCONTROL: key := key_RCtrl;
+			VK_MENU: key := key_LAlt;
+			VK_ESCAPE: key := key_Esc; VK_SPACE: key := key_Space; VK_TAB: key := key_Tab; VK_BACK: key := key_Backspace;
 			VK_LEFT: key := key_Left; VK_UP: key := key_Up; VK_RIGHT: key := key_Right; VK_DOWN: key := key_Down;
 			$30 .. $39: key := KeyboardKey(ord(key_0) + (code - $30));
 			$41 .. $5a: key := KeyboardKey(ord(key_A) + (code - $41));
@@ -6884,7 +6891,7 @@ end_unchecked
 				and (ir.Event.KeyEvent.wVirtualKeyCode <> VK_CONTROL)
 			then
 			begin
-				result := WindowsSpecific.DecryptKey(ir.Event.KeyEvent.wVirtualKeyCode, key);
+				result := WindowsSpecific.DecryptKey(ir.Event.KeyEvent.wVirtualKeyCode, nil, key);
 				// cChar = irInputRecord.Event.KeyEvent.uChar.AsciiChar;
 				// ReadConsoleInputW(winInput, ir, 1, readed); // key release
 				exit;

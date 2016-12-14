@@ -3,7 +3,7 @@
 program rox;
 
 uses
-	heaptrc, USystem, Utils, UMath, UClasses, GLUtils, Windowing,
+{$ifdef Debug} heaptrc, {$endif} USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl,
 	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure;
 
@@ -32,17 +32,53 @@ var
 		cumTimeFrames := 0;
 	end;
 
+	procedure ParseCommandLine;
+	{$ifndef use_console} var total: string; {$endif}
+
+		procedure Note(const msg: string);
+		begin
+		{$ifdef use_console} Con.WriteLine(msg);
+		{$else} ContinueString(total, msg, EOL);
+		{$endif}
+		end;
+
+	var
+		cmd: CommandLine;
+		i: uint;
+	{$ifndef use_console} show: boolean; {$endif}
+
+	begin
+	{$ifndef use_console} total := ''; show := no; {$endif}
+		cmd := CommandLine.Get;
+		try
+			i := 0;
+			while i < cmd.Count do
+			begin
+				case cmd[i] of
+					'no-fps-limit': begin Note('Ограничение FPS снято.'); minFrameTime := Ticks.Zero; inc(i); end;
+					'show': begin {$ifndef use_console} show := yes; {$endif} inc(i); end;
+					else
+						raise Error(cmd.Raw + EOL + 'Неизвестная опция командной строки в позиции {0}: {1}.', [1 + i, cmd[i]]);
+				end;
+			end;
+		{$ifndef use_console} if show and (total <> '') then Info.Title('Командная строка').Show(cmd.Raw + EOL + total); {$endif}
+		finally
+			cmd.Done;
+		end;
+	end;
+
 begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
+	minFrameTime := Ticks.FromSeconds(1/100);
+	ParseCommandLine;
 
 	try
 		try
 			window.Open;
 			window.cursor := Cursor0;
 			fpsNote := WindowCaption.Cookie.Empty;
-			minFrameTime := Ticks.FromSeconds(0*1/100);
 			LoadBGM(window);
 
 			gl.PixelStorei(gl.PACK_ALIGNMENT, 1);
@@ -57,7 +93,7 @@ begin
 			ResetCumTime;
 			lastDt := 0.0;
 
-			window.state.Switch(new(pMainMenu, Init));
+			window.state.Switch(new(pAdventure, Init));
 			repeat
 				if not window.Process(lastDt) then break;
 				if window.WasDeactivatedDuringLastProcess then ResetCumTime;

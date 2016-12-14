@@ -4,30 +4,30 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Default"/>
-    <Units Count="51">
+    <Units Count="57">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
         <TopLine Value="35"/>
-        <CursorPos X="34" Y="43"/>
-        <UsageCount Value="97"/>
+        <CursorPos X="47" Y="45"/>
+        <UsageCount Value="109"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="..\src\rox_win.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="435"/>
-        <CursorPos Y="465"/>
-        <UsageCount Value="97"/>
+        <CursorPos Y="12"/>
+        <UsageCount Value="109"/>
       </Unit1>
       <Unit2>
         <Filename Value="..\src\rox_gfx.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="225"/>
-        <CursorPos X="22" Y="240"/>
-        <UsageCount Value="92"/>
+        <EditorIndex Value="5"/>
+        <TopLine Value="100"/>
+        <CursorPos X="23" Y="128"/>
+        <UsageCount Value="104"/>
+        <Loaded Value="True"/>
       </Unit2>
       <Unit3>
         <Filename Value="..\src\rox_gl.pas"/>
@@ -35,7 +35,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="174"/>
         <CursorPos Y="174"/>
-        <UsageCount Value="90"/>
+        <UsageCount Value="102"/>
         <Bookmarks Count="1">
           <Item0 X="77" Y="169" ID="9"/>
         </Bookmarks>
@@ -45,348 +45,492 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="39" Y="4"/>
-        <UsageCount Value="80"/>
+        <UsageCount Value="92"/>
       </Unit4>
       <Unit5>
         <Filename Value="..\src\rox_ui.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="4"/>
-        <TopLine Value="96"/>
-        <CursorPos Y="126"/>
-        <UsageCount Value="79"/>
-        <Loaded Value="True"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="69"/>
+        <CursorPos Y="75"/>
+        <UsageCount Value="91"/>
       </Unit5>
       <Unit6>
         <Filename Value="..\src\rox_state.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="99"/>
-        <CursorPos X="80" Y="126"/>
-        <UsageCount Value="48"/>
+        <TopLine Value="204"/>
+        <CursorPos X="70" Y="210"/>
+        <UsageCount Value="60"/>
       </Unit6>
       <Unit7>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <IsPartOfProject Value="True"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="33"/>
+        <CursorPos X="30" Y="54"/>
+        <UsageCount Value="34"/>
+        <Loaded Value="True"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="188"/>
+        <CursorPos X="19" Y="207"/>
+        <UsageCount Value="33"/>
+        <Loaded Value="True"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="..\src\rox_node.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos X="101" Y="16"/>
+        <UsageCount Value="33"/>
+      </Unit9>
+      <Unit10>
         <Filename Value="..\..\..\shu-svn\framework\USystem.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3491"/>
         <CursorPos X="26" Y="3519"/>
         <UsageCount Value="13"/>
-      </Unit7>
-      <Unit8>
+      </Unit10>
+      <Unit11>
         <Filename Value="..\src\framework\USystem.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="3696"/>
-        <CursorPos Y="3713"/>
-        <UsageCount Value="13"/>
-      </Unit8>
-      <Unit9>
+        <TopLine Value="1800"/>
+        <CursorPos X="22" Y="1817"/>
+        <UsageCount Value="17"/>
+      </Unit11>
+      <Unit12>
         <Filename Value="..\..\..\shu-svn\framework\Platform\Windowing.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="36"/>
         <CursorPos Y="44"/>
         <UsageCount Value="13"/>
-      </Unit9>
-      <Unit10>
+      </Unit12>
+      <Unit13>
         <Filename Value="..\src\framework\MMSystem.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="341"/>
         <CursorPos X="21" Y="369"/>
         <UsageCount Value="10"/>
-      </Unit10>
-      <Unit11>
+      </Unit13>
+      <Unit14>
         <Filename Value="..\src\framework\UMath.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="789"/>
-        <CursorPos X="19" Y="811"/>
-        <UsageCount Value="15"/>
-      </Unit11>
-      <Unit12>
+        <EditorIndex Value="4"/>
+        <TopLine Value="711"/>
+        <CursorPos X="28" Y="741"/>
+        <UsageCount Value="18"/>
+        <Loaded Value="True"/>
+      </Unit14>
+      <Unit15>
         <Filename Value="..\src\framework\inc\all_vectors.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="7"/>
         <CursorPos Y="16"/>
         <UsageCount Value="10"/>
-      </Unit12>
-      <Unit13>
+      </Unit15>
+      <Unit16>
         <Filename Value="..\src\framework\Input.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="46" Y="13"/>
         <UsageCount Value="4"/>
-      </Unit13>
-      <Unit14>
+      </Unit16>
+      <Unit17>
         <Filename Value="..\src\framework\inc\all_numbers.inc"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="45" Y="3"/>
         <UsageCount Value="4"/>
-      </Unit14>
-      <Unit15>
+      </Unit17>
+      <Unit18>
         <Filename Value="..\src\framework\Platform\Windowing.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="1892"/>
-        <CursorPos X="65" Y="1920"/>
-        <UsageCount Value="9"/>
-      </Unit15>
-      <Unit16>
+        <TopLine Value="1908"/>
+        <CursorPos X="56" Y="1921"/>
+        <UsageCount Value="13"/>
+      </Unit18>
+      <Unit19>
         <Filename Value="C:\dev\lazarus1.6.2-fpc3.0.0\fpc\3.0.0\source\rtl\win\wininc\struct.inc"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="4"/>
-      </Unit16>
-      <Unit17>
+      </Unit19>
+      <Unit20>
         <Filename Value="C:\dev\lazarus1.6.2-fpc3.0.0\fpc\3.0.0\source\rtl\win\wininc\messages.inc"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="1499"/>
-        <CursorPos X="18" Y="1527"/>
-        <UsageCount Value="4"/>
-      </Unit17>
-      <Unit18>
+        <TopLine Value="1288"/>
+        <CursorPos X="6" Y="1305"/>
+        <UsageCount Value="10"/>
+      </Unit20>
+      <Unit21>
         <Filename Value="C:\dev\lazarus1.6.2-fpc3.0.0\fpc\3.0.0\source\rtl\win\wininc\defines.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="4978"/>
         <CursorPos X="6" Y="4995"/>
         <UsageCount Value="5"/>
-      </Unit18>
-      <Unit19>
+      </Unit21>
+      <Unit22>
         <Filename Value="..\..\..\shu-svn\framework\DynamicLoader.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="490"/>
         <CursorPos Y="523"/>
         <UsageCount Value="3"/>
-      </Unit19>
-      <Unit20>
+      </Unit22>
+      <Unit23>
         <Filename Value="..\src\framework\DynamicLoader.pas"/>
         <EditorIndex Value="-1"/>
         <UsageCount Value="4"/>
-      </Unit20>
-      <Unit21>
+      </Unit23>
+      <Unit24>
         <Filename Value="..\..\..\shu-svn\framework\inc\hash.pp.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="352"/>
         <CursorPos X="91" Y="373"/>
         <UsageCount Value="4"/>
-      </Unit21>
-      <Unit22>
+      </Unit24>
+      <Unit25>
         <Filename Value="..\src\framework\inc\hash.h.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="76"/>
         <CursorPos X="17" Y="93"/>
         <UsageCount Value="4"/>
-      </Unit22>
-      <Unit23>
+      </Unit25>
+      <Unit26>
         <Filename Value="..\src\framework\inc\hash.pp.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="249"/>
         <CursorPos X="10" Y="266"/>
         <UsageCount Value="3"/>
-      </Unit23>
-      <Unit24>
+      </Unit26>
+      <Unit27>
         <Filename Value="..\..\..\shu-svn\framework\GL\GLBase.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3397"/>
         <CursorPos X="54" Y="3430"/>
         <UsageCount Value="18"/>
-      </Unit24>
-      <Unit25>
+      </Unit27>
+      <Unit28>
         <Filename Value="..\..\..\shu-svn\framework\GL\OpenGL_Headers.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="280"/>
         <CursorPos X="61" Y="301"/>
         <UsageCount Value="11"/>
-      </Unit25>
-      <Unit26>
+      </Unit28>
+      <Unit29>
         <Filename Value="..\..\..\shu-svn\framework\GL\OpenGL_Impl.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="154"/>
         <CursorPos X="22" Y="154"/>
         <UsageCount Value="11"/>
-      </Unit26>
-      <Unit27>
+      </Unit29>
+      <Unit30>
         <Filename Value="..\..\..\shu-svn\framework\UMath.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="1726"/>
-        <CursorPos X="38" Y="1754"/>
-        <UsageCount Value="11"/>
-      </Unit27>
-      <Unit28>
+        <TopLine Value="26"/>
+        <CursorPos X="27" Y="43"/>
+        <UsageCount Value="12"/>
+      </Unit30>
+      <Unit31>
         <Filename Value="..\..\..\shu-svn\framework\Formats\DXT.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="488"/>
         <CursorPos X="17" Y="499"/>
         <UsageCount Value="8"/>
-      </Unit28>
-      <Unit29>
+      </Unit31>
+      <Unit32>
         <Filename Value="..\..\..\shu-svn\framework\UClasses.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3222"/>
         <CursorPos X="33" Y="3222"/>
         <UsageCount Value="11"/>
-      </Unit29>
-      <Unit30>
+      </Unit32>
+      <Unit33>
         <Filename Value="..\..\..\shu-svn\framework\GL\U_GL.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="190"/>
         <CursorPos X="18" Y="218"/>
         <UsageCount Value="11"/>
-      </Unit30>
-      <Unit31>
+      </Unit33>
+      <Unit34>
         <Filename Value="..\..\..\shu-svn\framework\GL\GLClasses.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="33"/>
         <CursorPos X="73" Y="61"/>
         <UsageCount Value="7"/>
-      </Unit31>
-      <Unit32>
+      </Unit34>
+      <Unit35>
         <Filename Value="..\..\..\shu-svn\framework\GL\GLUtils.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="727"/>
         <CursorPos X="23" Y="752"/>
         <UsageCount Value="14"/>
-      </Unit32>
-      <Unit33>
+      </Unit35>
+      <Unit36>
         <Filename Value="..\src\framework\GL\GUI.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="3086"/>
-        <CursorPos X="24" Y="3103"/>
-        <UsageCount Value="10"/>
-      </Unit33>
-      <Unit34>
+        <TopLine Value="689"/>
+        <CursorPos X="97" Y="718"/>
+        <UsageCount Value="11"/>
+      </Unit36>
+      <Unit37>
         <Filename Value="..\src\framework\GL\GLUtils.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="725"/>
-        <CursorPos X="27" Y="741"/>
-        <UsageCount Value="12"/>
-      </Unit34>
-      <Unit35>
+        <TopLine Value="222"/>
+        <CursorPos X="22" Y="253"/>
+        <UsageCount Value="13"/>
+      </Unit37>
+      <Unit38>
         <Filename Value="..\..\..\shu-svn\framework\Audio\Audio.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="701"/>
         <CursorPos X="74" Y="732"/>
         <UsageCount Value="12"/>
-      </Unit35>
-      <Unit36>
+      </Unit38>
+      <Unit39>
         <Filename Value="..\src\framework\Audio\Audio.pas"/>
         <EditorIndex Value="-1"/>
-        <TopLine Value="1585"/>
-        <CursorPos X="33" Y="1596"/>
-        <UsageCount Value="19"/>
-      </Unit36>
-      <Unit37>
+        <TopLine Value="723"/>
+        <CursorPos X="56" Y="723"/>
+        <UsageCount Value="22"/>
+      </Unit39>
+      <Unit40>
         <Filename Value="..\..\..\shu-svn\framework\Audio\BassLib.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="732"/>
         <CursorPos X="24" Y="737"/>
         <UsageCount Value="5"/>
-      </Unit37>
-      <Unit38>
-        <Filename Value="..\src\framework\GL\OpenGL_Headers.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="1327"/>
-        <CursorPos X="24" Y="1349"/>
-        <UsageCount Value="10"/>
-      </Unit38>
-      <Unit39>
-        <Filename Value="..\src\framework\GL\OpenGL_Impl.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="2205"/>
-        <CursorPos X="64" Y="2233"/>
-        <UsageCount Value="10"/>
-      </Unit39>
-      <Unit40>
-        <Filename Value="..\src\framework\GL\GLBase.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="3413"/>
-        <CursorPos X="36" Y="3430"/>
-        <UsageCount Value="7"/>
       </Unit40>
       <Unit41>
+        <Filename Value="..\src\framework\GL\OpenGL_Headers.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="181"/>
+        <CursorPos X="14" Y="198"/>
+        <UsageCount Value="10"/>
+      </Unit41>
+      <Unit42>
+        <Filename Value="..\src\framework\GL\OpenGL_Impl.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="234"/>
+        <CursorPos X="54" Y="251"/>
+        <UsageCount Value="10"/>
+      </Unit42>
+      <Unit43>
+        <Filename Value="..\src\framework\GL\GLBase.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="721"/>
+        <CursorPos X="28" Y="725"/>
+        <UsageCount Value="11"/>
+      </Unit43>
+      <Unit44>
         <Filename Value="rox_state_mainmenu.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="71"/>
         <CursorPos Y="104"/>
         <UsageCount Value="20"/>
-      </Unit41>
-      <Unit42>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="297"/>
-        <CursorPos X="47" Y="302"/>
-        <UsageCount Value="19"/>
-        <Bookmarks Count="1">
-          <Item0 X="35" Y="113" ID="9"/>
-        </Bookmarks>
-      </Unit42>
-      <Unit43>
-        <Filename Value="..\src\framework\UClasses.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="130"/>
-        <CursorPos X="12" Y="158"/>
-        <UsageCount Value="11"/>
-      </Unit43>
-      <Unit44>
-        <Filename Value="..\src\framework\Utils.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="263"/>
-        <CursorPos Y="280"/>
-        <UsageCount Value="10"/>
       </Unit44>
       <Unit45>
+        <Filename Value="..\src\rox_state_mainmenu.pas"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="108"/>
+        <CursorPos X="35" Y="124"/>
+        <UsageCount Value="25"/>
+        <Bookmarks Count="1">
+          <Item0 X="35" Y="115" ID="9"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+      </Unit45>
+      <Unit46>
+        <Filename Value="..\src\framework\UClasses.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="662"/>
+        <CursorPos X="30" Y="679"/>
+        <UsageCount Value="13"/>
+      </Unit46>
+      <Unit47>
+        <Filename Value="..\src\framework\Utils.pas"/>
+        <EditorIndex Value="-1"/>
+        <UsageCount Value="11"/>
+      </Unit47>
+      <Unit48>
         <Filename Value="..\src\framework\Phys\Physics.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2351"/>
         <CursorPos X="80" Y="2372"/>
         <UsageCount Value="9"/>
-      </Unit45>
-      <Unit46>
+      </Unit48>
+      <Unit49>
         <Filename Value="..\src\framework\Script.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="1529"/>
         <CursorPos X="53" Y="1546"/>
         <UsageCount Value="11"/>
-      </Unit46>
-      <Unit47>
-        <Filename Value="..\src\framework\Algo.pas"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="775"/>
-        <CursorPos X="25" Y="803"/>
-        <UsageCount Value="10"/>
-      </Unit47>
-      <Unit48>
-        <Filename Value="..\src\rox_state_adventure.pas"/>
-        <IsPartOfProject Value="True"/>
-        <EditorIndex Value="1"/>
-        <CursorPos X="56" Y="7"/>
-        <UsageCount Value="22"/>
-        <Loaded Value="True"/>
-      </Unit48>
-      <Unit49>
-        <Filename Value="..\src\rox_actor.pas"/>
-        <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
-        <EditorIndex Value="3"/>
-        <CursorPos X="19" Y="7"/>
-        <UsageCount Value="21"/>
-        <Loaded Value="True"/>
       </Unit49>
       <Unit50>
-        <Filename Value="..\src\rox_node.pas"/>
-        <IsPartOfProject Value="True"/>
-        <EditorIndex Value="2"/>
-        <CursorPos X="101" Y="16"/>
-        <UsageCount Value="21"/>
-        <Loaded Value="True"/>
+        <Filename Value="..\src\framework\Algo.pas"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos Y="2"/>
+        <UsageCount Value="11"/>
       </Unit50>
+      <Unit51>
+        <Filename Value="..\src\framework\Formats\Diffed3DTexture.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="25"/>
+        <CursorPos X="68" Y="33"/>
+        <UsageCount Value="21"/>
+      </Unit51>
+      <Unit52>
+        <Filename Value="..\src\framework\GL\U_GL.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="789"/>
+        <CursorPos X="78" Y="817"/>
+        <UsageCount Value="11"/>
+      </Unit52>
+      <Unit53>
+        <Filename Value="..\src\framework\Formats\PNG.pas"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos Y="2"/>
+        <UsageCount Value="11"/>
+      </Unit53>
+      <Unit54>
+        <Filename Value="..\src\framework\Streams.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="2687"/>
+        <CursorPos X="35" Y="2701"/>
+        <UsageCount Value="11"/>
+      </Unit54>
+      <Unit55>
+        <Filename Value="..\src\framework\Formats\DDS.pas"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="69"/>
+        <CursorPos X="88" Y="85"/>
+        <UsageCount Value="10"/>
+      </Unit55>
+      <Unit56>
+        <Filename Value="..\src\framework\Scene\Character.pas"/>
+        <EditorIndex Value="-1"/>
+        <CursorPos Y="2"/>
+        <UsageCount Value="10"/>
+      </Unit56>
     </Units>
-    <JumpHistory Count="3" HistoryIndex="2">
+    <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="..\src\rox_ui.pas"/>
-        <Caret Line="295" TopLine="278"/>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="99" TopLine="70"/>
       </Position1>
       <Position2>
-        <Filename Value="..\src\rox_state_adventure.pas"/>
-        <Caret Line="39" Column="30" TopLine="18"/>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="203" Column="17" TopLine="176"/>
       </Position2>
       <Position3>
         <Filename Value="..\src\rox_actor.pas"/>
-        <Caret Line="4" Column="10"/>
+        <Caret Line="61" Column="22" TopLine="44"/>
       </Position3>
+      <Position4>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="195" TopLine="177"/>
+      </Position4>
+      <Position5>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="61" Column="82" TopLine="44"/>
+      </Position5>
+      <Position6>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="101" Column="57" TopLine="77"/>
+      </Position6>
+      <Position7>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="206" Column="39" TopLine="186"/>
+      </Position7>
+      <Position8>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="93" Column="31" TopLine="66"/>
+      </Position8>
+      <Position9>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="178" Column="5" TopLine="151"/>
+      </Position9>
+      <Position10>
+        <Filename Value="..\src\rox_actor.pas"/>
+      </Position10>
+      <Position11>
+        <Filename Value="..\src\framework\UMath.pas"/>
+        <Caret Line="1108" Column="104" TopLine="1080"/>
+      </Position11>
+      <Position12>
+        <Filename Value="..\src\framework\UMath.pas"/>
+      </Position12>
+      <Position13>
+        <Filename Value="..\src\framework\UMath.pas"/>
+        <Caret Line="45" Column="17" TopLine="17"/>
+      </Position13>
+      <Position14>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="122" Column="17" TopLine="117"/>
+      </Position14>
+      <Position15>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="190" Column="2" TopLine="173"/>
+      </Position15>
+      <Position16>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="93" Column="28" TopLine="75"/>
+      </Position16>
+      <Position17>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="184" TopLine="151"/>
+      </Position17>
+      <Position18>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="64" Column="38" TopLine="49"/>
+      </Position18>
+      <Position19>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="175" Column="22" TopLine="161"/>
+      </Position19>
+      <Position20>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="176" Column="5" TopLine="157"/>
+      </Position20>
+      <Position21>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="38" Column="19" TopLine="18"/>
+      </Position21>
+      <Position22>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="6" Column="7"/>
+      </Position22>
+      <Position23>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="143" Column="22" TopLine="138"/>
+      </Position23>
+      <Position24>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="176" Column="8" TopLine="155"/>
+      </Position24>
+      <Position25>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="135" Column="15" TopLine="106"/>
+      </Position25>
+      <Position26>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="136" Column="13" TopLine="107"/>
+      </Position26>
+      <Position27>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="90" Column="3" TopLine="73"/>
+      </Position27>
+      <Position28>
+        <Filename Value="..\src\rox_actor.pas"/>
+      </Position28>
+      <Position29>
+        <Filename Value="..\src\rox_actor.pas"/>
+        <Caret Line="107" Column="73" TopLine="76"/>
+      </Position29>
+      <Position30>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="37" Column="55" TopLine="33"/>
+      </Position30>
     </JumpHistory>
   </ProjectSession>
 </CONFIG>

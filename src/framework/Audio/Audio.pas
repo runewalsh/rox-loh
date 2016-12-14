@@ -215,6 +215,7 @@ type
 		function Amplitude: float;
 		procedure Spectre(n: uint; freqs: pFloat; ranges: pFloat; amps: pFloat);
 		procedure ResetTheme(const name: PoolString);
+		procedure ResetAllThemes;
 
 	const
 		MasterVolume = 0.5;
@@ -701,7 +702,7 @@ type
 	procedure Sound.Spectre(n: uint; freqs: pFloat; ranges: pFloat; amps: pFloat);
 	label fallback;
 	var
-		fft: packed array[0 .. 1023] of float32;
+		fft: packed array[0 .. 511] of float32;
 		i, ifreq: uint;
 		freq, freqToFftPosK, fftPos: float;
 
@@ -719,7 +720,7 @@ type
 		end;
 		freqToFftPosK := length(fft) / freq;
 
-		if Bass.ChannelGetData(h, @fft, Bass.DATA_FFT2048) = Bass.DW_ERROR then
+		if Bass.ChannelGetData(h, @fft, Bass.DATA_FFT1024) = Bass.DW_ERROR then
 		begin
 		{$ifdef Debug} Log(Bass.LastOperationFailedMessage('получить спектр ' + StreamPath.Log(name), 'ChannelGetInfo'), logError); {$endif}
 			goto fallback;
@@ -1294,7 +1295,7 @@ const
 
 	procedure SoundNode._BeforeDetach;
 	begin
-		snd^.Pause;
+		snd^.{Pause} Stop;
 		inherited _BeforeDetach;
 	end;
 
@@ -1605,6 +1606,17 @@ const
 				themes[id].items[i]^.savedPosition := -1;
 			Unlock(yes);
 		end;
+	end;
+
+	procedure MusicPlayer.ResetAllThemes;
+	var
+		t, i: sint;
+	begin
+		Lock(yes);
+		for t := 0 to High(themes) do
+			for i := 0 to High(themes[t].items) do
+				themes[t].items[i]^.savedPosition := -1;
+		Unlock(yes);
 	end;
 
 	procedure MusicPlayer.ItemDesc.Init(const name, stream: string);

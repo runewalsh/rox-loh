@@ -331,7 +331,9 @@ const
 		flags: TextureImageFlags;
 		i, lv, p: sint;
 		u4: pUint16;
+		t: Ticks;
 	begin
+		t := Ticks.Get;
 		ScanHeader(s, hdr);
 		if hdr.ddspf.dwFourCC = 'DX10' then raise Error('DDS версии DX10 не поддерживается.');
 	{$ifdef Debug} if hdr.ddspf.dwFourCC <> '' then LogR('Найден FourCC ' + PrintableString(hdr.ddspf.dwFourCC) + '; ', logDebug) {$endif};
@@ -379,6 +381,8 @@ const
 					end;
 			end;
 		end;
+		t := Ticks.Get - t;
+		Con.WriteLine(ToString(t));
 	end;
 
 	procedure SuiteSave(obj: pointer; s: pStream); begin Save(pTextureImage(obj)^, s); end;

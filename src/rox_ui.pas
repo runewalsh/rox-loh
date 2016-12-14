@@ -8,6 +8,7 @@ uses
 
 type
 	MouseAction = (MouseMove, MouseLClick, MouseLRelease, MouseRClick, MouseRRelease);
+	KeyboardAction = (KeyClick, KeyRelease);
 
 const
 	DefaultState = '';

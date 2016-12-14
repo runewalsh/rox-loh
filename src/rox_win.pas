@@ -256,17 +256,11 @@ type
 			case message.message of
 				WM_QUIT: result := no;
 				WM_SYSKEYDOWN, WM_KEYDOWN, WM_SYSKEYUP, WM_KEYUP:
-					begin
-						// down := (message.message = WM_SYSKEYDOWN) or (message.message = WM_KEYDOWN);
-						if Win.DecryptKey(message.wparam, key) then
-						begin
-							if (message.message = WM_KEYDOWN) then
-								case key of
-									key_NumPlus: state.bgm.Rewind(+5);
-									key_NumMinus: state.bgm.Rewind(-5);
-								end;
-						end;
-					end;
+					if Win.DecryptKey(message.wparam, @message, key) then
+						if (message.message = WM_SYSKEYDOWN) or (message.message = WM_KEYDOWN) then
+							state.HandleKeyboard(KeyClick, key)
+						else
+							state.HandleKeyboard(KeyRelease, key);
 				WM_MOUSEMOVE:
 					begin
 						winMouse := UintVec2.Make(GET_X_LPARAM(message.lParam), GET_Y_LPARAM(message.lParam));

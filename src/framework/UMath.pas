@@ -30,6 +30,7 @@ const
 {$ifndef unsigned}
 	function IntSign(const x: typ): sint; cinline
 	function FloatSign(const x: typ): {$ifdef float} typ {$else} float {$endif}; cinline
+	function FloatSign(const x, m: typ): {$ifdef float} typ {$else} float {$endif}; cinline
 {$endif}} all_numbers
 
 	function SmoothStep(const start, end_, x: float): float; overload; cinline
@@ -41,6 +42,7 @@ const
 	function ArcTan2(const y, x: float): float; {$ifdef use_asm} assembler; {$else} cinline {$endif}
 	function AngleDiff(const a, b: float): float; cinline
 	function NormalizeAngle(const a: float): float; cinline
+	function AngleNormalized(const a: float): boolean;
 	function pow(const base, exponent: float): float; cinline
 	function pow(base, exponent: uint): uint;
 	function signedPow(const base, exponent: float): float; cinline
@@ -651,6 +653,12 @@ const
 	{$define signimpl := begin if x > 0 then result := 1 else if x < 0 then result := -1 else result := 0; end;}
 		function IntSign(const x: typ): sint; signimpl
 		function FloatSign(const x: typ): {$ifdef float} typ {$else} float {$endif}; signimpl
+		function FloatSign(const x, m: typ): {$ifdef float} typ {$else} float {$endif};
+		begin
+			if x > 0 then result := m else
+				if x < 0 then result := -m else
+					result := 0;
+		end;
 	{$undef signimpl}
 {$endif}} all_numbers
 
@@ -726,6 +734,11 @@ end_unchecked
 	begin
 		result := modf(a, TwoPi);
 		if result > Pi then result -= TwoPi;
+	end;
+
+	function AngleNormalized(const a: float): boolean;
+	begin
+		result := (a >= -Pi - CloseToZeroEps) and (a <= Pi + CloseToZeroEps);
 	end;
 
 	function pow(const base, exponent: float): float;

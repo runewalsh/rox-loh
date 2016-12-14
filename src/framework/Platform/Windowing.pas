@@ -1922,7 +1922,7 @@ type
 
 	function Window._DecryptKeyboardKey(const message: tMsg; code: sint; out key: KeyboardKey): boolean;
 	begin
-		result := WindowsSpecific.DecryptKey(code, key);
+		result := WindowsSpecific.DecryptKey(code, @message, key);
 		if result then
 			case key of
 				key_Enter:

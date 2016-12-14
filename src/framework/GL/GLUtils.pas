@@ -10,7 +10,7 @@ uses
 	SpatialIndex, PathFinding, SceneGraph, Human
 {$ifdef Debug}, ULog {$endif};
 
-	procedure ValidateImageSize(const size: UintVec2);
+	procedure ValidateImageSize(const size: UintSize3);
 
 type
 	Filter = object
@@ -260,11 +260,13 @@ uses
 {$define finalize_key := }
 {$include hash.pp.inc}
 
-	procedure ValidateImageSize(const size: UintVec2);
+	procedure ValidateImageSize(const size: UintSize3);
 	const
 		MaxPixels = (512 * 1024 * 1024) {512 Mb} div sizeof(Vec3u8) {RGB};
 	begin
-		if (size.x < 1) or (size.x > MaxPixels) or (size.y < 1) or (size.y > MaxPixels div size.x) then
+		if (size.x < 1) or (size.x > MaxPixels) or (size.y < 1) or (size.y > MaxPixels div size.x) or (size.z < 1) or
+			(size.z > 1) and (size.z > MaxPixels div (size.x * size.y))
+		then
 			raise Error('Изображение повреждено, либо размер слишком велик.');
 	end;
 

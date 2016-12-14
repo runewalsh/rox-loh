@@ -35,6 +35,7 @@ type
 		procedure HandleDraw; virtual;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
 	const
 		ButtonInfo: array[ButtonEnum] of record
 			id: string;
@@ -62,6 +63,7 @@ implementation
 		inherited Init(StateID);
 		for b in ButtonEnum do
 			buttons[b].tex := Texture.Load('ui/' + ButtonInfo[b].id);
+		bg := Texture.Load('bg[c].png-diff');
 		state := Prepare;
 	end;
 
@@ -83,6 +85,7 @@ implementation
 		name: string;
 		time: float;
 	begin
+		mgr^.bgm.ResetAllThemes;
 		inherited HandleActivation;
 		if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'ps2phantasy2') and (time < 0.8) then
 			mgr^.bgm.Rewind(0.8 - time);
@@ -104,7 +107,6 @@ implementation
 				begin
 					bgTime := 0;
 					fade := 0;
-					bg := Texture.Load('bg[c].dds');
 					state := FadeIn; goto again;
 				end;
 
@@ -229,12 +231,12 @@ implementation
 
 	procedure MainMenu.HandleDraw;
 	var
-		texZ, lodBias, t, time: float;
+		texZ, scale, lodBias, t, time: float;
 		q: Quad;
 		name: string;
-		freqs, fft: array[0 .. 1] of float;
+		freqs, fft: array[0 .. 2] of float;
 		pos, size: Vec2;
-		i: sint;
+		i, c: sint;
 	begin
 		case state of
 			FadeIn, Idle, StartingNewGame:
@@ -244,7 +246,7 @@ implementation
 					if bgTime < 4.0 then
 					begin
 						texZ := sqrt(bgTime / 4);
-						lodBias := max(0, 2 * (1 - bgTime/2));
+						lodBias := remapc(bgTime, 2, 0, 0, 3);
 					end else
 					begin
 						t := abs(1.0 - modf(0.2 * (bgTime - 4.0), 2.0));
@@ -254,13 +256,14 @@ implementation
 
 					if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'ps2phantasy2') and (time > 26) then
 					begin
-						lodBias += clamp(1.5 * (5 - abs(31 - time)), 0, 5);
+						lodBias += clamp(1.5 * (5 - abs(31 - time)), 0, 3);
 						if time > 34 then
 						begin
 							freqs[0] := 560;
-							freqs[1] := 1050;
+							freqs[1] := 820;
+							freqs[2] := 1050;
 							mgr^.bgm.Spectre(length(freqs), freqs, nil, fft);
-							lodBias += min(1, 0.5 * (time - 33)) * min(20 * fft[0] + 20 * fft[1], 5);
+							lodBias += min(1, 0.5 * (time - 33)) * min(10 * fft[0] + 10 * fft[1] + 10 * fft[2], 3);
 						end;
 					end;
 
@@ -275,7 +278,7 @@ implementation
 						FadeIn:
 							begin
 								q.fields += [q.Field.Color];
-								q.color := Vec4.Make(fade, fade, fade, 1);
+								q.color := Vec4.Make(1, 1, 1, fade);
 							end;
 					end;
 
@@ -285,16 +288,26 @@ implementation
 							begin
 								q.fields += [q.Field.Transform];
 								q.transform :=
-									Scale2(1 + sqr(1 + i/4)*pow(stateTime, 4)) *
-									Rotate2(0.5 * sqr(i/4)*sqr(stateTime)) *
-									Translate2(0, remapc(sqr(stateTime), sqr(2), 0, -0.18, 0));
+									Scale2(1 + (1 + sqr(i/4))*pow(1.2*stateTime, 4)) *
+									Rotate2(0.5 * sqr(i/4)*pow(stateTime, 2)) *
+									Translate2(0, -0.17 * smoothstep(0, 2, stateTime));
 								if not (q.Field.Color in q.fields) then begin q.fields += [q.Field.Color]; q.color := Vec4.Ones; end;
-								if stateTime >= 2.0 then q.color := Vec4.Make(Vec3.Make(remapc(stateTime, 2.5, 2, 0, 1)), q.color.w);
-								q.color.w := sqrt((5-i)/4);
+								q.color.w := sqr((5-i)/4);
+								if stateTime >= 1.5 then
+									q.color.data[3] *= remapc(stateTime, 2.5, 1.5, 0, 1);
+								if stateTime >= 1.5 then
+									for c := 0 to 1 do
+										q.color.data[1+c] *= sqrt(remapc(stateTime, 2.5, 1.5, 0, 1));
 								q.Draw(bg, pos, size, Vec2.Zero, Vec2.Ones);
 							end;
 						else
-							q.Draw(bg, pos, size, Vec2.Zero, Vec2.Ones);
+							for i := 0 to 3 do
+							begin
+								scale := sqr(i/3)*(lodBias/30);
+								if not (q.Field.Color in q.fields) then begin q.fields += [q.Field.Color]; q.color := Vec4.Ones; end;
+								q.color.data[3] *= pow((4-i)/4, 2);
+								q.Draw(bg, pos, size, Vec2.Make(scale), Vec2.Make(1.0 - 2*scale));
+							end;
 					end;
 
 					gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_LOD_BIAS, 0);
@@ -304,11 +317,33 @@ implementation
 	end;
 
 	procedure MainMenu.HandleMouse(action: MouseAction; const pos: Vec2);
+	var
+		handled: boolean;
 	begin
+		handled := no;
 		case action of
-			MouseLClick: if (state in [FadeIn]) or (uiState in [UiRequestCreate, UiFadingIn, UiFadingButtonOut]) then skipFx := yes;
+			MouseLClick:
+				if (state in [FadeIn]) or (uiState in [UiRequestCreate, UiFadingIn, UiFadingButtonOut]) then
+				begin
+					skipFx := yes;
+					handled := yes;
+				end;
 		end;
-		inherited HandleMouse(action, pos);
+		if not handled then inherited HandleMouse(action, pos);
+	end;
+
+	procedure MainMenu.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
+	var
+		handled: boolean;
+	begin
+		handled := no;
+		case action of
+			KeyClick:
+				case key of
+					key_Esc: mgr^.Pop;
+				end;
+		end;
+		if not handled then inherited HandleKeyboard(action, key);
 	end;
 
 	procedure MainMenu.HandleClick(selected: ButtonEnum);

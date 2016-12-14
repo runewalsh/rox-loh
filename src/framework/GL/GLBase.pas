@@ -741,7 +741,7 @@ const
 implementation
 
 uses
-	Lights, GLUtils, MMSystem, DDS, PNG, Crunch, RawMesh, BMP, RawTex
+	Lights, GLUtils, MMSystem, DDS, PNG, Crunch, RawMesh, BMP, RawTex, Diffed3DTexture
 {$ifdef use_serialization}, Serialization {$endif};
 
 	{$define classname:=Name2NativeGLValue} {$define inline_hash := _1.Hash} {$define finalize_key :=}
@@ -3302,6 +3302,7 @@ var
 	var
 		i: uint;
 	begin
+		if newSize.Positive then ValidateImageSize(newSize);
 	{$ifdef Debug} if not newSize.Positive then Log('{0}-текстура нулевого размера: {1}.', GLTextureTargetIds[newTarget], ToString(newSize), logWarning); {$endif}
 		target := newTarget;
 		for i := 0 to High(newSize.data) do

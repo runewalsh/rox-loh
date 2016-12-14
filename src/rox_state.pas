@@ -28,6 +28,7 @@ type
 		procedure HandleReactivation; virtual;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
 		function QuerySwitchOff: boolean; virtual;
 	end;
 
@@ -59,6 +60,7 @@ type
 
 		procedure HandleViewportChange(const viewport: UintVec2);
 		procedure HandleMouse(action: MouseAction; const pos: Vec2);
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
 	private
 		magic: array[0 .. 3] of char;
 		procedure CheckCanSwitch;
@@ -84,12 +86,20 @@ uses
 	begin
 	end;
 
-	procedure State.HandleActivation; begin end;
+	procedure State.HandleActivation;
+	var
+		priority: pModifiableValue;
+	begin
+		priority := mgr^.bgm.Priority(id, no);
+		if Assigned(priority) then priority^.SetModifier('mgr', op_Add, +1, 0);
+	end;
+
 	procedure State.HandleUpdate(const dt: float); begin Assert(@dt = @dt); end;
 	procedure State.HandleDraw; begin end;
 	function State.QueryDeactivate: boolean; begin result := yes; end;
 	procedure State.HandleReactivation; begin end;
 	procedure State.HandleMouse(action: MouseAction; const pos: Vec2); begin Assert((@action = @action) and (@pos = @pos)); end;
+	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey); begin Assert((@action = @action) and (@key = @key)); end;
 	function State.QuerySwitchOff: boolean; begin result := yes; end;
 
 	procedure StateManager.Invalidate;
@@ -194,6 +204,21 @@ uses
 		if not ui.mouseHandled then state^.HandleMouse(action, pos * nvp);
 	end;
 
+	procedure StateManager.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
+	var
+		handled: boolean;
+	begin
+		handled := no;
+		case action of
+			KeyClick:
+				case key of
+					key_NumPlus: begin bgm.Rewind(+5); handled := yes; end;
+					key_NumMinus: begin bgm.Rewind(-5); handled := yes; end;
+				end;
+		end;
+		if not handled then state^.HandleKeyboard(action, key);
+	end;
+
 	procedure StateManager.CheckCanSwitch;
 	begin
 		if Assigned(switching.&to) then raise Error('Уже выполняется переключение на {0}.', switching.&to^.id);
@@ -201,7 +226,6 @@ uses
 
 	function StateManager.InternalTrySwitch(another: pState; pushing: boolean): boolean;
 	var
-		priority: pModifiableValue;
 		id: string;
 	begin
 		result := no;
@@ -225,9 +249,6 @@ uses
 			ui.RemoveGroup(id);
 			state := another;
 			another^.mgr := @self;
-			bgm.ResetTheme(state^.id);
-			priority := bgm.Priority(state^.id, no);
-			if Assigned(priority) then priority^.SetModifier('mgr', op_Add, +1, 0);
 			another^.HandleActivation;
 		end;
 	end;
