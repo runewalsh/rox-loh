@@ -235,6 +235,19 @@ type
 			maxIntermediateVertices: uint; intermediateVertices: pUint; out distance: Distance): uint; static;
 	end;}
 
+	FloodFill = object
+	type
+	{$define classname := PointSet} {$define key_type := UintVec2} {$define dont_replace} {$define on_new_ret} {$include hash.h.inc}
+		TestPoint = function(const point: UintVec2; param: pointer): boolean;
+		Result = object
+			filled: PointSet;
+			min, max: UintVec2;
+			procedure Done;
+		end;
+
+		procedure FourWay(out r: Result; const start, size: UintVec2; test: TestPoint; param: pointer); static;
+	end;
+
 implementation
 
 uses
@@ -245,6 +258,8 @@ uses
 {$define classname := PointIDSet} {$define key_type := Wave.PointID} {$include hash.h.inc}
 {$define classname := PointIDQueue} {$include queue.pp.inc}
 {$define classname := PointIDSet} {$define hash_func := Hash.OfUint} {$include hash.pp.inc}*)
+
+{$define classname := FloodFill.PointSet} {$define inline_hash := Hash.Combine(Hash.OfUint(_1.x), Hash.OfUint(_1.y))} {$include hash.pp.inc}
 
 unchecked
 	function Hash.OfUint(const x: uint32): Value;
@@ -1403,5 +1418,53 @@ type
 			queue.Done;
 		end;
 	end;}
+
+	procedure FloodFill.Result.Done;
+	begin
+		filled.Done;
+	end;
+
+	procedure FloodFill.FourWay(out r: Result; const start, size: UintVec2; test: TestPoint; param: pointer);
+	var
+		queue: HeterogenousQueue;
+		p: pUintVec2;
+		new: boolean;
+
+		procedure TryFill(const point: UintVec2);
+		var
+			new: boolean;
+		begin
+			if test(point, param) then
+			begin
+				r.filled.Add(point, new);
+				if new then
+				begin
+					r.min := Min(r.min, point);
+					r.max := Max(r.max, point);
+					pUintVec2(queue.Put(sizeof(UintVec2)))^ := point;
+				end;
+			end;
+		end;
+
+	begin
+		r.min := start;
+		r.max := start;
+		r.filled.Init;
+
+		queue.Init;
+		pUintVec2(queue.Put(sizeof(UintVec2)))^ := start;
+		r.filled.Add(start, new);
+		repeat
+			p := queue.LockGet;
+			if not Assigned(p) then break;
+
+			if p^.x > 0 then TryFill(UintVec2.Make(p^.x - 1, p^.y));
+			if p^.x + 1 < size.x then TryFill(UintVec2.Make(p^.x + 1, p^.y));
+			if p^.y > 0 then TryFill(UintVec2.Make(p^.x, p^.y - 1));
+			if p^.y + 1 < size.y then TryFill(UintVec2.Make(p^.x, p^.y + 1));
+			queue.UnlockGet(sizeof(UintVec2));
+		until no;
+		queue.Done;
+	end;
 
 end.

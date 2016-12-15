@@ -512,7 +512,7 @@ type
 			flags: FileFlags;
 			timeout: uint;
 			tag: sint;
-			function Make(ctr: LoadProc; flags: FileFlags; timeout: uint; tag: sint): TypeDesc; static;
+			function Create(ctr: LoadProc; flags: FileFlags; timeout: uint; tag: sint): pTypeDesc; static;
 			function ToFileFlags(justTry: boolean): FileFlags;
 			procedure Release(obj: pObject; var rp: ResourcePool);
 		end;
@@ -538,7 +538,7 @@ type
 			{$define pSelf := pResKey} {$define constructor_args := ResKey_constructor_args} {$include dyn_obj.h.inc}
 		end;
 
-		{$define classname := VMT2Type} {$define key_type := pointer} {$define value_type := TypeDesc} {$include hash.h.inc}
+		{$define classname := VMT2Type} {$define key_type := pointer} {$define value_type := pTypeDesc} {$define null_value := nil} {$include hash.h.inc}
 		{$define classname := KeySet} {$define key_type := pResKey} {$define dont_replace} {$define null_value := nil} {$include hash.h.inc}
 
 		{$define classname := ObjectSet} {$define key_type := pResKey} {$define inline_key := pObject} {$define null_value := nil}
@@ -786,7 +786,7 @@ uses
 	{$define rp_dpr := //}
 {$endif}
 
-	{$define classname := ResourcePool.VMT2Type} {$define hash_func := Hash.OfPointer}
+	{$define classname := ResourcePool.VMT2Type} {$define hash_func := Hash.OfPointer} {$define finalize_value := dispose(_1)}
 	{$include hash.pp.inc}
 
 	{$define classname := ResourcePool.KeySet} {$define inline_hash := Hash.OfPointer(_1^.typ) xor Hash.OfString(_1^.stream)}
@@ -2959,37 +2959,38 @@ var
 	procedure DelayedReleaseTimer(param: pointer; var instance: ThreadTimer.CallbackInstance);
 	var
 	{$ifdef DebugDelayedRelease} stream: string; {$endif}
+		rp: pResourcePool;
 		p: ResourcePool.pTimerParam absolute param;
 		td: ResourcePool.pTypeDesc;
 		obj: pObject;
 	begin
 	{$ifdef DebugDelayedRelease} stream := p^.key^.stream; {$endif}
 		rp_dpr('Таймер: ' + stream);
-		p^.rp^.timerLock.Enter;
+		rp := p^.rp;
+		rp^.timerLock.Enter;
 		Assert(p^.cancel = not Assigned(p^.key^.releasing), YesNo[p^.cancel] + '/' + ToString(p^.key^.releasing));
 		if p^.cancel then
 		begin
 			rp_dpr('Отмена: ' + stream);
-			obj := nil;
-		end else
-		begin
-			rp_dpr('Удаление: ' + stream);
-			td := p^.key^.td;
-			obj := p^.key^.obj;
-			p^.rp^.Unregister(p^.key);
+			rp^.timerLock.Leave;
+			exit;
 		end;
-		p^.rp^.timerLock.Leave;
 
-		rp_dpr('Освобождение: ' + stream);
-		td^.Release(obj, p^.rp^); // может вызвать HandleZeroRefCount, поэтому блокировка должна быть рекурсивной
-		rp_dpr('Освобождён: ' + stream);
+		rp_dpr('Удаление: ' + stream);
+		td := p^.key^.td;
+		obj := p^.key^.obj;
+		rp^.Unregister(p^.key);
+		rp^.timerLock.Leave;
 
 		if not p^.cancel then
 		begin
-			p^.cancel := yes;
 			instance.Close;
 			dispose(p);
 		end;
+
+		rp_dpr('Освобождение: ' + stream);
+		td^.Release(obj, rp^); // может вызвать HandleZeroRefCount
+		rp_dpr('Освобождён: ' + stream);
 	end;
 
 	procedure HandleZeroRefCount(obj: pObject; param: pointer);
@@ -3014,12 +3015,13 @@ var
 		rp^.timerLock.Leave;
 	end;
 
-	function ResourcePool.TypeDesc.Make(ctr: LoadProc; flags: FileFlags; timeout: uint; tag: sint): TypeDesc;
+	function ResourcePool.TypeDesc.Create(ctr: LoadProc; flags: FileFlags; timeout: uint; tag: sint): pTypeDesc;
 	begin
-		result.ctr     := ctr;
-		result.flags   := flags + [file_Read];
-		result.timeout := timeout;
-		result.tag     := tag;
+		new(result);
+		result^.ctr     := ctr;
+		result^.flags   := flags + [file_Read];
+		result^.timeout := timeout;
+		result^.tag     := tag;
 	end;
 
 	function ResourcePool.TypeDesc.ToFileFlags(justTry: boolean): FileFlags;
@@ -3166,10 +3168,14 @@ var
 {$include lazy_singleton.inc}
 
 	function ResourcePool.Register(typ: pointer; ctr: LoadProc): pSelf;
+	var
+		t: pTypeDesc;
 	begin
 		result := @self;
 		Assert(not Assigned(FindType(typ)), 'duplicate type!');
-		lastRegistered := types.Add(typ, TypeDesc.Make(ctr, [], DefaultTimeout, -1));
+		t := TypeDesc.Create(ctr, [], DefaultTimeout, -1);
+		types.Add(typ, t);
+		lastRegistered := t;
 	end;
 
 	function ResourcePool.LoadRef(otyp: pointer; const stream: string; justTry: boolean = no): pointer;

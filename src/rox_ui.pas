@@ -49,6 +49,8 @@ type
 		procedure Update(const dt: float); virtual;
 		procedure Draw; virtual;
 		function Place(const pos: Vec2; const size: float; sizeMethod: Aspect2Method): pControl;
+		procedure ChangeTexture(tex: pTexture);
+		function CalculateRawSize: Vec2;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
 	private
@@ -141,11 +143,9 @@ uses
 		begin
 			SetLength(self.states, length(states));
 			for i := 0 to High(self.states) do
-			begin
 				self.states[i] := states[i];
-				self.states[i].ap.Fix(tex^.size.Aspect);
-			end;
 		end;
+		ChangeTexture(tex);
 
 		state := 0;
 		sizeMethod := asp2_x1;
@@ -171,7 +171,7 @@ uses
 	procedure Control.Update(const dt: float);
 	begin
 		Assert(@dt = @dt);
-		rawSize := states[state].ap.Aspect2(sizeMethod, size);
+		rawSize := CalculateRawSize;
 	end;
 
 	procedure Control.Draw;
@@ -189,6 +189,22 @@ uses
 		self.size := size;
 		self.sizeMethod := sizeMethod;
 		result := @self;
+	end;
+
+	procedure Control.ChangeTexture(tex: pTexture);
+	var
+		i: sint;
+	begin
+		if Assigned(self.tex) and (self.tex <> tex) then raise Error('Текстура не может быть заменена.');
+		self.tex := tex;
+		if Assigned(tex) then
+			for i := 0 to High(states) do
+				self.states[i].ap := self.states[i].ap.Combined(tex^.ap);
+	end;
+
+	function Control.CalculateRawSize: Vec2;
+	begin
+		result := states[state].ap.Aspect2(sizeMethod, size);
 	end;
 
 	procedure Control.HandleMouse(action: MouseAction; const pos: Vec2);

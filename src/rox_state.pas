@@ -4,7 +4,7 @@ unit rox_state;
 interface
 
 uses
-	USystem, UMath, UClasses, Audio, Utils, GLUtils, rox_ui, rox_dialogue;
+	USystem, UMath, UClasses, Audio, Utils, GLUtils, rox_ui;
 
 const
 	PrettyTimeCycle = 4000.0;

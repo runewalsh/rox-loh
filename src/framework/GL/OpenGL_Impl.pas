@@ -317,6 +317,8 @@ const
 		(enum: gl.SIGNED_SHORT;   count: 4; normalized: gl.FALSE)  // GLtype_Vec4i16
 	);
 
+	SwizzleEnums: array[Swizzle] of gl.enum = (gl.RED, gl.GREEN, gl.BLUE, gl.ALPHA, gl.ZERO, gl.ONE);
+
 implementation
 
 uses
@@ -2206,7 +2208,6 @@ type
 		WrapModeEnums: array[GLTextureWrapMode] of gl.enum = (gl.&REPEAT, gl.CLAMP_TO_EDGE);
 		FilterEnums: array[GLTextureFilter] of gl.enum = (gl.NEAREST, gl.LINEAR);
 		FilterEnums_wMIP: array[GLTextureFilter] of gl.enum = (gl.NEAREST_MIPMAP_NEAREST, gl.LINEAR_MIPMAP_LINEAR);
-		SwizzleEnums: array[GLTextureSwizzleChannel] of gl.enum = (gl.RED, gl.GREEN, gl.BLUE, gl.ALPHA, gl.ZERO, gl.ONE);
 	var
 		i: sint;
 		swizzle: array[0 .. 3] of gl.int;

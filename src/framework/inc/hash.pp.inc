@@ -477,6 +477,14 @@
 		if result then value := @{$define iter := c} iter_cell.{$ifdef ishash} value {$else} key {$endif};
 	end;
 
+	function classname.Contains(const key: SearchKey): boolean;
+	var
+		c: Iterator;
+	begin
+		c := FindCell(key, nil);
+		result := {$define iter := c} iter_ok;
+	end;
+
 	function classname.Remove(const key: SearchKey): boolean;
 	begin
 		result := Remove(FindCell(key, nil));

@@ -95,6 +95,7 @@
 		function Find(const key: SearchKey): {$if defined(null_value)} CellData {$else} pCellData {$endif};
 		function Find(const key: SearchKey; out value: CellData): boolean;
 		function Find(const key: SearchKey; out value: pCellData): boolean;
+		function Contains(const key: SearchKey): boolean;
 		function Remove(const key: SearchKey): boolean; cinline
 		function Remove(it: Iterator): boolean;
 		procedure Clear;

@@ -4,7 +4,7 @@ unit rox_state_mainmenu;
 interface
 
 uses
-	USystem, Errors, UMath, Utils, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_state_adventure;
+	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_state_adventure, rox_paths;
 
 type
 	pMainMenu = ^MainMenu;
@@ -62,8 +62,8 @@ implementation
 	begin
 		inherited Init(StateID);
 		for b in ButtonEnum do
-			buttons[b].tex := Texture.Load('ui/' + ButtonInfo[b].id);
-		bg := Texture.Load('bg[c].png-diff');
+			buttons[b].tex := Texture.Load(UI(ButtonInfo[b].id));
+		bg := Texture.Load(UI('bg[c].png-diff'));
 		state := Prepare;
 	end;
 
@@ -241,7 +241,6 @@ implementation
 		case state of
 			FadeIn, Idle, StartingNewGame:
 				begin
-					gl.Disable(gl.DEPTH_TEST);
 					gl.BindTexture(bg^.targetEnum, bg^.handle);
 					if bgTime < 4.0 then
 					begin
@@ -311,7 +310,6 @@ implementation
 					end;
 
 					gl.TexParameterf(gl.TEXTURE_2D, gl.TEXTURE_LOD_BIAS, 0);
-					gl.Enable(gl.DEPTH_TEST);
 				end;
 		end;
 	end;

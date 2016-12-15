@@ -107,6 +107,7 @@ type
 		&REPEAT = $2901;
 		CLAMP_TO_EDGE = $812F;
 		TEXTURE_LOD_BIAS = $8501;
+		TEXTURE_SWIZZLE_RGBA = $8E46;
 
 		RGB            = $1907;
 		RGBA           = $1908;

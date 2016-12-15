@@ -5,15 +5,12 @@ program rox;
 uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl,
-	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure;
+	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure, rox_paths;
 
 	procedure LoadBGM(var window: Window);
-	var
-		f: FoundFile;
 	begin
-		for f in Folder.Scan(Paths.Data + 'BGM', 'ps2phantasy*.mid') do
-			window.state.bgm.AddTheme(MainMenu.StateID).AddItem(f.SearchedName);
-		window.state.bgm.AddTheme(Adventure.StateID).AddItem(Paths.Data + 'BGM/ps2restoration1.mid');
+		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('ps2phantasy2.mid'));
+		window.state.bgm.AddTheme(Adventure.StateID).AddItem(Music('ps2restoration1.mid'));
 	end;
 
 var
@@ -71,7 +68,7 @@ begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
-	minFrameTime := Ticks.FromSeconds(0/100);
+	minFrameTime := Ticks.FromSeconds(1/100);
 	ParseCommandLine;
 
 	try
@@ -83,7 +80,6 @@ begin
 
 			gl.PixelStorei(gl.PACK_ALIGNMENT, 1);
 			gl.PixelStorei(gl.UNPACK_ALIGNMENT, 1);
-			gl.Enable(gl.DEPTH_TEST);
 			gl.Enable(gl.TEXTURE_2D);
 			gl.Enable(gl.BLEND); gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 			gl.L.EnableClientState(gl.L.VERTEX_ARRAY);

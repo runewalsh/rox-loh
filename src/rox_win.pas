@@ -4,7 +4,7 @@ unit rox_win;
 interface
 
 uses
-	ctypes, Windows, USystem, Errors, DynamicLoader, UMath, Utils, Human, Windowing, Input, GLUtils, Audio, rox_state;
+	ctypes, Windows, USystem, Errors, DynamicLoader, UMath, Utils, Human, Windowing, Input, GLUtils, Audio, rox_state, rox_paths;
 
 	procedure Warning(const msg: string);
 
@@ -199,8 +199,8 @@ type
 			cursors[DefaultCursor] := Windows.LoadCursor(0, IDC_ARROW);
 			if cursors[DefaultCursor] = 0 then raise Win.OperationFailed('загрузить обычный указатель (LoadCursor)');
 
-			cursors[Cursor0] := LoadCursor(Paths.Data + 'cursors/Pulse_Glass.ani');
-			cursors[Cursor1] := LoadCursor(Paths.Data + 'cursors/Pulse_Glass_Working.ani');
+			cursors[Cursor0] := LoadCursor(rox_paths.Cursor('Pulse_Glass.ani'));
+			cursors[Cursor1] := LoadCursor(rox_paths.Cursor('Pulse_Glass_Working.ani'));
 
 			state.Init(@self);
 			UpdateViewport(rect);
@@ -439,8 +439,7 @@ type
 
 	procedure Window.Redraw;
 	begin
-		gl.Viewport((size.x - viewport.x) div 2, (size.y - viewport.y) div 2, viewport.x, viewport.y);
-		gl.Clear(gl.COLOR_BUFFER_BIT or gl.DEPTH_BUFFER_BIT);
+		gl.Clear(gl.COLOR_BUFFER_BIT);
 		state.Draw;
 		inc(redraws);
 		CleanupGLGraveyard;
@@ -450,6 +449,7 @@ type
 	procedure Window.UpdateViewport(const rect: WindowRect);
 	begin
 		viewport := ShrinkToAspect(rect.size, ScreenAspect);
+		gl.Viewport((size.x - viewport.x) div 2, (size.y - viewport.y) div 2, viewport.x, viewport.y);
 		state.HandleViewportChange(viewport);
 	end;
 

@@ -26,7 +26,7 @@ type
 			phase: float;
 		end;
 
-		MoveCallbackReason = (MovingTargetReached);
+		MoveCallbackReason = (MovingCanceled, MovingTargetReached);
 		MoveCallback = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
 	var
 		// шаблон
@@ -232,7 +232,7 @@ implementation
 		sql := delta.SqrLength;
 		result := sqr(by) >= sql;
 		if result then m := delta else m := delta * (by / sqrt(sql));
-		if location^.Collide(Circle.Make(HeartPos, 0.5 * size.x), m) and (m.SqrLength < 0.0001) then mvMethod := NotMoving;
+		if location^.Collide(Circle.Make(HeartPos, 0.5 * size.x), m) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
 		local.trans += m;
 		if Assigned(moved) then moved^ := m;
 	end;

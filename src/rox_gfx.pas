@@ -18,9 +18,14 @@ type
 		ap: AspectPair;
 		targetEnum: gl.enum;
 
-		function Load(const id: string): pTexture; static;
+		function Load(const filename: string): pTexture; static;
+		function Dynamic(format: GLImageFormat; const size: UintVec2): pTexture; static;
 		destructor Done; virtual;
+		procedure Swizzle(r, g, b, a: U_GL.Swizzle);
+		procedure Sub(x, y, w, h: uint; format: GLImageFormat; data: pointer);
 	private
+		function Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture; static;
+		function UnsupportedTargetMessage(target: GLTextureTarget): string; static;
 		function Load(s: pStream): pTexture; static;
 	end;
 
@@ -134,9 +139,21 @@ type
 var
 	glTrash: GLGraveyard;
 
-	function Texture.Load(const id: string): pTexture;
+	function Texture.Load(const filename: string): pTexture;
 	begin
-		result := ResourcePool.Shared^.LoadRef(TypeOf(Texture), Paths.Data + id);
+		result := ResourcePool.Shared^.LoadRef(TypeOf(Texture), filename);
+	end;
+
+	function Texture.Dynamic(format: GLImageFormat; const size: UintVec2): pTexture;
+	begin
+		result := Create(GLtexture_2D, size, no, no);
+		try
+			gl.TexImage2D(gl.TEXTURE_2D, 0, GLFormats[format].internalFormat, size.x, size.y, 0, GLFormats[format].components, GLFormats[format].ctype, nil);
+			result^.NewRef;
+		except
+			dispose(result, Done);
+			raise;
+		end;
 	end;
 
 	destructor Texture.Done;
@@ -145,33 +162,78 @@ var
 		inherited Done;
 	end;
 
-	function Texture.Load(s: pStream): pTexture;
-		function UnsupportedTarget(target: GLTextureTarget): Exception;
-		begin
-			result := Error(StreamPath.Human(s^.path) + ': ' + GLTextureTargetIds[target] + '-текстуры не поддерживаются.');
+	procedure Texture.Swizzle(r, g, b, a: U_GL.Swizzle);
+	var
+		pack: array[0 .. 3] of gl.int;
+	begin
+		gl.BindTexture(targetEnum, handle);
+		pack[0] := SwizzleEnums[r];
+		pack[1] := SwizzleEnums[g];
+		pack[2] := SwizzleEnums[b];
+		pack[3] := SwizzleEnums[a];
+		gl.TexParameteriv(targetEnum, gl.TEXTURE_SWIZZLE_RGBA, @pack[0]);
+	end;
+
+	procedure Texture.Sub(x, y, w, h: uint; format: GLImageFormat; data: pointer);
+	begin
+		gl.BindTexture(targetEnum, handle);
+		gl.TexSubImage2D(targetEnum, 0, x, y, w, h, GLFormats[format].components, GLFormats[format].ctype, data);
+	end;
+
+	function Texture.Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture;
+	begin
+		result := new(pTexture, Init);
+		try
+			gl.GenTextures(1, @result^.handle);
+			result^.size := size.XY;
+			result^.ap := AspectPair.Make(result^.size);
+
+			case target of
+				GLtexture_2D: begin result^.targetEnum := gl.TEXTURE_2D; result^.sizeZ := 1; end;
+				GLtexture_3D: begin result^.targetEnum := gl.TEXTURE_3D; result^.sizeZ := size.Z; end;
+				else raise Error(UnsupportedTargetMessage(target));
+			end;
+
+			gl.BindTexture(result^.targetEnum, result^.handle);
+			gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+			if mips then
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
+			else
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+			if clamp then
+			begin
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+				if target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+			end else
+			begin
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.&REPEAT);
+				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.&REPEAT);
+				if target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.&REPEAT);
+			end;
+		except
+			dispose(result, Done);
+			raise;
 		end;
+	end;
+
+	function Texture.UnsupportedTargetMessage(target: GLTextureTarget): string;
+	begin
+		result := GLTextureTargetIds[target] + '-текстуры не поддерживаются.';
+	end;
+
+	function Texture.Load(s: pStream): pTexture;
 	var
 		im: TextureImage;
-		h: gl.uint;
 		lv: uint;
-		mipped: boolean;
 		levelSize: UintVec3;
 	begin
 		im.Init(s);
 		result := nil;
 		try
+			result := Create(im.target, im.size, texture_Mips in im.info.flags,
+				((GLImageFormatsInfo[im.format].nChannels = 4) or (Pos('[c]', s^.path) > 0)) and not (Pos('[tile]', s^.path) > 0));
 			try
-				result := new(pTexture, Init);
-				gl.GenTextures(1, @h);
-				result^.handle := h;
-				case im.target of
-					GLtexture_2D: begin result^.targetEnum := gl.TEXTURE_2D; result^.sizeZ := 1; end;
-					GLtexture_3D: begin result^.targetEnum := gl.TEXTURE_3D; result^.sizeZ := im.size.Z; end;
-					else raise UnsupportedTarget(im.target);
-				end;
-
-				gl.BindTexture(result^.targetEnum, h);
-				mipped := texture_Mips in im.info.flags;
 				for lv := 0 to im.nLevels - 1 do
 				begin
 					levelSize := im.info.LevelSize(lv);
@@ -190,38 +252,16 @@ var
 							else
 								gl.TexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), GLFormats[im.format].internalFormat, levelSize.x, levelSize.y, levelSize.z, 0,
 									GLFormats[im.format].components, GLFormats[im.format].ctype, im.LevelPtr(lv));
-						else raise UnsupportedTarget(im.target);
+						else raise Error(StreamPath.Human(s^.path) + ': ' + UnsupportedTargetMessage(im.target));
 					end;
 				end;
-
-				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-				if mipped then
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
-				else
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-				if ((GLImageFormatsInfo[im.format].nChannels = 4) or (Pos('[c]', s^.path) > 0)) and not (Pos('[tile]', s^.path) > 0) then
-				begin
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-					if im.target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
-				end else
-				begin
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.&REPEAT);
-					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.&REPEAT);
-					if im.target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.&REPEAT);
-				end;
-				gl.L.TexEnvi(gl.L.TEXTURE_ENV, gl.L.TEXTURE_ENV_MODE, gl.L.MODULATE);
-			finally
-				im.Done;
+			except
+				dispose(result, Done);
+				raise;
 			end;
-		except
-			if Assigned(result) then dispose(result, Done);
-			raise;
+		finally
+			im.Done;
 		end;
-
-		result^.handle := h;
-		result^.size := im.Size.XY;
-		result^.ap := AspectPair.Make(result^.size);
 	end;
 
 	constructor ImageResource.Init(s: pStream);
@@ -298,50 +338,66 @@ var
 		gl.L.VertexPointer(n, gl.FLOAT_TYPE, 0, gl.pfloat(data) + vp);
 		vp += 4*n;
 
-		if Field.TexZ in fields then
+		if Assigned(tex) then
 		begin
-			n := 3;
-			data[vp+0] := texPos.x;
-			data[vp+1] := texPos.y;
-			data[vp+2] := texZ;
-			data[vp+3] := texPos.x;
-			data[vp+4] := texPos.y + texSize.y;
-			data[vp+5] := texZ;
-			data[vp+6] := texPos.x + texSize.x;
-			data[vp+7] := texPos.y;
-			data[vp+8] := texZ;
-			data[vp+9] := texPos.x + texSize.x;
-			data[vp+10] := texPos.y + texSize.y;
-			data[vp+11] := texZ;
+			if Field.TexZ in fields then
+			begin
+				n := 3;
+				data[vp+0] := texPos.x;
+				data[vp+1] := texPos.y;
+				data[vp+2] := texZ;
+				data[vp+3] := texPos.x;
+				data[vp+4] := texPos.y + texSize.y;
+				data[vp+5] := texZ;
+				data[vp+6] := texPos.x + texSize.x;
+				data[vp+7] := texPos.y;
+				data[vp+8] := texZ;
+				data[vp+9] := texPos.x + texSize.x;
+				data[vp+10] := texPos.y + texSize.y;
+				data[vp+11] := texZ;
+			end else
+			begin
+				n := 2;
+				data[vp+0] := texPos.x;
+				data[vp+1] := texPos.y;
+				data[vp+2] := texPos.x;
+				data[vp+3] := texPos.y + texSize.y;
+				data[vp+4] := texPos.x + texSize.x;
+				data[vp+5] := texPos.y;
+				data[vp+6] := texPos.x + texSize.x;
+				data[vp+7] := texPos.y + texSize.y;
+			end;
+			gl.L.TexCoordPointer(n, gl.FLOAT_TYPE, 0, gl.pfloat(data) + vp);
+
+
+			if tex^.targetEnum <> gl.TEXTURE_2D then
+			begin
+				gl.Disable(gl.TEXTURE_2D);
+				gl.Enable(tex^.targetEnum);
+			end;
+
+			gl.BindTexture(tex^.targetEnum, tex^.handle);
 		end else
 		begin
-			n := 2;
-			data[vp+0] := texPos.x;
-			data[vp+1] := texPos.y;
-			data[vp+2] := texPos.x;
-			data[vp+3] := texPos.y + texSize.y;
-			data[vp+4] := texPos.x + texSize.x;
-			data[vp+5] := texPos.y;
-			data[vp+6] := texPos.x + texSize.x;
-			data[vp+7] := texPos.y + texSize.y;
-		end;
-		gl.L.TexCoordPointer(n, gl.FLOAT_TYPE, 0, gl.pfloat(data) + vp);
-
-		if tex^.targetEnum <> gl.TEXTURE_2D then
-		begin
 			gl.Disable(gl.TEXTURE_2D);
-			gl.Enable(tex^.targetEnum);
+			gl.L.DisableClientState(gl.L.TEXTURE_COORD_ARRAY);
 		end;
 
-		gl.BindTexture(tex^.targetEnum, tex^.handle);
 		if Field.Color in fields then gl.L.Color4f(color.x, color.y, color.z, color.w);
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		if Field.Color in fields then gl.L.Color4f(1, 1, 1, 1);
 
-		if tex^.targetEnum <> gl.TEXTURE_2D then
+		if Assigned(tex) then
 		begin
-			gl.Disable(tex^.targetEnum);
+			if tex^.targetEnum <> gl.TEXTURE_2D then
+			begin
+				gl.Disable(tex^.targetEnum);
+				gl.Enable(gl.TEXTURE_2D);
+			end;
+		end else
+		begin
 			gl.Enable(gl.TEXTURE_2D);
+			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 		end;
 	end;
 

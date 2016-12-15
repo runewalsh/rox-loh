@@ -34,11 +34,11 @@ type
 		_mode: TextureMode;
 		_loaded: boolean;
 		_wrap: GLTextureWrapMode;
-		_swizzle: GLTextureSwizzle;
+		_swizzle: SwizzlePack;
 		procedure _Init(newIm: pTextureImage; newTarget: GLTextureTarget; const newSize: UintVec3; newFormat: GLImageFormat; imageFlags: TextureImageFlags; newMode: TextureMode);
 		procedure _Load2vmem(const data: array of pointer);
 		procedure _SetWrap(newWrap: GLTextureWrapMode);
-		procedure _SetSwizzle(const newSwizzle: GLTextureSwizzle);
+		procedure _SetSwizzle(const newSwizzle: SwizzlePack);
 	public
 		info: TextureImageInfo;
 		inGL: pGLTexture;
@@ -58,7 +58,7 @@ type
 		property nLevels: uint read info.nLevels;
 
 		property Wrap: GLTextureWrapMode read _wrap write _SetWrap;
-		property Swizzle: GLTextureSwizzle read _swizzle write _SetSwizzle;
+		property Swizzle: SwizzlePack read _swizzle write _SetSwizzle;
 
 	public
 	{$ifdef DebugImageFlip} FlipsTime: Ticks; static; FlipsCount: uint; static; {$endif}
@@ -2908,7 +2908,7 @@ type
 		_wrap := newWrap;
 	end;
 
-	procedure tTexture._SetSwizzle(const newSwizzle: GLTextureSwizzle);
+	procedure tTexture._SetSwizzle(const newSwizzle: SwizzlePack);
 	var
 		p: GLTextureParamsRec;
 	begin
@@ -3921,7 +3921,7 @@ const
 		i, j, t: sint;
 		fn: string;
 		ok: boolean;
-		swz: GLTextureSwizzle;
+		swz: SwizzlePack;
 	begin
 		result := nil;
 		if not Assigned(s) then exit;
@@ -3936,13 +3936,13 @@ const
 				for j := i + 1 to min(i + 4, length(fn)) do
 				begin
 					if fn[j] = ']' then break;
-					t := FindStr(fn[j], TextureSwizzleIds);
+					t := FindStr(fn[j], SwizzleIds);
 					if t = -1 then
 					begin
 						ok := no;
 						break;
 					end;
-					swz[j - i - 1] := GLTextureSwizzleChannel(t);
+					swz[j - i - 1] := Swizzle(t);
 				end;
 				if ok then
 					tex^.Swizzle := swz;

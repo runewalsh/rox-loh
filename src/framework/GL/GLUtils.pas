@@ -98,6 +98,7 @@ type
 		function Aspect2(method: Aspect2Method; const mul: float): Vec2;
 		function Aspect2Item(method: Aspect2Method; dim: uint; const mul: float): float;
 		procedure Fix(const by: float);
+		function Combined(const ap: AspectPair): AspectPair;
 		function ReverseCombined(const ap: AspectPair): AspectPair;
 	const
 		Identity: AspectPair = (aspect: 1.0; invAspect: 1.0);
@@ -759,6 +760,12 @@ uses
 	begin
 		aspect *= by;
 		invAspect /= by;
+	end;
+
+	function AspectPair.Combined(const ap: AspectPair): AspectPair;
+	begin
+		result.aspect := aspect * ap.aspect;
+		result.invAspect := invAspect * ap.invAspect;
 	end;
 
 	function AspectPair.ReverseCombined(const ap: AspectPair): AspectPair;

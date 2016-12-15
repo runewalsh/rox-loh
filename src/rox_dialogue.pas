@@ -4,39 +4,72 @@ unit rox_dialogue;
 interface
 
 uses
-	USystem, UClasses, U_GL, GLBase, GLUtils, rox_gfx, rox_ui;
+	USystem, UClasses, UMath, Algo, Utils, U_GL, GLBase, GLUtils, rox_gl, rox_state, rox_gfx, rox_ui {$ifdef Debug}, ULog {$endif};
 
 type
+	pTextBox = ^TextBox;
 	TextBox = object(Control)
-		syms: array of TextureImage;
-		built: TextureImage;
+	type
+		SymDesc = object
+			data: pUint8;
+			pos, size: UintVec2;
+			procedure Done;
+		end;
+	var
+		pic: pTexture;
+		syms: array of SymDesc;
+		nextSym: sint;
+		sum: pUint8;
+		sumSize: UintVec2;
+		timeout, finalTimeout: float;
 
-		constructor Init(const src: string);
+		constructor Init(const src, pic: string);
 		destructor Done; virtual;
-		procedure Update(const dt: float);
+		procedure Update(const dt: float); virtual;
 		procedure Draw; virtual;
+		procedure Advance(n: uint);
+		function Finished: boolean;
 	private
 		procedure Prepare(const src: TextureImage);
-		procedure ScanRow(img: pUint8; x, y, w, h: uint);
-		procedure FloodFill(img, result: pUint8; x, y, w, h: uint; out left, top, filledWidth, filledHeight: uint);
+		procedure ScanRowForSymbols(img: pUint8; ya, yb: uint; const size: UintVec2);
+	public const
+		StartingSymbolThreshold = High(uint8) div 2;
+		FloodFillThreshold = (High(uint8) * 3) div 4;
+		PicSize = 0.3;
 	end;
 
 implementation
 
-	constructor TextBox.Init(const src: string);
+	procedure TextBox.SymDesc.Done;
+	begin
+		FreeMem(data);
+	end;
+
+	constructor TextBox.Init(const src, pic: string);
 	var
 		si: pImageResource;
 	begin
-		built.Invalidate;
-		syms := nil;
 		inherited Init(nil, []);
+		self.pic := Texture.Load(pic);
 
-		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), Paths.Data + src);
+		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), src);
 		try
 			Prepare(si^.im);
+			sumSize := si^.im.Size.XY;
+
+			// Хак: должно быть GLformat_R, но он плохо взаимодействует с легаси.
+			// Конкретно, на моей AMD выставленная в свиззле альфа игнорируется GL_MODULATE, если её не содержала оригинальная текстура.
+			ChangeTexture(Texture.Dynamic({GLformat_R} GLformat_RGBA, sumSize));
+			tex^.Swizzle(Swizzle.One, Swizzle.One, Swizzle.One, Swizzle.R);
+
+			sum := GetMem(sumSize.Product * sizeof(uint8));
+			Zero(sum, sumSize.Product * sizeof(uint8));
+			tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
 		finally
 			Release(si);
 		end;
+		timeout := 0.2;
+		finalTimeout := 1.0;
 	end;
 
 	destructor TextBox.Done;
@@ -45,23 +78,92 @@ implementation
 	begin
 		for i := 0 to High(syms) do
 			syms[i].Done;
-		built.Done;
+		FreeMem(sum);
+		Release(pic);
 		inherited Done;
 	end;
 
 	procedure TextBox.Update(const dt: float);
 	begin
+		timeout -= dt;
+		while (nextSym < length(syms)) and (timeout < 0) do
+		begin
+			Advance(1);
+			timeout += 0.1;
+		end;
 		inherited Update(dt);
 	end;
 
 	procedure TextBox.Draw;
+	var
+		q: Quad;
+		border: float;
 	begin
+		q.fields := [q.Field.Color];
+		q.color := Vec4.Make(0, 0, 0, 0.5);
+		// угадывается граница, чтобы нарисовать полупрозрачную рамку... пусть пока будет так
+		border := local.trans.x - (-pStateManager(ui^._mgr)^.nvp.x);
+		q.Draw(nil, Vec2.Make(local.trans.x, -pStateManager(ui^._mgr)^.nvp.y + border),
+			Vec2.Make(2 * (pStateManager(ui^._mgr)^.nvp.x - border), local.trans.y - (-pStateManager(ui^._mgr)^.nvp.y) + rawSize.y - border),
+			Vec2.Zero, Vec2.Ones);
+
+		inherited Draw;
+
+		q.fields := [q.Field.Transform];
+		q.transform := local;
+		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5*border), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
+	end;
+
+	procedure TextBox.Advance(n: uint);
+	var
+		sx, sy: uint;
+		sym: ^SymDesc;
+		b: uint8;
+	begin
+		while (n > 0) and (nextSym < length(syms)) do
+		begin
+			sym := @syms[nextSym]; inc(nextSym); dec(n);
+
+			sy := 0;
+			while sy < sym^.size.y do
+			begin
+				sx := 0;
+				while sx < sym^.size.x do
+				begin
+					b := sym^.data[sy * sym^.size.x + sx];
+					if b > 0 then sum[(sym^.pos.y + sy) * sumSize.x + sym^.pos.x + sx] := b;
+					inc(sx);
+				end;
+				inc(sy);
+			end;
+			if n = 0 then tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
+		end;
+	end;
+
+	function TextBox.Finished: boolean;
+	begin
+		result := (nextSym >= length(syms)) and (timeout < -finalTimeout);
+	end;
+
+type
+	FloodParam = record
+		img: pUint8;
+		width: uint;
+	end;
+
+	function FloodTest(const point: UintVec2; param: pointer): boolean;
+	var
+		p: ^FloodParam absolute param;
+	begin
+		result := p^.img[point.y * p^.width + point.x] < TextBox.FloodFillThreshold;
 	end;
 
 	procedure TextBox.Prepare(const src: TextureImage);
 	var
 		x, y: uint;
 		img: pUint8;
+		fp: FloodParam;
+		f: FloodFill.Result;
 	begin
 		if src.format <> GLformat_R then
 			raise Error('Текст ожидается в grayscale.');
@@ -71,15 +173,39 @@ implementation
 			img := GetMem(src.info.PlaneSize(0));
 			memcpy(src.FirstLevel, img, src.info.PlaneSize(0));
 
+			// Просматриваем картинку построчно.
+			// Если в строке найдено что-то похожее на кусок символа (отмечено >x<):
+			//      >x<
+			//       x
+			//  xx   xxx   xx
+			//   xx  x  x x
+			//  x x  x  x x
+			//  xxx  xxx   xx
+			//
+			//  то заливкой определяем границы этого символа
+			//      >.<
+			//       .
+			//  xx   ...   xx
+			//   xx  .  . x
+			//  x x  .  . x
+			//  xxx  ...   xx
+			//
+			// и проверяем всю строку его высоты слева направо.
+
 			y := 0;
 			while y < src.size.y do
 			begin
 				x := 0;
 				while x < src.size.x do
 				begin
-					if img[y*src.size.y + x] > 128 then
+					if img[y * src.size.x + x] <= StartingSymbolThreshold then
 					begin
-						ScanRow(img, x, y, src.size.x, src.size.y);
+						fp.img := img;
+						fp.width := src.size.x;
+						FloodFill.FourWay(f, UintVec2.Make(x, y), src.size.XY, @FloodTest, @fp);
+						ScanRowForSymbols(img, f.min.y, f.max.y, src.size.XY);
+						y := f.max.y;
+						f.Done;
 						break;
 					end;
 					inc(x);
@@ -91,13 +217,47 @@ implementation
 		end;
 	end;
 
-	procedure TextBox.ScanRow(img: pUint8; x, y, w, h: uint);
+	procedure TextBox.ScanRowForSymbols(img: pUint8; ya, yb: uint; const size: UintVec2);
+	var
+		x, y: uint;
+		fp: FloodParam;
+		f: FloodFill.Result;
+		sym: ^SymDesc;
+		it: FloodFill.PointSet.Iterator;
+		p: pUintVec2;
 	begin
+		x := 0;
+		while x < size.x do
+		begin
+			y := ya;
+			while y <= yb do
+			begin
+				if img[y * size.x + x] <= StartingSymbolThreshold then
+				begin
+					fp.img := img;
+					fp.width := size.x;
+					FloodFill.FourWay(f, UintVec2.Make(x, y), size, @FloodTest, @fp);
 
-	end;
+					SetLength(syms, length(syms) + 1);
+					sym := @syms[High(syms)];
+					sym^.pos := f.min;
+					sym^.size := f.max - f.min + UintVec2.Ones;
+					sym^.data := GetMem(sym^.size.Product * sizeof(uint8));
+					Zero(sym^.data, sym^.size.Product * sizeof(uint8));
 
-	procedure TextBox.FloodFill(img, result: pUint8; x, y, w, h: uint; out left, top, filledWidth, filledHeight: uint);
-	begin
+					it := f.filled.GetIterator;
+					while f.filled.Next(it) do
+					begin
+						p := f.filled.GetKey(it);
+						sym^.data[(p^.y - f.min.y) * sym^.size.x + (p^.x - f.min.x)] := High(uint8) - img[p^.y * size.x + p^.x];
+						img[p^.y * size.x + p^.x] := High(uint8);
+					end;
+					f.Done;
+				end;
+				inc(y);
+			end;
+			inc(x);
+		end;
 	end;
 
 end.

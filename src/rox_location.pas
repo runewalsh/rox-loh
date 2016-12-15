@@ -91,12 +91,10 @@ implementation
 		sorted: array of pNode;
 		i: sint;
 	begin
-		gl.Disable(gl.DEPTH_TEST);
 		SetLength(sorted, length(nodes));
 		for i := 0 to High(sorted) do sorted[i] := nodes[i];
 		SortByDrawOrder(sorted);
 		for i := 0 to High(sorted) do sorted[i]^.Draw(view);
-		gl.Enable(gl.DEPTH_TEST);
 	end;
 
 	procedure Location.Add(n: pNode);

@@ -215,8 +215,8 @@ type
 	GLTextureWrapMode = (GLwrap_Repeat, GLwrap_Clamp);
 	GLTextureFilter = (GLfilter_Nearest, GLfilter_Linear);
 
-	GLTextureSwizzleChannel = (GLswizzle_R, GLswizzle_G, GLswizzle_B, GLswizzle_A, GLswizzle_0, GLswizzle_1);
-	GLTextureSwizzle = array[0 .. 3] of GLTextureSwizzleChannel;
+	scoped_enum_ Swizzle = (R, G, B, A, Zero, One); _end
+	SwizzlePack = array[0 .. 3] of Swizzle;
 
 	GLTextureParam =
 	(
@@ -230,7 +230,7 @@ type
 		wrap: GLTextureWrapMode;
 		magFilter, minFilter: GLTextureFilter;
 		anisotropy: float;
-		swizzle: GLTextureSwizzle;
+		swizzle: SwizzlePack;
 	end;
 
 	GLRenderTargetStatus = (GLrt_Complete, GLrt_Incomplete, GLrt_Unsupported);
@@ -702,7 +702,7 @@ const
 	GLWrapModeIds: array[GLTextureWrapMode] of string = ('repeat', 'clamp');
 	GLTopologyIds: array[GLTopology] of string = ('point', 'line', 'linestrip', 'tris', 'tristrip');
 	GLBlendModeIds: array[GLBlendMode] of string = ('off', 'mix', 'mixZ', 'add', 'addwa', 'mixadd');
-	NoSwizzle: GLTextureSwizzle = (GLswizzle_R, GLswizzle_G, GLswizzle_B, GLswizzle_A);
+	NoSwizzle: SwizzlePack = (Swizzle.R, Swizzle.G, Swizzle.B, Swizzle.A);
 
 type
 	scoped_enum_ GLTypeFlag = (Matrix, AdvFloat, Int); _end
@@ -834,7 +834,7 @@ const
 	);
 
 	CubeSideIds: array[GLCubeSide] of string = ('X-', 'X+', 'Y-', 'Y+', 'Z-', 'Z+');
-	TextureSwizzleIds: array[GLTextureSwizzleChannel] of string = ('r', 'g', 'b', 'a', '0', '1');
+	SwizzleIds: array[Swizzle] of string = ('r', 'g', 'b', 'a', '0', '1');
 	DefaultTextureSample: Vec4 = (data: (0.0, 0.0, 0.0, 1.0));
 
 type

@@ -632,7 +632,7 @@ type
 				{$ifdef Debug} Log(Bass.LastOperationFailedMessage('выставить SAMPLE_LOOP ' + StreamPath.Log(name), 'ChannelFlags'), logError) {$endif};
 			if not Bass.ChannelPlay(h, no) then
 			{$ifdef Debug} Log(Bass.LastOperationFailedMessage('воспроизвести ' + StreamPath.Log(name), 'ChannelPlay'), logError) {$endif};
-			// watch.UnlockedAdd(@self);
+			watch.UnlockedAdd(@self);
 			watch.Unlock(yes);
 		end;
 	end;
