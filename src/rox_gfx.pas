@@ -407,8 +407,7 @@ var
 	procedure InitGL(win: pointer {pWindow});
 	begin
 		if Assigned(window) then raise Error('InitGL уже вызвана.');
-		pWindow(win)^.Verify;
-		window := win;
+		window := rox_win.Window.FromPointer(win);
 
 		ResourcePool.Shared^
 		.Register(TypeOf(Texture), @LoadTexture)^.Tag(GLResourceTag)^

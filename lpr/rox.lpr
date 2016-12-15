@@ -5,12 +5,12 @@ program rox;
 uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl,
-	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure, rox_paths;
+	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure, rox_ep1_entry, rox_paths;
 
 	procedure LoadBGM(var window: Window);
 	begin
 		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('ps2phantasy2.mid'));
-		window.state.bgm.AddTheme(Adventure.StateID).AddItem(Music('ps2restoration1.mid'));
+		window.state.bgm.AddTheme(Ep1_Entry.StateID).AddItem(Music('ps2restoration1.mid'));
 	end;
 
 var
@@ -89,7 +89,7 @@ begin
 			ResetCumTime;
 			lastDt := 0.0;
 
-			window.state.Switch(new(pAdventure, Init(nil){pMainMenu, Init}));
+			window.state.Switch(new(pEp1_Entry, Init{pMainMenu, Init}));
 			repeat
 				if not window.Process(lastDt) then break;
 				if window.WasDeactivatedDuringLastProcess then ResetCumTime;

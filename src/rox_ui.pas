@@ -9,6 +9,17 @@ uses
 type
 	MouseAction = (MouseMove, MouseLClick, MouseLRelease, MouseRClick, MouseRRelease);
 	KeyboardAction = (KeyClick, KeyRelease);
+	HandlerExtra = object
+	strict private
+		justTry: boolean;
+		handled: boolean;
+	public
+		procedure SetupTry;
+		procedure SetupReal;
+		function Handle: boolean;
+		function HandleSilent: boolean;
+		property WasHandled: boolean read handled;
+	end;
 
 const
 	DefaultState = '';
@@ -51,8 +62,9 @@ type
 		function Place(const pos: Vec2; const size: float; sizeMethod: Aspect2Method): pControl;
 		procedure ChangeTexture(tex: pTexture);
 		function CalculateRawSize: Vec2;
+		procedure Detach;
 
-		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 	private
 		function Under(const pos: Vec2): boolean;
 		function FindState(const name: string): sint;
@@ -60,10 +72,10 @@ type
 
 	pButton = ^Button;
 	Button = object(&Control)
-		mouseLClickedOver: boolean;
+		mouseEntered, mouseLClickedOver: boolean;
 		onClick: ClickHandler;
 		onClickParam: pointer;
-		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 	end;
 
 	UserInterface = object
@@ -84,7 +96,9 @@ type
 		procedure Remove(ctl: pControl);
 		procedure RemoveGroup(const group: string);
 
-		procedure HandleMouse(action: MouseAction; const pos: Vec2);
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
+	private
+		procedure InternalRemove(id: uint);
 	end;
 
 implementation
@@ -92,8 +106,28 @@ implementation
 uses
 	rox_win, rox_state;
 
-	function Mgr(const ui: UserInterface): pStateManager; begin result := ui._mgr; end;
-	function Mgr(ui: pUserInterface): pStateManager; begin result := ui^._mgr; end;
+	procedure HandlerExtra.SetupTry;
+	begin
+		justTry := yes;
+		handled := no;
+	end;
+
+	procedure HandlerExtra.SetupReal;
+	begin
+		justTry := no;
+		handled := no;
+	end;
+
+	function HandlerExtra.Handle: boolean;
+	begin
+		result := not justTry and not handled;
+		handled := yes;
+	end;
+
+	function HandlerExtra.HandleSilent: boolean;
+	begin
+		result := not justTry and not handled;
+	end;
 
 	function ControlState.Make(const name: string; const rect: Rect): ControlState;
 	begin
@@ -207,9 +241,15 @@ uses
 		result := states[state].ap.Aspect2(sizeMethod, size);
 	end;
 
-	procedure Control.HandleMouse(action: MouseAction; const pos: Vec2);
+	procedure Control.Detach;
 	begin
-		Assert((@action = @action) and (@pos = @pos));
+		if not Assigned(ui) then raise Error('Контрол не в UI.');
+		ui^.Remove(@self);
+	end;
+
+	procedure Control.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
+	begin
+		Assert((@action = @action) and (@pos = @pos) and (@extra = @extra));
 	end;
 
 	function Control.Under(const pos: Vec2): boolean;
@@ -222,22 +262,27 @@ uses
 		result := Index(name, pointer(pControlState(states)) + fieldoffset ControlState _ name _, length(states), sizeof(ControlState));
 	end;
 
-	procedure Button.HandleMouse(action: MouseAction; const pos: Vec2);
+	procedure Button.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
 	begin
 		case action of
 			MouseMove:
-				if Under(pos) and Assigned(onClick) then
-					if mouseLClickedOver then Switch(PressedState) else Switch(HoverState)
-				else
-					Switch(DefaultState);
-			MouseLClick:
-				if Under(pos) and Assigned(onClick) then
+				if (mouseEntered or Under(pos)) and extra.Handle then
 				begin
-					mouseLClickedOver := yes;
-					Switch(PressedState);
+					mouseEntered := Under(pos);
+					if mouseEntered and Assigned(onClick) then
+						if mouseLClickedOver then Switch(PressedState) else Switch(HoverState)
+					else
+						Switch(DefaultState);
 				end;
+			MouseLClick:
+				if Under(pos) and extra.Handle then
+					if Assigned(onClick) then
+					begin
+						mouseLClickedOver := yes;
+						Switch(PressedState);
+					end;
 			MouseLRelease:
-				if mouseLClickedOver then
+				if mouseLClickedOver and extra.Handle then
 				begin
 					mouseLClickedOver := no;
 					if Under(pos) then
@@ -261,8 +306,9 @@ uses
 	var
 		i: sint;
 	begin
-		for i := 0 to High(controls) do
-			Release(controls[i].ctl);
+		for i := High(controls) downto 0 do
+			InternalRemove(i);
+		controls := nil;
 	end;
 
 	procedure UserInterface.Update(const dt: float);
@@ -282,12 +328,10 @@ uses
 	end;
 
 	procedure UserInterface.Add(ctl: pControl; const group: string);
-	var
-		id: sint;
 	begin
 		try
-			id := Index(ctl, pointer(controls) + fieldoffset ControlRec _ ctl _, length(controls), sizeof(ControlRec));
-			if id >= 0 then raise Error('Контрол уже в UI.');
+			if Assigned(ctl^.ui) then raise Error('Контрол уже в UI.');
+			Assert(Index(ctl, pointer(controls) + fieldoffset ControlRec _ ctl _, length(controls), sizeof(ControlRec)) < 0);
 			SetLength(controls, length(controls) + 1);
 			controls[High(controls)].ctl := ctl;
 			controls[High(controls)].group := group;
@@ -304,37 +348,35 @@ uses
 	begin
 		id := Index(ctl, pointer(controls) + fieldoffset ControlRec _ ctl _, length(controls), sizeof(ControlRec));
 		if id < 0 then raise Error('Контрол не в UI.');
-		ctl^.ui := nil;
-		Release(ctl);
-		for id := id to High(controls) - 1 do
-			controls[id] := controls[id + 1];
-		SetLength(controls, length(controls) - 1);
+		InternalRemove(id);
 	end;
 
 	procedure UserInterface.RemoveGroup(const group: string);
 	var
-		i, j: sint;
+		i: sint;
 	begin
 		for i := High(controls) downto 0 do
 			if controls[i].group = group then
-			begin
-				Release(controls[i].ctl);
-				for j := i to High(controls) - 1 do
-					controls[i] := controls[i + 1];
-				SetLength(controls, length(controls) - 1);
-			end;
+				InternalRemove(i);
 	end;
 
-	procedure UserInterface.HandleMouse(action: MouseAction; const pos: Vec2);
+	procedure UserInterface.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
 	var
 		i: sint;
 	begin
-		mouseHandled := no;
 		for i := 0 to High(controls) do
-		begin
-			controls[i].ctl^.HandleMouse(action, pos);
-			if controls[i].ctl^.Under(pos) then mouseHandled := yes;
-		end;
+			controls[i].ctl^.HandleMouse(action, pos, extra);
+	end;
+
+	procedure UserInterface.InternalRemove(id: uint);
+	var
+		i: sint;
+	begin
+		controls[id].ctl^.ui := nil;
+		Release(controls[id].ctl);
+		for i := id to High(controls) - 1 do
+			controls[i] := controls[i + 1];
+		SetLength(controls, length(controls) - 1);
 	end;
 
 end.

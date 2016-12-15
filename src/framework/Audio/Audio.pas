@@ -299,17 +299,18 @@ var
 	Config: record
 		device: sint;
 		sampleRate: sint;
+		window: PtrUint;
 	end =
 	(
 		device: 1;
-		sampleRate: 44100
+		sampleRate: 44100;
+		window: 0
 	);
 
 implementation
 
 uses
-	MMSystem, Script_EngineAPI
-{$ifdef use_serialization}, Serialization {$endif};
+	Script_EngineAPI {$ifdef use_serialization}, Serialization {$endif};
 
 	function SoundFont.Load(out sf: SoundFont; const fn: string): boolean;
 	const
@@ -2277,9 +2278,10 @@ const
 		LogR('Версия BASS: ' + ToString(Hi(Hi(ver))) + '.' + ToString(Lo(Hi(ver))) + '.' +
 			ToString(Hi(Lo(ver))) + '.' + ToString(Lo(Lo(ver))) + '. ', logDebug);
 		LogR('Инициализация... ');
+		if Config.window = 0 then Log('Не задано окно (Config.window)', logWarning);
 	{$endif}
 
-		if not Bass.Init(Config.device, Config.sampleRate, Bass.DEVICE_3D, mm.window.handle, nil) then
+		if not Bass.Init(Config.device, Config.sampleRate, Bass.DEVICE_3D, Config.window, nil) then
 			raise Error('Не удалось инициализировать BASS. ' + Bass.DescribeCurrentError);
 
 	{$ifdef Debug}

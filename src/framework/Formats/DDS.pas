@@ -80,11 +80,10 @@ type
 	end;
 
 const
-	KnownPlain: array[0 .. 8] of KnownPlainFormat =
+	KnownPlain: array[0 .. 7] of KnownPlainFormat =
 	(
 		(rmask: $ff0000; gmask: $00ff00; bmask: $0000ff; amask: 0; format: GLformat_BGR),
 		(rmask: $ff0000; gmask: $00ff00; bmask: $0000ff; amask: $ff000000; format: GLformat_BGRA),
-		(rmask: $f00; gmask: $0f0; bmask: $00f; amask: 0; format: GLformat_RGB4),
 		(rmask: $f00; gmask: $0f0; bmask: $00f; amask: $f000; format: GLformat_RGBA4),
 		(rmask: $F800; gmask: $7E0; bmask: $1F; amask: 0; format: GLformat_RGB565),
 		(rmask: $7C00; gmask: $3E0; bmask: $1F; amask: 0; format: GLformat_RGB5),

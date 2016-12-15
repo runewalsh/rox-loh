@@ -4,7 +4,8 @@ unit rox_dialogue;
 interface
 
 uses
-	USystem, UClasses, UMath, Algo, Utils, U_GL, GLBase, GLUtils, rox_gl, rox_state, rox_gfx, rox_ui {$ifdef Debug}, ULog {$endif};
+	USystem, UClasses, UMath, Algo, Utils, Streams, U_GL, GLBase, {$ifdef Debug} ULog, {$endif} GLUtils, TextProcessing,
+	rox_gl, rox_state, rox_gfx, rox_ui, rox_paths;
 
 type
 	pTextBox = ^TextBox;
@@ -21,7 +22,8 @@ type
 		nextSym: sint;
 		sum: pUint8;
 		sumSize: UintVec2;
-		timeout, finalTimeout: float;
+		letterTimeout: float;
+		skip: boolean;
 
 		constructor Init(const src, pic: string);
 		destructor Done; virtual;
@@ -29,13 +31,42 @@ type
 		procedure Draw; virtual;
 		procedure Advance(n: uint);
 		function Finished: boolean;
+
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 	private
-		procedure Prepare(const src: TextureImage);
+		procedure Prepare(const src: TextureImage; const errfn: string);
 		procedure ScanRowForSymbols(img: pUint8; ya, yb: uint; const size: UintVec2);
+		function GuessBorder: float;
+		function CalculateTransparentRect(const nvp: Vec2; const border: float): Rect;
 	public const
 		StartingSymbolThreshold = High(uint8) div 2;
 		FloodFillThreshold = (High(uint8) * 3) div 4;
 		PicSize = 0.3;
+	end;
+
+	pDialogue = ^Dialogue;
+	Dialogue = object
+	type
+		ItemDesc = object
+			char, pic, sentence: string;
+		end;
+	var
+		state: pState;
+		items: array of ItemDesc;
+		nextItem: sint;
+		active: pTextBox;
+		finalTimeout: float;
+
+		procedure Invalidate;
+		function Valid: boolean;
+		procedure Init(state: pState; const scenario: string);
+		procedure Done;
+		procedure Update(const dt: float);
+		function Finished: boolean;
+	private
+		procedure Parse(const s: string);
+	const
+		Border = 0.03;
 	end;
 
 implementation
@@ -54,7 +85,7 @@ implementation
 
 		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), src);
 		try
-			Prepare(si^.im);
+			Prepare(si^.im, src);
 			sumSize := si^.im.Size.XY;
 
 			// Хак: должно быть GLformat_R, но он плохо взаимодействует с легаси.
@@ -68,8 +99,7 @@ implementation
 		finally
 			Release(si);
 		end;
-		timeout := 0.2;
-		finalTimeout := 1.0;
+		letterTimeout := 0.2;
 	end;
 
 	destructor TextBox.Done;
@@ -85,11 +115,12 @@ implementation
 
 	procedure TextBox.Update(const dt: float);
 	begin
-		timeout -= dt;
-		while (nextSym < length(syms)) and (timeout < 0) do
+		letterTimeout -= dt * (1 + 9*ord(skip));
+		while (nextSym < length(syms)) and (letterTimeout < 0) do
 		begin
 			Advance(1);
-			timeout += 0.1;
+			letterTimeout += 0.1;
+			if nextSym >= length(syms) then skip := no;
 		end;
 		inherited Update(dt);
 	end;
@@ -97,21 +128,18 @@ implementation
 	procedure TextBox.Draw;
 	var
 		q: Quad;
-		border: float;
+		rect: UMath.Rect;
 	begin
 		q.fields := [q.Field.Color];
 		q.color := Vec4.Make(0, 0, 0, 0.5);
-		// угадывается граница, чтобы нарисовать полупрозрачную рамку... пусть пока будет так
-		border := local.trans.x - (-pStateManager(ui^._mgr)^.nvp.x);
-		q.Draw(nil, Vec2.Make(local.trans.x, -pStateManager(ui^._mgr)^.nvp.y + border),
-			Vec2.Make(2 * (pStateManager(ui^._mgr)^.nvp.x - border), local.trans.y - (-pStateManager(ui^._mgr)^.nvp.y) + rawSize.y - border),
-			Vec2.Zero, Vec2.Ones);
+		rect := CalculateTransparentRect(pStateManager(ui^._mgr)^.nvp, GuessBorder);
+		q.Draw(nil, rect.A, rect.Size, Vec2.Zero, Vec2.Ones);
 
 		inherited Draw;
 
 		q.fields := [q.Field.Transform];
 		q.transform := local;
-		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5*border), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
+		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5 * GuessBorder), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
 	end;
 
 	procedure TextBox.Advance(n: uint);
@@ -142,7 +170,17 @@ implementation
 
 	function TextBox.Finished: boolean;
 	begin
-		result := (nextSym >= length(syms)) and (timeout < -finalTimeout);
+		result := nextSym >= length(syms);
+	end;
+
+	procedure TextBox.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
+	begin
+		case action of
+			MouseLClick:
+				if CalculateTransparentRect(pStateManager(ui^._mgr)^.nvp, GuessBorder).Contains(pos) and extra.Handle then
+					skip := yes;
+		end;
+		inherited HandleMouse(action, pos, extra);
 	end;
 
 type
@@ -158,7 +196,7 @@ type
 		result := p^.img[point.y * p^.width + point.x] < TextBox.FloodFillThreshold;
 	end;
 
-	procedure TextBox.Prepare(const src: TextureImage);
+	procedure TextBox.Prepare(const src: TextureImage; const errfn: string);
 	var
 		x, y: uint;
 		img: pUint8;
@@ -166,7 +204,7 @@ type
 		f: FloodFill.Result;
 	begin
 		if src.format <> GLformat_R then
-			raise Error('Текст ожидается в grayscale.');
+			raise Error('{0}: текст ожидается в grayscale.', StreamPath.Human(errfn));
 
 		img := nil;
 		try
@@ -257,6 +295,116 @@ type
 				inc(y);
 			end;
 			inc(x);
+		end;
+	end;
+
+	function TextBox.GuessBorder: float;
+	begin
+		result := local.trans.x - (-pStateManager(ui^._mgr)^.nvp.x);
+	end;
+
+	function TextBox.CalculateTransparentRect(const nvp: Vec2; const border: float): Rect;
+	begin
+		result.A := Vec2.Make(local.trans.x, -nvp.y + border);
+		result.B := result.A + Vec2.Make(2 * (nvp.x - border), local.trans.y - (-nvp.y) + rawSize.y - border);
+	end;
+
+	procedure Dialogue.Invalidate;
+	begin
+		nextItem := -1;
+		active := nil;
+	end;
+
+	function Dialogue.Valid: boolean;
+	begin
+		result := nextItem >= 0;
+	end;
+
+	procedure Dialogue.Init(state: pState; const scenario: string);
+	begin
+		Invalidate;
+		self.state := state;
+		items := nil;
+		nextItem := 0;
+		Parse(scenario);
+	end;
+
+	procedure Dialogue.Done;
+	begin
+		Release(active);
+		Invalidate;
+	end;
+
+	procedure Dialogue.Update(const dt: float);
+	var
+		na: pTextBox;
+	begin
+		if Assigned(active) then
+		begin
+			if active^.Finished then
+			begin
+				finalTimeout -= dt;
+				if (finalTimeout < 0) or active^.skip then
+				begin
+					active^.Detach;
+					Release(active);
+				end;
+			end;
+		end;
+
+		if not Assigned(active) and not Finished then
+		begin
+			na := new(pTextBox, Init(
+				rox_paths.Dialogue(items[nextItem].char, items[nextItem].sentence),
+				Face(items[nextItem].char, items[nextItem].pic)))^.NewRef;
+			finalTimeout := 1;
+
+			try
+				na^.size := state^.mgr^.nvp.x - 2 * Border;
+				na^.local.trans := -state^.mgr^.nvp + Vec2.Make(Border);
+				na^.local.trans.y := max(na^.local.trans.y, -state^.mgr^.nvp.y + Border - na^.CalculateRawSize.y + 0.3);
+				inc(nextItem);
+				state^.mgr^.ui.Add(na^.NewRef, state^.id);
+				active := na;
+			except
+				Release(na);
+				raise;
+			end;
+		end;
+	end;
+
+	function Dialogue.Finished: boolean;
+	begin
+		result := (nextItem >= length(items)) and not Assigned(active);
+	end;
+
+	procedure Dialogue.Parse(const s: string);
+	var
+		t: StringTokenizer;
+		n: size_t;
+		ni: ItemDesc;
+	begin
+		t := s;
+		try
+			repeat
+				// персонаж: реплика
+				// персонаж [эмоция]: реплика
+				if not t.MaybeTokenEndingWith(ni.char, ['[']) then begin t.ExpectEnd; break; end;
+				if t.Maybe('[') then begin ni.pic := t.ScanTokenEndingWith([']']); t.Expect(']'); end else ni.pic := 'indifferent.png';
+				t.Expect(':');
+
+				t.SkipWhitespace;
+				n := 0;
+				while (n < t.Remaining) and not Prefixed('>>', t.Current + n, t.Remaining - n) do
+					inc(n);
+				ni.sentence := t.Read(n);
+				if not t.Maybe('>>') then t.ExpectEnd;
+
+				SetLength(items, length(items) + 1);
+				items[High(items)] := ni;
+			until t.Remaining = 0;
+		finally
+			t.Done;
 		end;
 	end;
 

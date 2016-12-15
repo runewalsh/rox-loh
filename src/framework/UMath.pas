@@ -181,7 +181,6 @@ type
 	function SqrDistance(const a, b: vec): base_type; cinline
 	function Distance(const a, b: vec): base_type; cinline
 	function NormalizeAngle(const a: vec): vec;
-	function AngleDiff(const a, b: vec): vec;
 
 {$if veclen = 2}
 	function Angle(const a, b: vec): base_type;
@@ -532,7 +531,9 @@ type
 	Rect = object
 		A, B: Vec2;
 		function Make(const x1, y1, x2, y2: float): Rect; static;
+		function MakeSize(const x, y, w, h: float): Rect; static;
 		function Make(const a, b: Vec2): Rect; static;
+		function MakeSize(const origin, size: Vec2): Rect; static;
 		function Make(const v: Vec4): Rect; static;
 
 		function SizeX: float;
@@ -544,6 +545,7 @@ type
 		procedure Enlarge(const r: Rect);
 		function Contains(const pt: Vec2): boolean;
 		function Corporeal: boolean;
+		function Intersects(const second: Rect): boolean;
 		function Intersection(const second: Rect): Rect;
 		function AsVec4: Vec4;
 
@@ -1113,7 +1115,6 @@ end_unchecked
 	function SqrDistance(const a, b: vec): base_type; begin result := {$define one := sqr(a.item - b.item)} reduce_vec; end;
 	function Distance(const a, b: vec): base_type; begin result := sqrt(SqrDistance(a, b)); end;
 	function NormalizeAngle(const a: vec): vec; {$define op := NormalizeAngle(a.item)} vec_compo_op
-	function AngleDiff(const a, b: vec): vec; {$define op := AngleDiff(a.item, b.item)} vec_compo_op
 
 {$if veclen = 2}
 	function Angle(const a, b: vec): base_type; begin result := NormalizeAngle(ArcTan2(a.y, a.x) - ArcTan2(b.y, b.x)); end;
@@ -2403,13 +2404,30 @@ end_unchecked
 
 	function Rect.Make(const x1, y1, x2, y2: float): Rect;
 	begin
-		result := Make(Vec2.Make(x1, y1), Vec2.Make(x2, y2));
+		result.A.x := x1;
+		result.A.y := y1;
+		result.B.x := x2;
+		result.B.y := y2;
+	end;
+
+	function Rect.MakeSize(const x, y, w, h: float): Rect;
+	begin
+		result.A.x := x;
+		result.A.y := y;
+		result.B.x := x + w;
+		result.B.y := y + h;
 	end;
 
 	function Rect.Make(const a, b: Vec2): Rect;
 	begin
 		result.A := a;
 		result.B := b;
+	end;
+
+	function Rect.MakeSize(const origin, size: Vec2): Rect;
+	begin
+		result.A := origin;
+		result.B := origin + size;
 	end;
 
 	function Rect.Make(const v: Vec4): Rect;
@@ -2442,6 +2460,11 @@ end_unchecked
 
 	function Rect.Contains(const pt: Vec2): boolean; begin result := (pt.x >= A.x) and (pt.x <= B.x) and (pt.y >= A.y) and (pt.y <= B.y); end;
 	function Rect.Corporeal: boolean; begin result := (SizeX >= CloseToZeroEps) and (SizeY >= CloseToZeroEps); end;
+
+	function Rect.Intersects(const second: Rect): boolean;
+	begin
+		result := RangeIntersects(A.x, B.x, second.A.x, second.B.x) and RangeIntersects(A.y, B.y, second.A.y, second.B.y);
+	end;
 
 	function Rect.Intersection(const second: Rect): Rect;
 	begin

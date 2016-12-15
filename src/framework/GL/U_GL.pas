@@ -86,7 +86,7 @@ type
 		GLformat_R_RGTC1, GLformat_RG_RGTC2,
 		GLformat_R16f, GLformat_RG16f, GLformat_RGB16f, GLformat_RGBA16f,
 		GLformat_R32f, GLformat_RG32f, GLformat_RGB32f, GLformat_RGBA32f,
-		GLformat_RGB4, GLformat_RGBA4, GLformat_RGB565, GLformat_RGB5, GLformat_RGB5A1, GLformat_A1RGB5,
+		GLformat_RGBA4, GLformat_RGB565, GLformat_RGB5, GLformat_RGB5A1, GLformat_A1RGB5,
 		GLformat_BGR, GLformat_BGRA,
 		GLformat_RGB332, GLformat_Depth);
 	GLImageFormats = set of GLImageFormat;
@@ -694,7 +694,7 @@ const
 		'rgb_dxt', 'rgba_dxt1', 'rgba_dxt5', 'r_rgtc', 'rg_rgtc',
 		'r16f', 'rg16f', 'rgb16f', 'rgba16f',
 		'r32f', 'rg32f', 'rgb32f', 'rgba32f',
-		'rgb4', 'rgba4', 'rgb565', 'rgb5', 'rgb5a1', 'a1rgb5', 'bgr', 'bgra',
+		'rgba4', 'rgb565', 'rgb5', 'rgb5a1', 'a1rgb5', 'bgr', 'bgra',
 		'rgb332', 'depth'
 	);
 
@@ -808,7 +808,6 @@ const
 		(pixelSize: 2 * SizeOf(float32); nChannels: 2; flags: []), // GLformat_RG32F
 		(pixelSize: 3 * SizeOf(float32); nChannels: 3; flags: []), // GLformat_RGB32F
 		(pixelSize: 4 * SizeOf(float32); nChannels: 4; flags: []), // GLformat_RGBA32F
-		(pixelSize: 2; nChannels: 3; flags: []), // GLformat_RGB4
 		(pixelSize: 2; nChannels: 4; flags: []), // GLformat_RGBA4
 		(pixelSize: 2; nChannels: 3; flags: []), // GLformat_RGB565
 		(pixelSize: 2; nChannels: 3; flags: []), // GLformat_RGB5
@@ -2503,6 +2502,8 @@ const
 		procedure RGB_to_BGRA; {$define dst_type := Vec4u8} {$define work := dst[0] := src[2]; dst[1] := src[1]; dst[2] := src[0]; dst[3] := 255;} impl8
 		procedure RGB_to_RGB565; {$define dst_type := uint16}
 			{$define work := dst := trunc(src[0]/255*31 + 0.5) shl 11 or trunc(src[1]/255*63 + 0.5) shl 5 or trunc(src[2]/255*31 + 0.5);} impl8
+		procedure RGB_to_RGB332; {$define dst_type := uint8}
+			{$define work := dst := RGB332(trunc(src[0]/255*7 + 0.5), trunc(src[1]/255*7 + 0.5), trunc(src[2]/255*3))} impl8
 
 	{$define src_type := Vec4u8}
 		procedure RGBA_to_RGB; {$define dst_type := Vec3u8} {$define work := dst := pVec3u8(srcp)^;} impl8
@@ -2552,6 +2553,7 @@ const
 				case outFormat of
 					GLformat_RGBA: RGB_to_RGBA; GLformat_BGR: RGB_to_BGR; GLformat_BGRA: RGB_to_BGRA;
 					GLformat_RGB565: RGB_to_RGB565;
+					GLformat_RGB332: RGB_to_RGB332;
 					else raise Unsupported;
 				end;
 			GLformat_RGBA:

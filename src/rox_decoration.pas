@@ -13,8 +13,7 @@ type
 		texRect: Rect;
 		constructor Init(const tex: string; const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
-		procedure Update(const dt: float); virtual;
-		procedure Draw(const view: Transform2); virtual;
+		procedure HandleDraw(const view: Transform2); virtual;
 	end;
 
 implementation
@@ -32,12 +31,7 @@ implementation
 		inherited Done;
 	end;
 
-	procedure Decoration.Update(const dt: float);
-	begin
-		Assert(@dt = @dt);
-	end;
-
-	procedure Decoration.Draw(const view: Transform2);
+	procedure Decoration.HandleDraw(const view: Transform2);
 	var
 		q: Quad;
 	begin

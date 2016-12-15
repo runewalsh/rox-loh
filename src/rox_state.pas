@@ -4,7 +4,7 @@ unit rox_state;
 interface
 
 uses
-	USystem, UMath, UClasses, Audio, Utils, GLUtils, rox_ui;
+	USystem, UMath, UClasses, Audio, Utils, GLUtils, rox_ui, rox_timer;
 
 const
 	PrettyTimeCycle = 4000.0;
@@ -27,12 +27,19 @@ type
 		function QueryDeactivate: boolean; virtual;
 		procedure HandleReactivation; virtual;
 
-		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
 		function QuerySwitchOff: boolean; virtual;
 	end;
 
 	StateManager = object
+	type
+		TimerDesc = record
+			t: pTimer;
+			id: string;
+		end;
+		pTimerDesc = ^TimerDesc;
+	var
 		win: pointer {pWindow};
 		state: pState;
 		switching: record
@@ -45,6 +52,7 @@ type
 		ui: UserInterface;
 		nvp, invp: Vec2;
 		viewportAp: AspectPair;
+		timers: array of TimerDesc;
 
 		procedure Invalidate;
 		procedure Verify;
@@ -54,6 +62,8 @@ type
 		procedure Switch(another: pState);
 		procedure Push(another: pState);
 		procedure Pop;
+
+		procedure AddTimer(timer: pTimer; const id: string);
 
 		procedure Update(const dt: float);
 		procedure Draw;
@@ -66,6 +76,7 @@ type
 		procedure CheckCanSwitch;
 		function InternalTrySwitch(another: pState; pushing: boolean): boolean;
 		procedure ExternalSwitch(another: pState; pushing: boolean);
+		procedure RemoveTimer(id: sint);
 	const
 		CorrectMagic = 'SMGR';
 		IncorrectMagic = '!smg';
@@ -98,7 +109,7 @@ uses
 	procedure State.HandleDraw; begin end;
 	function State.QueryDeactivate: boolean; begin result := yes; end;
 	procedure State.HandleReactivation; begin end;
-	procedure State.HandleMouse(action: MouseAction; const pos: Vec2); begin Assert((@action = @action) and (@pos = @pos)); end;
+	procedure State.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); begin Assert((@action = @action) and (@pos = @pos) and (@extra = @extra)); end;
 	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey); begin Assert((@action = @action) and (@key = @key)); end;
 	function State.QuerySwitchOff: boolean; begin result := yes; end;
 
@@ -117,8 +128,7 @@ uses
 	begin
 		Invalidate;
 		magic := CorrectMagic;
-		pWindow(win)^.Verify;
-		self.win := win;
+		self.win := Window.FromPointer(win);
 		state := nil;
 		switching.&to := nil;
 		previous := nil;
@@ -135,6 +145,7 @@ uses
 		i: sint;
 	begin
 		if state = pointer(@self) then exit;
+		for i := High(timers) downto 0 do RemoveTimer(i);
 		if Assigned(state) then begin dispose(state, Done); state := nil; end;
 		if Assigned(switching.&to) then begin dispose(switching.&to, Done); switching.&to := nil; end;
 		for i := 0 to High(previous) do dispose(previous[i], Done);
@@ -169,7 +180,18 @@ uses
 		Switch(top);
 	end;
 
+	procedure StateManager.AddTimer(timer: pTimer; const id: string);
+	begin
+		if Index(timer, pointer(pTimerDesc(timers)) + fieldoffset TimerDesc _ t _, length(timers), sizeof(TimerDesc)) >= 0 then
+			raise Error('Таймер добавлен дважды.');
+		SetLength(timers, length(timers) + 1);
+		timers[High(timers)].t := timer^.NewRef;
+		timers[High(timers)].id := id;
+	end;
+
 	procedure StateManager.Update(const dt: float);
+	var
+		i: sint;
 	begin
 		if Assigned(switching.&to) then
 		begin
@@ -179,6 +201,12 @@ uses
 				switching.&to := nil;
 				exit;
 			end;
+		end;
+
+		for i := High(timers) downto 0 do
+		begin
+			timers[i].t^.Update(dt);
+			if timers[i].t^.Dead then RemoveTimer(i);
 		end;
 
 		state^.HandleUpdate(dt);
@@ -199,9 +227,20 @@ uses
 	end;
 
 	procedure StateManager.HandleMouse(action: MouseAction; const pos: Vec2);
+	var
+		x: HandlerExtra;
 	begin
-		ui.HandleMouse(action, pos * nvp);
-		if not ui.mouseHandled then state^.HandleMouse(action, pos * nvp);
+		x.SetupTry;
+		ui.HandleMouse(action, pos * nvp, x);
+		if x.WasHandled then
+		begin
+			x.SetupReal;
+			ui.HandleMouse(action, pos * nvp, x);
+		end else
+		begin
+			x.SetupReal;
+			state^.HandleMouse(action, pos * nvp, x);
+		end;
 	end;
 
 	procedure StateManager.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
@@ -227,6 +266,7 @@ uses
 	function StateManager.InternalTrySwitch(another: pState; pushing: boolean): boolean;
 	var
 		id: string;
+		i: sint;
 	begin
 		result := no;
 		id := state^.id;
@@ -247,6 +287,8 @@ uses
 		if result then
 		begin
 			ui.RemoveGroup(id);
+			for i := High(timers) downto 0 do
+				if timers[i].id = id then RemoveTimer(i);
 			state := another;
 			another^.mgr := @self;
 			another^.HandleActivation;
@@ -267,12 +309,21 @@ uses
 			dispose(another, Done);
 			raise;
 		end;
+		another^.HandleUpdate(0);
 
 		if not ok then
 		begin
 			switching.&to := another;
 			switching.push := pushing;
 		end;
+	end;
+
+	procedure StateManager.RemoveTimer(id: sint);
+	begin
+		timers[id].t^.Stop;
+		Release(timers[id].t);
+		timers[id] := timers[High(timers)];
+		SetLength(timers, length(timers) - 1);
 	end;
 
 end.

@@ -4,7 +4,7 @@ unit rox_state_mainmenu;
 interface
 
 uses
-	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_state_adventure, rox_paths;
+	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_ep1_entry, rox_paths;
 
 type
 	pMainMenu = ^MainMenu;
@@ -34,7 +34,7 @@ type
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
 
-		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
 	const
 		ButtonInfo: array[ButtonEnum] of record
@@ -122,7 +122,7 @@ implementation
 
 			Idle: ;
 
-			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pAdventure, Init(nil)));
+			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp1_Entry, Init));
 		end;
 		if state > Prepare then bgTime := modf(bgTime + dt, PrettyTimeCycle);
 		stateTime += dt;
@@ -314,20 +314,15 @@ implementation
 		end;
 	end;
 
-	procedure MainMenu.HandleMouse(action: MouseAction; const pos: Vec2);
-	var
-		handled: boolean;
+	procedure MainMenu.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
 	begin
-		handled := no;
 		case action of
 			MouseLClick:
 				if (state in [FadeIn]) or (uiState in [UiRequestCreate, UiFadingIn, UiFadingButtonOut]) then
-				begin
-					skipFx := yes;
-					handled := yes;
-				end;
+					if extra.Handle then
+						skipFx := yes;
 		end;
-		if not handled then inherited HandleMouse(action, pos);
+		inherited HandleMouse(action, pos, extra);
 	end;
 
 	procedure MainMenu.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);

@@ -4,7 +4,7 @@ unit rox_state_adventure;
 interface
 
 uses
-	USystem, Errors, UMath, UClasses, Utils, rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_decoration, rox_dialogue, rox_paths;
+	USystem, Errors, UMath, UClasses, Utils, rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_trigger, rox_win;
 
 type
 	pAdventure = ^Adventure;
@@ -14,17 +14,16 @@ type
 		view: Transform2;
 		player: pActor;
 		location: pLocation;
-		textBox: pTextBox;
-		state: (Setup, WatchLimits, Idle);
-		constructor Init(location: pLocation);
+		dlg: Dialogue;
+		mouseOverTrigger: boolean;
+		constructor Init(const id: string);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
-		procedure HandleMouse(action: MouseAction; const pos: Vec2); virtual;
+		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
+
 	const
-		StateID = 'adventure';
-		DialogueBorder = 0.03;
 		RunningVelocity = 0.8;
 		WalkingVelocity = 0.3;
 	private
@@ -36,82 +35,40 @@ implementation
 uses
 	rox_state_mainmenu;
 
-	constructor Adventure.Init(location: pLocation);
-	var
-		d: pDecoration;
+	constructor Adventure.Init(const id: string);
 	begin
-		self.location := MakeRef(location);
-		inherited Init(StateID);
+		dlg.Invalidate;
+		inherited Init(id);
 		view := Transform2.Identity;
-		player := new(pActor, Init(Vec2.Make(0.14, 0.28), Character('player', 'model.png'), Vec2.Make(1/4, 1/8)))^.NewRef;
-		player^.AddState('idle', Vec2.Make(0, 0), 4, 8, 0.0, 'idle', []);
-		player^.AddState('walk', Vec2.Make(0, 0), 4, 8, 0.6, 'walk', [MovingState]);
-
-		if not Assigned(self.location) then
-			self.location := new(pLocation, Init)^.NewRef;
-
-		self.location^.AddWall(new(pDecoration, Init(Environment('bar_door.png'), Translate2(1, 0), Vec2.Make(0.3, 0.3/1*1.3))), Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
-
-		d := new(pDecoration, Init(Environment('brick.png'), Translate2(0, 0.02), Vec2.Make(1.5, 0.3)))^.NewRef;
-		try
-			d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(5, 1));
-			self.location^.AddWall(d, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
-		finally
-			Release(d);
-		end;
-
-		textBox := new(pTextBox, Init(Dialogue('player', '0.png'), Face('player', 'indifferent.png')))^.NewRef;
-		state := Setup;
 	end;
 
 	destructor Adventure.Done;
 	begin
-		Release(textBox);
 		Release(player);
 		Release(location);
+		dlg.Done;
 		inherited Done;
-	end;
-
-	procedure ResetLimitsWhenPlayerWalksIn(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
-	begin
-		unused_args reason _ ac end_list
-		pAdventure(param)^.location^.limits.A := -pAdventure(param)^.mgr^.nvp;
-		pAdventure(param)^.state := Idle;
 	end;
 
 	procedure Adventure.HandleUpdate(const dt: float);
 	begin
+		if not Assigned(player) then raise Error('Не назначен игрок.');
+		if not Assigned(location) then raise Error('Не назначена локация.');
 		inherited HandleUpdate(dt);
-		case state of
-			Setup:
-				begin
-					location^.limits := Rect.Make(-mgr^.nvp - Vec2.Make(0.4, 0), mgr^.nvp);
-					textBox^.size := mgr^.nvp.x - 2*DialogueBorder;
-					textBox^.local.trans := -mgr^.nvp + Vec2.Make(DialogueBorder);
-					textBox^.local.trans.y := max(textBox^.local.trans.y, -mgr^.nvp.y + DialogueBorder - textBox^.CalculateRawSize.y + 0.3);
-					mgr^.ui.Add(textBox^.NewRef, id);
-
-					player^.local.trans := Vec2.Make(location^.limits.A.x, -0.3);
-					player^.SwitchToState('walk');
-					player^.MoveTo(Vec2.Make(-0.2, -0.3), WalkingVelocity, @ResetLimitsWhenPlayerWalksIn, @self);
-					self.location^.Add(player);
-					state := WatchLimits;
-				end;
-		end;
-
 		if controls <> [] then
 		begin
-			if state = WatchLimits then
-			begin
-				ResetLimitsWhenPlayerWalksIn(MovingCanceled, player, @self);
-				state := Idle;
-			end;
 			player^.SwitchToState('walk');
 			player^.rtMethod := NotRotating;
 			player^.MoveBy(0.3 * Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls)).Normalized,
 				IfThen(shift, RunningVelocity, WalkingVelocity));
 		end;
 		location^.Update(dt);
+		if dlg.Valid then
+		begin
+			dlg.Update(dt);
+			if dlg.Finished then begin dlg.Done; dlg.Init(@self, 'player [indifferent.png]: 0.png'); dlg.Update(dt); end;
+		end;
+		view.trans := -player^.local.trans;
 	end;
 
 	procedure Adventure.HandleDraw;
@@ -120,18 +77,40 @@ uses
 		location^.Draw(view);
 	end;
 
-	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2);
+	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
+	var
+		i: sint;
+		mot: boolean;
 	begin
 		case action of
 			MouseLClick:
+				if extra.Handle then
 				begin
 					player^.rtMethod := NotRotating;
 					player^.SwitchToState('walk');
 					player^.MoveTo(view.Inversed * pos, WalkingVelocity, nil, nil);
 				end;
-			MouseMove: if player^.mvMethod = NotMoving then player^.RotateTo(view.Inversed * pos);
+			MouseMove:
+				begin
+					// подсветка курсора на триггерах
+					mot := no;
+					for i := 0 to High(location^.triggers) do
+						if InheritsFrom(TypeOf(location^.triggers[i]^), TypeOf(SpatialTrigger)) and pSpatialTrigger(location^.triggers[i])^.highlight and
+							Rect.MakeSize(view * location^.triggers[i]^.local.trans, location^.triggers[i]^.size).Contains(pos) and extra.HandleSilent then
+						begin
+							Window.FromPointer(mgr^.win)^.cursor := Cursor1;
+							mot := yes;
+						end;
+
+						if not mot and mouseOverTrigger and extra.HandleSilent then
+							Window.FromPointer(mgr^.win)^.cursor := Cursor0;
+					mouseOverTrigger := mot;
+
+					if extra.Handle then
+						if player^.mvMethod = NotMoving then player^.RotateTo(view.Inversed * pos);
+				end;
 		end;
-		inherited HandleMouse(action, pos);
+		inherited HandleMouse(action, pos, extra);
 	end;
 
 	procedure Adventure.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);

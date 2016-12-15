@@ -17,6 +17,7 @@ type
 		procedure Done;
 		function Source: string;
 		function Tail: string;
+		function Tail(n: size_t): string;
 		function Consumed: size_t;
 		function ScanTokenEndingWith(const seps: charset_t): string;
 		function ScanTokenEndingWith(const seps: charset_t; out cp: Guard): string;
@@ -31,6 +32,9 @@ type
 		function UnknownIdentifier(const cp: Guard): Exception;
 		function Checkpoint: Guard;
 		function Revert(const cp: Guard): size_t;
+		function ExpectedError(a, b: size_t; const what: string): Exception;
+		function Read(n: size_t): string;
+		procedure Skip(n: size_t);
 
 	private
 		s: pChar;
@@ -39,8 +43,8 @@ type
 	{$ifdef Debug} initGuard: pointer; {$endif}
 		function InternalTokenEndingWith(out tok: string; const seps: charset_t; throw: boolean): boolean;
 		function Highlight(a, b: size_t): string;
-		function ExpectedError(a, b: size_t; const what: string): Exception;
 	public
+		property Current: pChar read s;
 		property Remaining: size_t read rest;
 	end;
 	operator :=(const s: string): StringTokenizer;
@@ -72,6 +76,12 @@ uses
 	begin
 		SkipWhitespace;
 		result := USystem.ToString(s, rest);
+	end;
+
+	function StringTokenizer.Tail(n: size_t): string;
+	begin
+		Assert(n <= rest);
+		result := USystem.ToString(s, n);
 	end;
 
 	function StringTokenizer.Consumed: size_t;
@@ -182,9 +192,12 @@ uses
 	var
 		n: size_t;
 	begin
-		n := 0;
-		while (n < rest) and Symbol.IsWhitespace(s[n]) do inc(n);
-		s += n; rest -= n;
+		if (rest > 0) and Symbol.IsWhitespace(s[0]) then
+		begin
+			n := 1;
+			while (n < rest) and Symbol.IsWhitespace(s[n]) do inc(n);
+			s += n; rest -= n;
+		end;
 	end;
 
 	function StringTokenizer.UnknownIdentifier(const cp: Guard): Exception;
@@ -203,6 +216,24 @@ uses
 		result := s - cp.s;
 		rest += result;
 		s := cp.s;
+	end;
+
+	function StringTokenizer.ExpectedError(a, b: size_t; const what: string): Exception;
+	begin
+		result := Error('{0}: ожидается {1}.', Highlight(a, b), what);
+	end;
+
+	function StringTokenizer.Read(n: size_t): string;
+	begin
+		Assert(n <= rest);
+		result := ToString(s, n);
+		s += n; rest -= n;
+	end;
+
+	procedure StringTokenizer.Skip(n: size_t);
+	begin
+		Assert(n <= rest);
+		s += n; rest -= n;
 	end;
 
 	function StringTokenizer.InternalTokenEndingWith(out tok: string; const seps: charset_t; throw: boolean): boolean;
@@ -225,11 +256,6 @@ uses
 	function StringTokenizer.Highlight(a, b: size_t): string;
 	begin
 		result := StrStuff(StrStuff(Source, 1 + Consumed + min(b, rest), 0, '<'), 1 + size_t(s - src) + a, 0, '>');
-	end;
-
-	function StringTokenizer.ExpectedError(a, b: size_t; const what: string): Exception;
-	begin
-		result := Error('{0}: ожидается {1}.', Highlight(a, b), what);
 	end;
 
 	operator :=(const s: string): StringTokenizer;

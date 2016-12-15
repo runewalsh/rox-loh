@@ -26,8 +26,9 @@ type
 			phase: float;
 		end;
 
-		MoveCallbackReason = (MovingCanceled, MovingTargetReached);
+		MoveCallbackReason = (MovingCanceled, TargetReached);
 		MoveCallback = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
+		MoveTargeter = (NotMoving, MovingBy, MovingTo);
 	var
 		// шаблон
 		tex: pTexture;
@@ -38,7 +39,7 @@ type
 		state: uint;
 		angle: float;
 
-		mvMethod: (NotMoving, MovingBy, MovingTo);
+		mvMethod: MoveTargeter;
 		mvPointOrDelta: Vec2;
 		mvVel: float;
 		mvCb: MoveCallback;
@@ -49,8 +50,8 @@ type
 
 		constructor Init(const size: Vec2; const tex: string; const texSize: Vec2);
 		destructor Done; virtual;
-		procedure Update(const dt: float); virtual;
-		procedure Draw(const view: Transform2); virtual;
+		procedure HandleUpdate(const dt: float); virtual;
+		procedure HandleDraw(const view: Transform2); virtual;
 
 		function AddState(const name: string; const base: Vec2; frames, angles: uint; const len: float; const next: string; flags: StateFlags): pStateDesc;
 		function TryFindState(const name: string): sint;
@@ -64,6 +65,7 @@ type
 
 		procedure RotateTo(const point: Vec2);
 	private
+		procedure SwitchMove(method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
 		function RotateStep(const target: float; const by: float): boolean;
 	end;
@@ -84,7 +86,7 @@ implementation
 		inherited Done;
 	end;
 
-	procedure Actor.Update(const dt: float);
+	procedure Actor.HandleUpdate(const dt: float);
 	var
 		moved: Vec2;
 	begin
@@ -101,7 +103,14 @@ implementation
 			MovingTo:
 				if RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
 					if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
+					begin
+						if Assigned(mvCb) then
+						begin
+							mvCb(TargetReached, @self, mvParam);
+							mvCb := nil;
+						end;
 						mvMethod := NotMoving;
+					end;
 		end;
 
 		case rtMethod of
@@ -127,7 +136,7 @@ implementation
 		end;
 	end;
 
-	procedure Actor.Draw(const view: Transform2);
+	procedure Actor.HandleDraw(const view: Transform2);
 	var
 		q: Quad;
 		an, anStep, frame: float;
@@ -199,14 +208,14 @@ implementation
 
 	procedure Actor.MoveBy(const delta: Vec2; velocity: float);
 	begin
-		mvMethod := MovingBy;
+		SwitchMove(MovingBy);
 		mvPointOrDelta := delta;
 		mvVel := velocity;
 	end;
 
 	procedure Actor.MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 	begin
-		mvMethod := MovingTo;
+		SwitchMove(MovingTo);
 		mvPointOrDelta := target;
 		mvVel := velocity;
 		mvCb := cb;
@@ -222,6 +231,16 @@ implementation
 	begin
 		rtMethod := RotatingToPoint;
 		rtPoint := point;
+	end;
+
+	procedure Actor.SwitchMove(method: MoveTargeter);
+	begin
+		if (mvMethod = MovingTo) and Assigned(mvCb) then
+		begin
+			mvCb(MovingCanceled, @self, mvParam);
+			mvCb := nil;
+		end;
+		mvMethod := method;
 	end;
 
 	function Actor.MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;

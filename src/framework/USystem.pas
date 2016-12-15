@@ -1621,7 +1621,7 @@ type
 		end;
 
 	const
-		COINIT_APARTMENTTHREADED = $2;
+		COINIT_MULTITHREADED = $0;
 		COINIT_DISABLE_OLE1DDE   = $4;
 
 	type
@@ -1713,7 +1713,7 @@ type
 		TDCBF_NO_BUTTON     = $0004;  // ->IDNO
 		TDCBF_CANCEL_BUTTON = $0008;  // ->IDCANCEL
 
-		class function EnsureLib(var lib: DynamicLibrary; tried: pBoolean; const filename: string): boolean;
+		class function EnsureLib(var lib: DynamicLibrary; const filename: string; throw: boolean): boolean;
 	class var
 		comctl32: record
 			lib: DynamicLibrary;
@@ -3108,7 +3108,7 @@ var
 			Win.EnsureCoInit;
 			Win.EnsureShellExecuteExW;
 
-			ci := Win.ole32.CoInitializeEx(nil, Win.COINIT_APARTMENTTHREADED or Win.COINIT_DISABLE_OLE1DDE);
+			ci := Win.ole32.CoInitializeEx(nil, Win.COINIT_MULTITHREADED or Win.COINIT_DISABLE_OLE1DDE);
 			if (ci <> S_OK) and (ci <> S_FALSE) then
 			{$ifdef Debug} Warning.Show('Не удаётся инициализировать COM (' + ToString(ci) + ').') {$endif}
 			else
@@ -7352,16 +7352,18 @@ end_unchecked
 		result := QueryString(@UnparaQueryString, cb, ofWhat);
 	end;
 
-	class function Win.EnsureLib(var lib: DynamicLibrary; tried: pBoolean; const filename: string): boolean;
+	class function Win.EnsureLib(var lib: DynamicLibrary; const filename: string; throw: boolean): boolean;
+	var
+		temp: DynamicLibrary;
 	begin
-		if Assigned(tried) and tried^ or lib.OK then exit(lib.OK);
+		if lib.OK then exit(yes);
 		if Initialized then SingletonLock.Enter;
 		try
-			if Assigned(tried) and tried^ or lib.OK then begin SingletonLock.Leave; exit(lib.OK); end;
-			DynamicLibrary.Open(lib, filename, not Assigned(tried));
-			result := lib.OK;
+			if lib.OK then begin SingletonLock.Leave; exit(yes); end;
+			DynamicLibrary.Open(temp, filename, throw);
+			result := temp.OK;
+			lib := temp;
 		finally
-			if Assigned(tried) then tried^ := yes;
 			if Initialized then SingletonLock.Leave;
 		end;
 	end;
@@ -7374,7 +7376,7 @@ end_unchecked
 		);
 	begin
 		if comctl32.TaskDialogIndirectTried then exit(Assigned(comctl32.TaskDialogIndirect));
-		result := EnsureLib(comctl32.lib, nil, 'Comctl32.dll') and DynamicLibrary.FunctionDesc.Load(Funcs, comctl32.lib, '');
+		result := EnsureLib(comctl32.lib, 'Comctl32.dll', no) and DynamicLibrary.FunctionDesc.Load(Funcs, comctl32.lib, '');
 		comctl32.TaskDialogIndirectTried := yes;
 	end;
 
@@ -7387,7 +7389,7 @@ end_unchecked
 		);
 	begin
 		if Assigned(ole32.CoInitializeEx) then exit;
-		EnsureLib(ole32.lib, nil, 'Ole32.dll');
+		EnsureLib(ole32.lib, 'Ole32.dll', yes);
 		DynamicLibrary.FunctionDesc.Load(Funcs, ole32.lib, 'функции COM');
 	end;
 
@@ -7399,7 +7401,7 @@ end_unchecked
 		);
 	begin
 		if Assigned(shell32.ShellExecuteExW) then exit;
-		EnsureLib(shell32.lib, nil, 'Shell32.dll');
+		EnsureLib(shell32.lib, 'Shell32.dll', yes);
 		DynamicLibrary.FunctionDesc.Load(Funcs, shell32.lib, 'ShellExecute API');
 	end;
 
@@ -7413,7 +7415,7 @@ end_unchecked
 		);
 	begin
 		if Assigned(advapi32.CryptAcquireContextW) then exit;
-		EnsureLib(advapi32.lib, nil, 'Advapi32.dll');
+		EnsureLib(advapi32.lib, 'Advapi32.dll', yes);
 		DynamicLibrary.FunctionDesc.Load(Funcs, advapi32.lib, 'CryptoAPI');
 	end;
 

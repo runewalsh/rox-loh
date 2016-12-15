@@ -24,7 +24,7 @@ type
 		caption: WindowCaption;
 		state: StateManager;
 		procedure Invalidate;
-		procedure Verify;
+		function FromPointer(ptr: pointer): pWindow; static;
 		procedure Open;
 		procedure Close;
 		function Process(const dt: float): boolean;
@@ -117,9 +117,10 @@ type
 		magic := IncorrectMagic;
 	end;
 
-	procedure Window.Verify;
+	function Window.FromPointer(ptr: pointer): pWindow;
 	begin
-		if not Assigned(@self) or (magic <> CorrectMagic) then raise Error('Окно не валидно.');
+		result := ptr;
+		if not Assigned(result) or (result^.magic <> CorrectMagic) then raise Error('Окно не валидно.');
 	end;
 
 	procedure OnUpdateCaption(const cap: string; param: pointer);
@@ -194,6 +195,7 @@ type
 
 			gl.Load;
 			rox_gfx.InitGL(@self);
+			Audio.Config.window := handle;
 			oglLoaded := yes;
 
 			cursors[DefaultCursor] := Windows.LoadCursor(0, IDC_ARROW);
@@ -338,6 +340,7 @@ type
 	begin
 		if oglLoaded then
 		begin
+			Audio.Config.window := 0;
 			rox_gfx.DoneGL;
 			gl.Unload;
 			oglLoaded := no;

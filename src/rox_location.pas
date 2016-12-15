@@ -4,7 +4,7 @@ unit rox_location;
 interface
 
 uses
-	USystem, UMath, Utils, rox_gl, rox_collision;
+	USystem, UMath, Utils, rox_gl, rox_collision, rox_state;
 
 type
 	pLocation = ^Location;
@@ -16,17 +16,29 @@ type
 		size: Vec2;
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
-		procedure Update(const dt: float); virtual; abstract;
-		procedure Draw(const view: Transform2); virtual; abstract;
+		procedure HandleUpdate(const dt: float); virtual;
+		procedure HandleDraw(const view: Transform2); virtual; abstract;
 		function HeartPos: Vec2; virtual;
 	end;
 
+	pNodesArray = ^NodesArray;
+	NodesArray = array of pNode;
+
+	pTrigger = ^Trigger;
+	Trigger = object(&Node)
+		constructor Init(const local: Transform2; const size: Vec2);
+		destructor Done; virtual;
+		procedure HandleDraw(const view: Transform2); virtual;
+	end;
+
 	Location = object(&Object)
+		state: pState;
 		nodes: array of pNode;
 		walls: array of Rect;
 		obstacles: array of Circle;
+		triggers: array of pTrigger;
 		limits: Rect;
-		constructor Init;
+		constructor Init(state: pState);
 		destructor Done; virtual;
 		procedure Update(const dt: float);
 		procedure Draw(const view: Transform2);
@@ -39,7 +51,10 @@ type
 		procedure AddWall(const w: Rect);
 		procedure AddWall(n: pNode; const dA, dB: Vec2);
 	private
-		function IndexNode(n: pNode): sint;
+		function SuitableArray(n: pNode): pNodesArray;
+		procedure Add(n: pNode; var ary: NodesArray);
+		procedure Remove(n: pNode; var ary: NodesArray);
+		function IndexNode(n: pNode; const ary: array of pNode): sint;
 	end;
 
 implementation
@@ -56,14 +71,37 @@ implementation
 		inherited Done;
 	end;
 
-	function Node.HeartPos: Vec2;
+	procedure Node.HandleUpdate(const dt: float);
 	begin
-		result := local.trans;
+		Assert(@dt = @dt);
 	end;
 
-	constructor Location.Init;
+
+	function Node.HeartPos: Vec2;
+	begin
+		result := local.trans + 0.5 * size;
+	end;
+
+	constructor Trigger.Init(const local: Transform2; const size: Vec2);
+	begin
+		inherited Init(local, size);
+	end;
+
+	destructor Trigger.Done;
+	begin
+		inherited Done;
+	end;
+
+	procedure Trigger.HandleDraw(const view: Transform2);
+	begin
+		Assert(@view = @view);
+		raise Error('Триггер не должен получать запросы на отрисовку.');
+	end;
+
+	constructor Location.Init(state: pState);
 	begin
 		inherited Init;
+		self.state := state;
 		limits := Rect.Make(0, 0, 10, 10);
 	end;
 
@@ -73,6 +111,8 @@ implementation
 	begin
 		for i := 0 to High(nodes) do
 			Release(nodes[i]);
+		for i := 0 to High(triggers) do
+			Release(triggers[i]);
 		inherited Done;
 	end;
 
@@ -81,11 +121,13 @@ implementation
 		i: sint;
 	begin
 		for i := 0 to High(nodes) do
-			nodes[i]^.Update(dt);
+			nodes[i]^.HandleUpdate(dt);
+		for i := 0 to High(triggers) do
+			triggers[i]^.HandleUpdate(dt);
 	end;
 
 	procedure Location.Draw(const view: Transform2);
-		{$define elem := pNode} {$define procname := SortByDrawOrder} {$define less := _1^.HeartPos.y > _2^.HeartPos.y}
+		{$define elem := pNode} {$define procname := SortByDrawOrder} {$define less := _1^.local.trans.y > _2^.local.trans.y}
 		{$define openarray} {$include sort.inc}
 	var
 		sorted: array of pNode;
@@ -94,29 +136,17 @@ implementation
 		SetLength(sorted, length(nodes));
 		for i := 0 to High(sorted) do sorted[i] := nodes[i];
 		SortByDrawOrder(sorted);
-		for i := 0 to High(sorted) do sorted[i]^.Draw(view);
+		for i := 0 to High(sorted) do sorted[i]^.HandleDraw(view);
 	end;
 
 	procedure Location.Add(n: pNode);
 	begin
-		if Assigned(n^.location) then raise Error('Объект ужа принадлежит другой локации.');
-		if IndexNode(n) >= 0 then raise Error('Объект уже добавлен в локацию.');
-		SetLength(nodes, length(nodes) + 1);
-		nodes[High(nodes)] := n^.NewRef;
-		n^.location := @self;
+		Add(n, SuitableArray(n)^);
 	end;
 
 	procedure Location.Remove(n: pNode);
-	var
-		id: sint;
 	begin
-		id := IndexNode(n);
-		if id < 0 then raise Error('Объекта нет в локации.');
-		Assert(nodes[id]^.location = @self);
-		nodes[id]^.location := nil;
-		Release(nodes[id]);
-		nodes[id] := nodes[High(nodes)];
-		SetLength(nodes, length(nodes) - 1);
+		Remove(n, SuitableArray(n)^);
 	end;
 
 	function Location.Collide(const obj: Circle; var move: Vec2): boolean;
@@ -151,9 +181,38 @@ implementation
 		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dB));
 	end;
 
-	function Location.IndexNode(n: pNode): sint;
+	function Location.SuitableArray(n: pNode): pNodesArray;
 	begin
-		result := Index(n, pPointer(nodes), length(nodes));
+		if InheritsFrom(TypeOf(n^), TypeOf(Trigger)) then result := @NodesArray(triggers) else result := @nodes;
+	end;
+
+	procedure Location.Add(n: pNode; var ary: NodesArray);
+	begin
+		if Assigned(n^.location) then raise Error('Объект ужа принадлежит другой локации.');
+		if IndexNode(n, ary) >= 0 then raise Error('Объект уже добавлен в локацию.');
+		SetLength(ary, length(ary) + 1);
+		ary[High(ary)] := n^.NewRef;
+		n^.location := @self;
+	end;
+
+	procedure Location.Remove(n: pNode; var ary: NodesArray);
+	var
+		id: sint;
+	begin
+		id := IndexNode(n, ary);
+		if id < 0 then raise Error('Объекта нет в локации.');
+		Assert(ary[id]^.location = @self);
+		ary[id]^.location := nil;
+		Release(ary[id]);
+		ary[id] := ary[High(ary)];
+		SetLength(ary, length(ary) - 1);
+	end;
+
+	function Location.IndexNode(n: pNode; const ary: array of pNode): sint;
+	type
+		ppNode = ^pNode;
+	begin
+		result := Index(n, ppNode(ary), length(ary));
 	end;
 
 end.

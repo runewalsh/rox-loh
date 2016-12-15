@@ -68,7 +68,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="15">
+    <Units Count="17">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -106,29 +106,37 @@
         <IsPartOfProject Value="True"/>
       </Unit8>
       <Unit9>
-        <Filename Value="..\src\rox_node.pas"/>
+        <Filename Value="..\src\rox_location.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit9>
       <Unit10>
-        <Filename Value="..\src\rox_location.pas"/>
+        <Filename Value="..\src\rox_decoration.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit10>
       <Unit11>
-        <Filename Value="..\src\rox_decoration.pas"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit11>
       <Unit12>
-        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Filename Value="..\src\rox_collision.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit12>
       <Unit13>
-        <Filename Value="..\src\rox_collision.pas"/>
+        <Filename Value="..\src\rox_paths.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit13>
       <Unit14>
-        <Filename Value="..\src\rox_paths.pas"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit14>
+      <Unit15>
+        <Filename Value="..\src\rox_trigger.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="..\src\rox_timer.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit16>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

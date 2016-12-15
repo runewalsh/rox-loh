@@ -223,12 +223,8 @@ const
 			components: gl.RGBA; internalFormat: gl.RGBA32F;
 			ctype: gl.FLOAT_TYPE
 		),
-		( // GLformat_RGB4
-			components: gl.RGBA; internalFormat: gl.RGB4;
-			ctype: gl.UNSIGNED_SHORT_4_4_4_4
-		),
 		( // GLformat_RGBA4
-			components: gl.RGBA; internalFormat: gl.RGBA4;
+			components: gl.RGBA; internalFormat: gl.RGBA;
 			ctype: gl.UNSIGNED_SHORT_4_4_4_4
 		),
 		( // GLformat_RGB565
