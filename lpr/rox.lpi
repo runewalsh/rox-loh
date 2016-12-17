@@ -130,11 +130,11 @@
         <IsPartOfProject Value="True"/>
       </Unit14>
       <Unit15>
-        <Filename Value="..\src\rox_trigger.pas"/>
+        <Filename Value="..\src\rox_timer.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit15>
       <Unit16>
-        <Filename Value="..\src\rox_timer.pas"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit16>
     </Units>

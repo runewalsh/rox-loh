@@ -47,6 +47,7 @@ type
 
 		rtMethod: (NotRotating, RotatingToPoint);
 		rtPoint: Vec2;
+		idclip: boolean;
 
 		constructor Init(const size: Vec2; const tex: string; const texSize: Vec2);
 		destructor Done; virtual;
@@ -59,13 +60,13 @@ type
 		procedure SwitchToState(const name: string);
 		procedure SwitchToState(id: uint);
 
-		procedure MoveBy(const delta: Vec2; velocity: float);
-		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+		procedure MoveBy(const state: string; const delta: Vec2; velocity: float);
+		procedure MoveTo(const state: string; const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 		function HeartPos: Vec2; virtual;
 
 		procedure RotateTo(const point: Vec2);
 	private
-		procedure SwitchMove(method: MoveTargeter);
+		procedure SwitchMove(const state: string; method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
 		function RotateStep(const target: float; const by: float): boolean;
 	end;
@@ -206,16 +207,16 @@ implementation
 		end;
 	end;
 
-	procedure Actor.MoveBy(const delta: Vec2; velocity: float);
+	procedure Actor.MoveBy(const state: string; const delta: Vec2; velocity: float);
 	begin
-		SwitchMove(MovingBy);
+		SwitchMove(state, MovingBy);
 		mvPointOrDelta := delta;
 		mvVel := velocity;
 	end;
 
-	procedure Actor.MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+	procedure Actor.MoveTo(const state: string; const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 	begin
-		SwitchMove(MovingTo);
+		SwitchMove(state, MovingTo);
 		mvPointOrDelta := target;
 		mvVel := velocity;
 		mvCb := cb;
@@ -233,13 +234,14 @@ implementation
 		rtPoint := point;
 	end;
 
-	procedure Actor.SwitchMove(method: MoveTargeter);
+	procedure Actor.SwitchMove(const state: string; method: MoveTargeter);
 	begin
 		if (mvMethod = MovingTo) and Assigned(mvCb) then
 		begin
 			mvCb(MovingCanceled, @self, mvParam);
 			mvCb := nil;
 		end;
+		SwitchToState(state);
 		mvMethod := method;
 	end;
 
@@ -251,7 +253,7 @@ implementation
 		sql := delta.SqrLength;
 		result := sqr(by) >= sql;
 		if result then m := delta else m := delta * (by / sqrt(sql));
-		if location^.Collide(Circle.Make(HeartPos, 0.5 * size.x), m) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
+		if not idclip and location^.Collide(Circle.Make(HeartPos, 0.5 * size.x), m) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
 		local.trans += m;
 		if Assigned(moved) then moved^ := m;
 	end;

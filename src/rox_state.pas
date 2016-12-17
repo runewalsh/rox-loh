@@ -25,7 +25,6 @@ type
 		procedure HandleDraw; virtual;
 
 		function QueryDeactivate: boolean; virtual;
-		procedure HandleReactivation; virtual;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
@@ -53,6 +52,7 @@ type
 		nvp, invp: Vec2;
 		viewportAp: AspectPair;
 		timers: array of TimerDesc;
+		switchedDuringLastUpdate: boolean;
 
 		procedure Invalidate;
 		procedure Verify;
@@ -108,7 +108,6 @@ uses
 	procedure State.HandleUpdate(const dt: float); begin Assert(@dt = @dt); end;
 	procedure State.HandleDraw; begin end;
 	function State.QueryDeactivate: boolean; begin result := yes; end;
-	procedure State.HandleReactivation; begin end;
 	procedure State.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); begin Assert((@action = @action) and (@pos = @pos) and (@extra = @extra)); end;
 	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey); begin Assert((@action = @action) and (@key = @key)); end;
 	function State.QuerySwitchOff: boolean; begin result := yes; end;
@@ -193,6 +192,7 @@ uses
 	var
 		i: sint;
 	begin
+		switchedDuringLastUpdate := no;
 		if Assigned(switching.&to) then
 		begin
 			switching.&to^.HandleUpdate(dt);
@@ -305,6 +305,7 @@ uses
 			priority := bgm.Priority(state^.id, no);
 			if Assigned(priority) then priority^.RemoveModifier('mgr');
 			ok := InternalTrySwitch(another, pushing);
+			switchedDuringLastUpdate := yes;
 		except
 			dispose(another, Done);
 			raise;
@@ -320,7 +321,7 @@ uses
 
 	procedure StateManager.RemoveTimer(id: sint);
 	begin
-		timers[id].t^.Stop;
+		timers[id].t^.Emergency;
 		Release(timers[id].t);
 		timers[id] := timers[High(timers)];
 		SetLength(timers, length(timers) - 1);

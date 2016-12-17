@@ -4,28 +4,32 @@ program rox;
 
 uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
-	rox_win, rox_gfx, rox_gl,
-	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure, rox_ep1_entry, rox_paths;
+	rox_win, rox_gfx, rox_gl, rox_paths,
+	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure,
+	rox_ep1_entry, rox_ep2_bar;
 
 	procedure LoadBGM(var window: Window);
 	begin
-		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('ps2phantasy2.mid'));
-		window.state.bgm.AddTheme(Ep1_Entry.StateID).AddItem(Music('ps2restoration1.mid'));
+		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('phantasy2.mid'));
+		window.state.bgm.AddTheme(Ep1_Entry.StateID).AddItem(Music('restoration1.mid'));
+		window.state.bgm.AddTheme(Ep2_Bar.StateID).AddItem(Music('pressure5.mid'));
 	end;
 
 var
-	prevTime, curTime, time, minFrameTime, cumTime: Ticks;
+	prevTime, curTime, time, minFrameTime, cumTime, cumTimeWithoutSleep: Ticks;
 	lastDt: float;
 	cumTimeFrames: uint;
 	err: gl.enum;
 	ignoreOpenGLErrors: boolean = no;
 	fpsNote: WindowCaption.Cookie;
 	window: rox_win.Window;
+	note: string;
 
 	procedure ResetCumTime;
 	begin
 		prevTime := Ticks.Get;
 		cumTime := Ticks.Zero;
+		cumTimeWithoutSleep := Ticks.Zero;
 		cumTimeFrames := 0;
 	end;
 
@@ -68,7 +72,7 @@ begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
-	minFrameTime := Ticks.FromSeconds(1/100);
+	minFrameTime := Ticks.FromSeconds(1/80);
 	ParseCommandLine;
 
 	try
@@ -86,14 +90,15 @@ begin
 			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 			gl.ClearColor(0.01, 0.06, 0.015, 1);
 
+			window.state.Switch(new(pEp2_Bar, Init(nil)));
 			ResetCumTime;
 			lastDt := 0.0;
-
-			window.state.Switch(new(pEp1_Entry, Init{pMainMenu, Init}));
 			repeat
 				if not window.Process(lastDt) then break;
-				if window.WasDeactivatedDuringLastProcess then ResetCumTime;
-				cumTimeFrames += window.RedrawsDuringLastProcess;
+				if window.WasDeactivatedDuringLastProcess or window.state.switchedDuringLastUpdate then
+					ResetCumTime
+				else
+					cumTimeFrames += window.RedrawsDuringLastProcess;
 
 				err := gl.GetError();
 				if (err <> gl.NO_ERROR) and not ignoreOpenGLErrors then
@@ -106,6 +111,7 @@ begin
 
 				curTime := Ticks.Get;
 				time := curTime - prevTime;
+				if time.ToSeconds < 1 then cumTimeWithoutSleep += time;
 				if time < MinFrameTime then
 				begin
 					Thread.Sleep(MinFrameTime - time);
@@ -121,7 +127,10 @@ begin
 
 				if (cumTime.ToSeconds >= 1) and (cumTimeFrames > 3) then
 				begin
-					window.caption.SetNote(fpsNote, 'FPS: ' + ToString(cumTimeFrames / cumTime.ToSeconds));
+					note := 'FPS: ' + ToString(cumTimeFrames / cumTime.ToSeconds);
+					if (minFrameTime > Ticks.Zero) and (cumTimeWithoutSleep.ToSeconds > 0) then
+						note += ' (' + ToString(cumTimeFrames / cumTimeWithoutSleep.ToSeconds) + ')';
+					window.caption.SetNote(fpsNote, note);
 					ResetCumTime;
 				end;
 				prevTime := curTime;

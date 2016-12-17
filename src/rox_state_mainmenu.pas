@@ -87,7 +87,7 @@ implementation
 	begin
 		mgr^.bgm.ResetAllThemes;
 		inherited HandleActivation;
-		if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'ps2phantasy2') and (time < 0.8) then
+		if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'phantasy2') and (time < 0.8) then
 			mgr^.bgm.Rewind(0.8 - time);
 	end;
 
@@ -122,7 +122,7 @@ implementation
 
 			Idle: ;
 
-			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp1_Entry, Init));
+			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp1_Entry, Init(nil)));
 		end;
 		if state > Prepare then bgTime := modf(bgTime + dt, PrettyTimeCycle);
 		stateTime += dt;
@@ -167,10 +167,10 @@ implementation
 							if uiTime >= 0.3 * ord(b) then buttons[b].progress := min(buttons[b].progress + 0.6*dt, 1);
 						completed := completed and (buttons[b].progress = 1);
 						buttons[b].ctl^.local :=
-							Translate2(ButtonInfo[b].pos * mgr^.nvp - ButtonInfo[b].inVec * (1 - buttons[b].progress)) *
-							Translate2(0.5 * buttons[b].ctl^.rawSize) *
+							Translate(ButtonInfo[b].pos * mgr^.nvp - ButtonInfo[b].inVec * (1 - buttons[b].progress)) *
+							Translate(0.5 * buttons[b].ctl^.rawSize) *
 							Scale2(lerp(1.3, 1, buttons[b].progress)) *
-							Translate2(-0.5 * buttons[b].ctl^.rawSize);
+							Translate(-0.5 * buttons[b].ctl^.rawSize);
 						buttons[b].ctl^.color.w := buttons[b].progress;
 					end;
 
@@ -192,16 +192,16 @@ implementation
 						begin
 							buttons[b].progress := min(buttons[b].progress + 1.6*dt, 1);
 							buttons[b].ctl^.local :=
-								Translate2(ButtonInfo[b].pos * mgr^.nvp) *
-								Translate2(0.5 * buttons[b].ctl^.rawSize) *
+								Translate(ButtonInfo[b].pos * mgr^.nvp) *
+								Translate(0.5 * buttons[b].ctl^.rawSize) *
 								Scale2(1.0 + 0.3 * buttons[b].progress) *
-								Translate2(-0.5 * buttons[b].ctl^.rawSize);
+								Translate(-0.5 * buttons[b].ctl^.rawSize);
 						end else
 							if uiTime > 0.2 then
 							begin
 								buttons[b].progress := min(buttons[b].progress + 2.0*dt, 1);
 								buttons[b].ctl^.local :=
-									Translate2(ButtonInfo[b].pos * mgr^.nvp + (3.0 * ButtonInfo[b].inVec) * buttons[b].progress);
+									Translate(ButtonInfo[b].pos * mgr^.nvp + (3.0 * ButtonInfo[b].inVec) * buttons[b].progress);
 							end;
 						buttons[b].ctl^.color.w := 1.0 - buttons[b].progress;
 
@@ -253,7 +253,7 @@ implementation
 						lodBias := 1 * (2.0 * abs(0.5 - frac(texZ*bg^.sizeZ)));
 					end;
 
-					if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'ps2phantasy2') and (time > 26) then
+					if mgr^.bgm.CurrentTrack(@name, @time, nil) and (name = 'phantasy2') and (time > 26) then
 					begin
 						lodBias += clamp(1.5 * (5 - abs(31 - time)), 0, 3);
 						if time > 34 then
@@ -288,8 +288,8 @@ implementation
 								q.fields += [q.Field.Transform];
 								q.transform :=
 									Scale2(1 + (1 + sqr(i/4))*pow(1.2*stateTime, 4)) *
-									Rotate2(0.5 * sqr(i/4)*pow(stateTime, 2)) *
-									Translate2(0, -0.17 * smoothstep(0, 2, stateTime));
+									Rotate(0.5 * sqr(i/4)*pow(stateTime, 2)) *
+									Translate(0, -0.17 * smoothstep(0, 2, stateTime));
 								if not (q.Field.Color in q.fields) then begin q.fields += [q.Field.Color]; q.color := Vec4.Ones; end;
 								q.color.w := sqr((5-i)/4);
 								if stateTime >= 1.5 then

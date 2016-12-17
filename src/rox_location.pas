@@ -14,11 +14,13 @@ type
 		location: pLocation;
 		local: Transform2;
 		size: Vec2;
+		layer: sint;
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual; abstract;
 		function HeartPos: Vec2; virtual;
+		procedure Detach;
 	end;
 
 	pNodesArray = ^NodesArray;
@@ -26,15 +28,45 @@ type
 
 	pTrigger = ^Trigger;
 	Trigger = object(&Node)
+	type
+		Reason = (Entered, Leaved);
+		TestProc = function(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
+		TriggerProc = procedure(n: pNode; reason: Reason; param: pointer);
+		ActivateProc = procedure(t: pTrigger; param: pointer);
+
+		pInnerDesc = ^InnerDesc;
+		InnerDesc = record
+			n: pNode;
+			confirmed: boolean;
+		end;
+	var
+		onTest: TestProc;
+		onTrigger: TriggerProc;
+		onActivate: ActivateProc;
+		param: pointer;
+		inside: array of InnerDesc;
+		highlight: boolean;
+
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
+		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
+		procedure Dismiss;
+		function HasInside(n: pNode): boolean;
+	private
+		function DoTest(n: pNode; const pos: Vec2): boolean;
+		procedure HandleEnter(n: pNode);
+		procedure HandleLeave(n: pNode);
+		function FindInner(n: pNode): sint;
 	end;
 
 	Location = object(&Object)
 		state: pState;
 		nodes: array of pNode;
-		walls: array of Rect;
+		walls: array of record
+			rect: Rect;
+			angle: float;
+		end;
 		obstacles: array of Circle;
 		triggers: array of pTrigger;
 		limits: Rect;
@@ -48,8 +80,12 @@ type
 		function Collide(const obj: Circle; var move: Vec2): boolean;
 		procedure AddObstacle(const obj: Circle);
 
-		procedure AddWall(const w: Rect);
+		procedure AddWall(const w: Rect; const angle: float = 0);
 		procedure AddWall(n: pNode; const dA, dB: Vec2);
+
+		function ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
+		function ActivateTriggerFor(activator: pNode): boolean;
+		function ShouldHighlightTrigger(const pos: Vec2): boolean;
 	private
 		function SuitableArray(n: pNode): pNodesArray;
 		procedure Add(n: pNode; var ary: NodesArray);
@@ -76,10 +112,15 @@ implementation
 		Assert(@dt = @dt);
 	end;
 
-
 	function Node.HeartPos: Vec2;
 	begin
 		result := local.trans + 0.5 * size;
+	end;
+
+	procedure Node.Detach;
+	begin
+		if not Assigned(location) then raise Error('Объект не в локации.');
+		location^.Remove(@self);
 	end;
 
 	constructor Trigger.Init(const local: Transform2; const size: Vec2);
@@ -89,6 +130,7 @@ implementation
 
 	destructor Trigger.Done;
 	begin
+		Dismiss;
 		inherited Done;
 	end;
 
@@ -96,6 +138,77 @@ implementation
 	begin
 		Assert(@view = @view);
 		raise Error('Триггер не должен получать запросы на отрисовку.');
+	end;
+
+	procedure Trigger.HandleUpdate(const dt: float);
+	var
+		i, inner: sint;
+		rect: UMath.Rect;
+	begin
+		inherited HandleUpdate(dt);
+		for i := 0 to High(inside) do
+		begin
+			Assert(Assigned(inside[i].n^.location));
+			inside[i].confirmed := no;
+		end;
+
+		rect := UMath.Rect.Make(local.trans, local.trans + size);
+		for i := 0 to High(location^.nodes) do
+			if rect.Intersects(UMath.Rect.MakeSize(location^.nodes[i]^.local.trans, location^.nodes[i]^.size)) and
+				DoTest(location^.nodes[i], location^.nodes[i]^.HeartPos) then
+			begin
+				inner := FindInner(location^.nodes[i]);
+				if inner < 0 then
+				begin
+					inner := length(inside);
+					SetLength(inside, inner + 1);
+					inside[inner].n := location^.nodes[i]^.NewRef;
+					HandleEnter(location^.nodes[i]);
+				end;
+				inside[inner].confirmed := yes;
+			end;
+
+		for i := High(inside) downto 0 do
+			if not inside[i].confirmed then
+			begin
+				HandleLeave(inside[i].n);
+				Release(inside[i].n);
+				inside[i] := inside[High(inside)];
+				SetLength(inside, length(inside) - 1);
+			end;
+	end;
+
+	procedure Trigger.Dismiss;
+	var
+		i: sint;
+	begin
+		for i := 0 to High(inside) do Release(inside[i].n);
+		inside := nil;
+	end;
+
+	function Trigger.HasInside(n: pNode): boolean;
+	begin
+		result := FindInner(n) >= 0;
+	end;
+
+	function Trigger.DoTest(n: pNode; const pos: Vec2): boolean;
+	begin
+		result := not Assigned(onTest) or onTest(n, pos, @self, param);
+	end;
+
+	procedure Trigger.HandleEnter(n: pNode);
+	begin
+		if Assigned(onTrigger) then onTrigger(n, Entered, param);
+	end;
+
+	procedure Trigger.HandleLeave(n: pNode);
+	begin
+		if Assigned(onTrigger) then onTrigger(n, Leaved, param);
+	end;
+
+	function Trigger.FindInner(n: pNode): sint;
+	begin
+		result := Index(n, pointer(pInnerDesc(inside)) + fieldoffset InnerDesc _ n _, length(inside), sizeof(InnerDesc));
 	end;
 
 	constructor Location.Init(state: pState);
@@ -127,7 +240,8 @@ implementation
 	end;
 
 	procedure Location.Draw(const view: Transform2);
-		{$define elem := pNode} {$define procname := SortByDrawOrder} {$define less := _1^.local.trans.y > _2^.local.trans.y}
+		{$define elem := pNode} {$define procname := SortByDrawOrder}
+		{$define less := (_1^.layer < _2^.layer) or (_1^.layer = _2^.layer) and (_1^.local.trans.y > _2^.local.trans.y)}
 		{$define openarray} {$include sort.inc}
 	var
 		sorted: array of pNode;
@@ -152,6 +266,7 @@ implementation
 	function Location.Collide(const obj: Circle; var move: Vec2): boolean;
 	var
 		i: sint;
+		nm: Vec2;
 	begin
 		result := no;
 		result := CircleVsEnclosingRect(obj, limits, move) or result;
@@ -160,7 +275,17 @@ implementation
 			result := CircleVsCircle(obj, obstacles[i], move) or result;
 
 		for i := 0 to High(walls) do
-			result := CircleVsRect(obj, walls[i], move) or result;
+			if walls[i].angle = 0 then
+				result := CircleVsRect(obj, walls[i].rect, move) or result
+			else
+			begin
+				nm := Rotate(move, -walls[i].angle);
+				if CircleVsRect(Circle.Make(Rotate(obj.center - walls[i].rect.A, -walls[i].angle), obj.radius), Rect.Make(Vec2.Zero, walls[i].rect.Size), nm) then
+				begin
+					result := yes;
+					move := Rotate(nm, walls[i].angle);
+				end;
+			end;
 	end;
 
 	procedure Location.AddObstacle(const obj: Circle);
@@ -169,16 +294,56 @@ implementation
 		obstacles[High(obstacles)] := obj;
 	end;
 
-	procedure Location.AddWall(const w: Rect);
+	procedure Location.AddWall(const w: Rect; const angle: float = 0);
 	begin
 		SetLength(walls, length(walls) + 1);
-		walls[High(walls)] := w;
+		walls[High(walls)].rect := w;
+		walls[High(walls)].angle := angle;
 	end;
 
 	procedure Location.AddWall(n: pNode; const dA, dB: Vec2);
 	begin
 		Add(n);
 		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dB));
+	end;
+
+	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
+	var
+		i: sint;
+	begin
+		for i := 0 to High(triggers) do
+			if Assigned(triggers[i]^.onActivate) and
+				Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) and
+				triggers[i]^.HasInside(activator)
+			then
+			begin
+				triggers[i]^.onActivate(triggers[i], triggers[i]^.param);
+				exit(yes);
+			end;
+		result := no;
+	end;
+
+	function Location.ActivateTriggerFor(activator: pNode): boolean;
+	var
+		i: sint;
+	begin
+		for i := 0 to High(triggers) do
+			if Assigned(triggers[i]^.onActivate) and triggers[i]^.HasInside(activator) then
+			begin
+				triggers[i]^.onActivate(triggers[i], triggers[i]^.param);
+				exit(yes);
+			end;
+		result := no;
+	end;
+
+	function Location.ShouldHighlightTrigger(const pos: Vec2): boolean;
+	var
+		i: sint;
+	begin
+		for i := 0 to High(triggers) do
+			if triggers[i]^.highlight and Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) then
+				exit(yes);
+		result := no;
 	end;
 
 	function Location.SuitableArray(n: pNode): pNodesArray;

@@ -219,7 +219,7 @@ uses
 
 	function Control.Place(const pos: Vec2; const size: float; sizeMethod: Aspect2Method): pControl;
 	begin
-		self.local := Translate2(pos);
+		self.local := Translate(pos);
 		self.size := size;
 		self.sizeMethod := sizeMethod;
 		result := @self;

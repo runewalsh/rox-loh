@@ -27,6 +27,7 @@ type
 		function Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture; static;
 		function UnsupportedTargetMessage(target: GLTextureTarget): string; static;
 		function Load(s: pStream): pTexture; static;
+		function InternalFormat(fmt: GLImageFormat): gl.enum; static;
 	end;
 
 	pImageResource = ^ImageResource;
@@ -148,7 +149,7 @@ var
 	begin
 		result := Create(GLtexture_2D, size, no, no);
 		try
-			gl.TexImage2D(gl.TEXTURE_2D, 0, GLFormats[format].internalFormat, size.x, size.y, 0, GLFormats[format].components, GLFormats[format].ctype, nil);
+			gl.TexImage2D(gl.TEXTURE_2D, 0, InternalFormat(format), size.x, size.y, 0, GLFormats[format].components, GLFormats[format].ctype, nil);
 			result^.NewRef;
 		except
 			dispose(result, Done);
@@ -240,17 +241,17 @@ var
 					case im.target of
 						GLtexture_2D:
 							if GLformat_Compressed in GLImageFormatsInfo[im.format].flags then
-								gl.CompressedTexImage2D(gl.TEXTURE_2D, im.info.Defaced(lv), GLFormats[im.format].internalFormat, levelSize.x, levelSize.y, 0,
+								gl.CompressedTexImage2D(gl.TEXTURE_2D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, 0,
 									im.info.GetLevelDataSize(lv), im.LevelPtr(lv))
 							else
-								gl.TexImage2D(gl.TEXTURE_2D, im.info.Defaced(lv), GLFormats[im.format].internalFormat, levelSize.x, levelSize.y, 0,
+								gl.TexImage2D(gl.TEXTURE_2D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, 0,
 									GLFormats[im.format].components, GLFormats[im.format].ctype, im.LevelPtr(lv));
 						GLtexture_3D:
 							if GLformat_Compressed in GLImageFormatsInfo[im.format].flags then
-								gl.CompressedTexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), GLFormats[im.format].internalFormat, levelSize.x, levelSize.y, levelSize.z, 0,
+								gl.CompressedTexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, levelSize.z, 0,
 									im.info.GetLevelDataSize(lv), im.LevelPtr(lv))
 							else
-								gl.TexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), GLFormats[im.format].internalFormat, levelSize.x, levelSize.y, levelSize.z, 0,
+								gl.TexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, levelSize.z, 0,
 									GLFormats[im.format].components, GLFormats[im.format].ctype, im.LevelPtr(lv));
 						else raise Error(StreamPath.Human(s^.path) + ': ' + UnsupportedTargetMessage(im.target));
 					end;
@@ -262,6 +263,14 @@ var
 		finally
 			im.Done;
 		end;
+	end;
+
+	function Texture.InternalFormat(fmt: GLImageFormat): gl.enum;
+	begin
+		// rox_dialogue.TextBox свиззлит R-текстуру в (0, 0, 0, R), и в FFP у такой отваливается альфа.
+		// INTENSITY обходит эту багофичу.
+		// См. Issue 7: https://www.opengl.org/registry/specs/ARB/texture_swizzle.txt
+		if fmt = GLformat_R then result := gl.L.INTENSITY else result := GLFormats[fmt].internalFormat;
 	end;
 
 	constructor ImageResource.Init(s: pStream);

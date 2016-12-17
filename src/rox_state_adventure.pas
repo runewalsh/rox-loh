@@ -4,18 +4,32 @@ unit rox_state_adventure;
 interface
 
 uses
-	USystem, Errors, UMath, UClasses, Utils, rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_trigger, rox_win;
+	USystem, Errors, UMath, UClasses, Utils, GLUtils,
+	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win;
 
 type
+	pCamera = ^Camera;
+	Camera = object
+		viewTransform: Transform2;
+		target: Vec2;
+		restart: boolean;
+		procedure Init;
+		procedure Update(const dt: float);
+		function Unproject(const visiblePos: Vec2): Vec2;
+	end;
+
 	pAdventure = ^Adventure;
 	Adventure = object(State)
 		controls: set of Dir4.Enum;
 		shift: boolean;
-		view: Transform2;
+		camera: Camera;
+		cameraMode: (LookAfterPlayer, LookPredefined);
 		player: pActor;
+		lastMovementDirection: Vec2;
+		playerControlMode: (PlayerControlEnabled, PlayerControlDisabled);
 		location: pLocation;
 		dlg: Dialogue;
-		mouseOverTrigger: boolean;
+		triggerHighlighted: boolean;
 		constructor Init(const id: string);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
@@ -35,15 +49,43 @@ implementation
 uses
 	rox_state_mainmenu;
 
+	procedure Camera.Init;
+	begin
+		viewTransform := Transform2.Identity;
+		target := Vec2.Zero;
+		restart := yes;
+	end;
+
+	procedure Camera.Update(const dt: float);
+	var
+		delta: Vec2;
+	begin
+		if restart then
+		begin
+			viewTransform.trans := -target;
+			restart := no;
+		end else
+		begin
+			delta := (-target - viewTransform.trans) * min(1.5*dt, 1.0);
+			viewTransform.trans := viewTransform.trans + delta;
+		end;
+	end;
+
+	function Camera.Unproject(const visiblePos: Vec2): Vec2;
+	begin
+		result := viewTransform.Inversed * visiblePos;
+	end;
+
 	constructor Adventure.Init(const id: string);
 	begin
 		dlg.Invalidate;
 		inherited Init(id);
-		view := Transform2.Identity;
+		camera.Init;
 	end;
 
 	destructor Adventure.Done;
 	begin
+		if Assigned(mgr) then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
 		Release(player);
 		Release(location);
 		dlg.Done;
@@ -51,63 +93,67 @@ uses
 	end;
 
 	procedure Adventure.HandleUpdate(const dt: float);
+	var
+		delta, a, b: Vec2;
 	begin
 		if not Assigned(player) then raise Error('Не назначен игрок.');
 		if not Assigned(location) then raise Error('Не назначена локация.');
+
 		inherited HandleUpdate(dt);
-		if controls <> [] then
+		if (controls <> []) and (playerControlMode = PlayerControlEnabled) then
 		begin
 			player^.SwitchToState('walk');
 			player^.rtMethod := NotRotating;
-			player^.MoveBy(0.3 * Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls)).Normalized,
-				IfThen(shift, RunningVelocity, WalkingVelocity));
+			delta := Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls));
+			player^.MoveBy('walk', 0.3 * delta.Normalized, IfThen(shift, RunningVelocity, WalkingVelocity));
+			lastMovementDirection := lastMovementDirection + (delta - lastMovementDirection) * dt;
 		end;
 		location^.Update(dt);
-		if dlg.Valid then
-		begin
-			dlg.Update(dt);
-			if dlg.Finished then begin dlg.Done; dlg.Init(@self, 'player [indifferent.png]: 0.png'); dlg.Update(dt); end;
+		if dlg.Valid then dlg.Update(dt);
+
+		case cameraMode of
+			LookAfterPlayer:
+				begin
+					a := min(location^.limits.A + 0.75 * mgr^.nvp, location^.limits.B);
+					b := max(location^.limits.B - 0.75 * mgr^.nvp, location^.limits.A);
+					camera.target := clamp(player^.local.trans + 0.6 * lastMovementDirection * mgr^.nvp, a, max(a, b));
+				end;
 		end;
-		view.trans := -player^.local.trans;
+		camera.Update(dt);
 	end;
 
 	procedure Adventure.HandleDraw;
 	begin
 		inherited HandleDraw;
-		location^.Draw(view);
+		location^.Draw(camera.viewTransform);
 	end;
 
 	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
 	var
-		i: sint;
-		mot: boolean;
+		ht: boolean;
 	begin
 		case action of
 			MouseLClick:
-				if extra.Handle then
 				begin
-					player^.rtMethod := NotRotating;
-					player^.SwitchToState('walk');
-					player^.MoveTo(view.Inversed * pos, WalkingVelocity, nil, nil);
+					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip;
+					if extra.HandleSilent and location^.ActivateTriggerAt(camera.Unproject(pos), player) then extra.Handle;
+
+					if (playerControlMode = PlayerControlEnabled) and extra.Handle then
+					begin
+						player^.rtMethod := NotRotating;
+						player^.MoveTo('walk', camera.Unproject(pos), WalkingVelocity, nil, nil);
+						lastMovementDirection := (camera.Unproject(pos) - player^.local.trans).Normalized;
+					end;
 				end;
 			MouseMove:
 				begin
-					// подсветка курсора на триггерах
-					mot := no;
-					for i := 0 to High(location^.triggers) do
-						if InheritsFrom(TypeOf(location^.triggers[i]^), TypeOf(SpatialTrigger)) and pSpatialTrigger(location^.triggers[i])^.highlight and
-							Rect.MakeSize(view * location^.triggers[i]^.local.trans, location^.triggers[i]^.size).Contains(pos) and extra.HandleSilent then
-						begin
-							Window.FromPointer(mgr^.win)^.cursor := Cursor1;
-							mot := yes;
-						end;
+					ht := location^.ShouldHighlightTrigger(camera.Unproject(pos));
+					if ht and extra.HandleSilent then Window.FromPointer(mgr^.win)^.cursor := Cursor1;
+					if not ht and triggerHighlighted and extra.HandleSilent then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
+					triggerHighlighted := ht;
 
-						if not mot and mouseOverTrigger and extra.HandleSilent then
-							Window.FromPointer(mgr^.win)^.cursor := Cursor0;
-					mouseOverTrigger := mot;
-
-					if extra.Handle then
-						if player^.mvMethod = NotMoving then player^.RotateTo(view.Inversed * pos);
+					if (playerControlMode = PlayerControlEnabled) and (player^.mvMethod = NotMoving) and extra.Handle then
+						player^.RotateTo(camera.Unproject(pos));
 				end;
 		end;
 		inherited HandleMouse(action, pos, extra);
@@ -124,6 +170,7 @@ uses
 					key_Up, key_Down, key_Left, key_Right: controls += [DirectionKeyToDir4(key).value];
 					key_LShift: shift := yes;
 					key_Esc: begin mgr^.Switch(new(pMainMenu, Init)); handled := yes; end;
+					key_Z: location^.ActivateTriggerFor(player);
 				end;
 			KeyRelease:
 				case key of

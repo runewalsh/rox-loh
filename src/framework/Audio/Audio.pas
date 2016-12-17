@@ -11,7 +11,7 @@ interface
 
 uses
 	ctypes, Errors, BassLib, DynamicLoader, USystem, Streams, UMath, Random, Utils, UClasses,
-	SceneGraph, Script, Cameras, Physics
+	SceneGraph, Script, Physics
 {$ifdef Debug}, ULog, Human{$endif};
 
 type
@@ -181,8 +181,8 @@ type
 	pMusicPlayer = ^MusicPlayer;
 	MusicPlayer = object
 	type
-		OnOpenCloseProc = procedure(var cam: Camera; const info: SingleDelegateInfo);
-		OnProcessProc = procedure(var au: Sound; var cam: Camera; const info: SingleDelegateInfo);
+		OnOpenCloseProc = procedure(cam: pObject; const info: SingleDelegateInfo);
+		OnProcessProc = procedure(var au: Sound; cam: pObject; const info: SingleDelegateInfo);
 
 		ItemProxy = object
 			procedure Volume(const vol: float);
@@ -203,7 +203,7 @@ type
 
 		procedure Init;
 		procedure Done;
-		procedure Process(var cam: Camera);
+		procedure Process(cam: pObject);
 		function AddTheme(const name: PoolString): ThemeProxy;
 		function CurrentTrack(name: pString; time, total: pFloat): boolean;
 		procedure Switch;
@@ -226,7 +226,7 @@ type
 	private type
 		OnProcessArgs = record
 			au: pSound;
-			cam: pCamera;
+			cam: pObject;
 		end;
 
 		pItemDesc = ^ItemDesc;
@@ -268,18 +268,18 @@ type
 		playingTheme, playingItem: sint; // индексы в themes и themes[playingTheme].items, -1, если нет
 		// playingTheme — скорее bestTheme, может быть выставлена, когда playingItem не валиден (но не наоборот).
 		// playingItem и playing валидны-невалидны синхронно.
-		activeCam: pCamera; // для этой камеры был вызван open
+		activeCam: pObject; // для этой «камеры» был вызван open
 		activeCamItem: pItemDesc; // nil, если нет
 	{$ifdef Debug} function Dump: string; {$endif}
 		procedure Lock(full: boolean);
 		procedure Unlock(full: boolean);
-		procedure CallOnOpenClose(var md: MultiDelegate; var cam: Camera);
-		procedure CallOnProcess(var md: MultiDelegate; var au: Sound; var cam: Camera);
+		procedure CallOnOpenClose(var md: MultiDelegate; cam: pObject);
+		procedure CallOnProcess(var md: MultiDelegate; var au: Sound; cam: pObject);
 		procedure UpdateTheme(lock: boolean);
 		procedure InternalSwitch(theme: sint; timerInstance: ThreadTimer.pCallbackInstance; force: boolean);
 		function FindTheme(const name: PoolString; throw: boolean): sint;
 
-		procedure SetCamera(cam: pCamera);
+		procedure SetCamera(cam: pObject);
 		procedure CloseCamera(byCam: boolean);
 
 		// если с удаляемым предметом связана камера и он содержит close, его нельзя удалять прямо сейчас, пока камера не закроется.
@@ -1366,13 +1366,13 @@ const
 		interfaceLock.Done;
 	end;
 
-	procedure MusicPlayer.Process(var cam: Camera);
+	procedure MusicPlayer.Process(cam: pObject);
 	begin
 		Lock(yes);
-		if (@cam <> activeCam) or Assigned(activeCamItem) and (not Assigned(playing) or (activeCamItem <> themes[playingTheme].items[playingItem])) then
+		if (cam <> activeCam) or Assigned(activeCamItem) and (not Assigned(playing) or (activeCamItem <> themes[playingTheme].items[playingItem])) then
 		begin
 			if Assigned(activeCam) then CloseCamera(no);
-			SetCamera(@cam);
+			SetCamera(cam);
 		end;
 
 		if Assigned(activeCamItem) and not activeCamItem^.process.Empty then
@@ -1821,27 +1821,27 @@ const
 
 	procedure OnOpenCloseCaller(const info: SingleDelegateInfo; param: pointer);
 	begin
-		MusicPlayer.OnOpenCloseProc(info.proc)(pCamera(param)^, info);
+		MusicPlayer.OnOpenCloseProc(info.proc)(pObject(param), info);
 	end;
 
-	procedure MusicPlayer.CallOnOpenClose(var md: MultiDelegate; var cam: Camera);
+	procedure MusicPlayer.CallOnOpenClose(var md: MultiDelegate; cam: pObject);
 	begin
-		md.Call(@OnOpenCloseCaller, @cam);
+		md.Call(@OnOpenCloseCaller, cam);
 	end;
 
 	procedure OnProcessCaller(const info: SingleDelegateInfo; param: pointer);
 	var
 		args: ^MusicPlayer.OnProcessArgs absolute param;
 	begin
-		MusicPlayer.OnProcessProc(info.proc)(args^.au^, args^.cam^, info);
+		MusicPlayer.OnProcessProc(info.proc)(args^.au^, args^.cam, info);
 	end;
 
-	procedure MusicPlayer.CallOnProcess(var md: MultiDelegate; var au: Sound; var cam: Camera);
+	procedure MusicPlayer.CallOnProcess(var md: MultiDelegate; var au: Sound; cam: pObject);
 	var
 		args: OnProcessArgs;
 	begin
 		args.au := @au;
-		args.cam := @cam;
+		args.cam := cam;
 		md.Call(@OnProcessCaller, @args);
 	end;
 
@@ -1985,7 +1985,7 @@ const
 		bgm^.CloseCamera(yes);
 	end;
 
-	procedure MusicPlayer.SetCamera(cam: pCamera);
+	procedure MusicPlayer.SetCamera(cam: pObject);
 	begin
 		Assert(interfaceLock.AcquiredAssert);
 		Assert(not Assigned(activeCam));
@@ -1993,14 +1993,14 @@ const
 		cam^.AddOnDestroyProc(@KillCamera, @self);
 		if playingItem >= 0 then activeCamItem := themes[playingTheme].items[playingItem] else activeCamItem := nil;
 		if Assigned(activeCamItem) and not activeCamItem^.open.Empty then
-			CallOnOpenClose(activeCamItem^.open, cam^);
+			CallOnOpenClose(activeCamItem^.open, cam);
 	end;
 
 	procedure MusicPlayer.CloseCamera(byCam: boolean);
 	begin
 		Assert(Assigned(activeCam));
 		if Assigned(activeCamItem) and not activeCamItem^.close.Empty then
-			CallOnOpenClose(activeCamItem^.close, activeCam^);
+			CallOnOpenClose(activeCamItem^.close, activeCam);
 		if not byCam then activeCam^.RemoveOnDestroyProc(@KillCamera, @self);
 		activeCam := nil;
 		activeCamItem := nil;

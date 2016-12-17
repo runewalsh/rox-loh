@@ -11,7 +11,7 @@ type
 	Timer = object(&Object)
 	type
 		DoneReason = (Timeout, Stopped, Emergency);
-		ProcessCallback = procedure(const dt: float; param: pointer);
+		ProcessCallback = procedure(timer: pTimer; const dt: float; param: pointer);
 		DoneCallback = procedure(reason: DoneReason; param: pointer);
 	var
 		left: float;
@@ -24,6 +24,7 @@ type
 		procedure Update(const dt: float);
 		function Dead: boolean;
 		procedure Stop;
+		procedure Emergency;
 	private
 		procedure ShotDone(reason: DoneReason);
 	end;
@@ -41,18 +42,24 @@ implementation
 
 	destructor Timer.Done;
 	begin
-		ShotDone(Emergency);
+		ShotDone(DoneReason.Emergency);
 		inherited Done;
 	end;
 
 	procedure Timer.Update(const dt: float);
 	var
 		nt: float;
+		justCompleted: boolean;
 	begin
 		nt := left - dt;
-		if Assigned(onProcess) then onProcess(dt, param);
-		if (left >= 0) and (nt < 0) then ShotDone(Timeout);
+		justCompleted := (left >= 0) and (nt < 0);
 		left := nt;
+		if Assigned(onProcess) then
+		begin
+			onProcess(@self, dt, param);
+			justCompleted := justCompleted and (left < 0);
+		end;
+		if justCompleted then ShotDone(Timeout);
 	end;
 
 	function Timer.Dead: boolean;
@@ -63,7 +70,11 @@ implementation
 	procedure Timer.Stop;
 	begin
 		ShotDone(Stopped);
-		left := -1;
+	end;
+
+	procedure Timer.Emergency;
+	begin
+		ShotDone(DoneReason.Emergency);
 	end;
 
 	procedure Timer.ShotDone(reason: DoneReason);
@@ -76,6 +87,7 @@ implementation
 			onDone := nil;
 			dn(reason, param);
 		end;
+		left := -1;
 	end;
 
 end.

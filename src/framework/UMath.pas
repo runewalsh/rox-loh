@@ -118,6 +118,7 @@ type
 		function MaybeNormalized: vec;
 		function Normalized(out len: base_type): vec;
 		function Clamped(const lim: base_type): vec;
+		function WithNonOvercomingLength(const len: base_type): vec;
 
 	{$if veclen = 3} function LineEquation(const a, b: pair2): vec; {$endif}
 	{$if veclen = 4} function Homo3: pair3; {$endif}
@@ -320,8 +321,7 @@ type
 		function Normalized: Quaternion;
 		function MaybeNormalized: Quaternion;
 		function Inversed: Quaternion;
-		function ToMatrix3: Matrix3;
-		function ToMatrix: Matrix4;
+		function ToMatrix: Matrix3;
 		procedure GetRotation(out angle: float; out axis: Vec3);
 		function GetAngle: float;
 		function GetAxis: Vec3;
@@ -397,12 +397,12 @@ type
 	operator *(const a, b: Transform2): Transform2;
 	operator *(const t: Transform2; const v: Vec2): Vec2;
 
-	function Translate2(const trans: Vec2): Transform2;
-	function Translate2(const x, y: float): Transform2;
-	function Rotate2(const rot: float): Transform2;
+	function Translate(const trans: Vec2): Transform2;
+	function Translate(const x, y: float): Transform2;
+	function Rotate(const rot: float): Transform2;
 	function Scale2(const scale: float): Transform2;
-	function TranslateRotate2(const trans: Vec2; const rot: float): Transform2;
-	function RotateTranslate2(const rot: float; const trans: Vec2): Transform2;
+	function TranslateRotate(const trans: Vec2; const rot: float): Transform2;
+	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
 
 type
 	pPlane = ^Plane;
@@ -1051,6 +1051,16 @@ end_unchecked
 		end;
 	end;
 
+	function vec.WithNonOvercomingLength(const len: base_type): vec;
+	var
+		t: base_type;
+	begin
+		t := sqrlen;
+		if t > sqr(len) then result := self else
+			if UMath.IsZero(t) then result := Zero
+				else result := self * sqrt(sqr(len) / t);
+	end;
+
 {$if veclen = 3}
 	function vec.LineEquation(const a, b: pair2): vec;
 	var
@@ -1290,7 +1300,7 @@ end_unchecked
 
 	function Matrix4.Rotation(const ane: float; const v: Vec3): Matrix4;
 	begin
-		result := Quaternion.Rotation(ane, v.Normalized).ToMatrix;
+		result := Mat4(Quaternion.Rotation(ane, v.Normalized).ToMatrix);
 	end;
 
 	function Matrix4.Scaling(const kx, ky, kz: float): Matrix4;
@@ -1391,7 +1401,7 @@ end_unchecked
 	function Matrix3.RotationN(const ane: float; const v: Vec3): Matrix3;
 	begin
 		Assert(v.IsIdentity, ToString(v));
-		result := Quaternion.Rotation(ane, v).ToMatrix3;
+		result := Quaternion.Rotation(ane, v).ToMatrix;
 	end;
 
 	function Mat3(const m4: Matrix4): Matrix3;
@@ -1629,9 +1639,7 @@ end_unchecked
 		result := Make(v3, -w);
 	end;
 
-	function Quaternion.ToMatrix: Matrix4; begin result := Mat4(ToMatrix3); end;
-
-	function Quaternion.ToMatrix3: Matrix3;
+	function Quaternion.ToMatrix: Matrix3;
 	var
 		n, wx, wy, wz, xx, yy, yz, xy, xz, zz, x2, y2, z2, s: float;
 	begin
@@ -1805,14 +1813,14 @@ end_unchecked
 
 	function Transform.ToMatrix: Matrix4;
 	begin
-		result := Matrix4.Translation(tr) * rot.ToMatrix;
+		result := Matrix4.Translation(tr) * Mat4(rot.ToMatrix);
 		if scale <> 1 then
-			result := result * Matrix4.Scaling(scale, scale, scale);
+			result *= Matrix4.Scaling(scale, scale, scale);
 	end;
 
 	function Transform.ToMatrixWoScale: Matrix4;
 	begin
-		result := Matrix4.Translation(tr) * rot.ToMatrix;
+		result := Matrix4.Translation(tr) * Mat4(rot.ToMatrix);
 	end;
 
 	function Transform.Inversed: Transform;
@@ -1924,16 +1932,16 @@ end_unchecked
 			result := t.trans + Rotate(v, t.rot) * t.scale;
 	end;
 
-	function Translate2(const trans: Vec2): Transform2;
+	function Translate(const trans: Vec2): Transform2;
 	begin
 		result.trans := trans;
 		result.rot := 0;
 		result.scale := 1;
 	end;
 
-	function Translate2(const x, y: float): Transform2; begin result := Translate2(Vec2.Make(x, y)); end;
+	function Translate(const x, y: float): Transform2; begin result := Translate(Vec2.Make(x, y)); end;
 
-	function Rotate2(const rot: float): Transform2;
+	function Rotate(const rot: float): Transform2;
 	begin
 		result.trans := Vec2.Zero;
 		result.rot := rot;
@@ -1947,14 +1955,14 @@ end_unchecked
 		result.scale := scale;
 	end;
 
-	function TranslateRotate2(const trans: Vec2; const rot: float): Transform2;
+	function TranslateRotate(const trans: Vec2; const rot: float): Transform2;
 	begin
 		result.trans := trans;
 		result.rot := rot;
 		result.scale := 1;
 	end;
 
-	function RotateTranslate2(const rot: float; const trans: Vec2): Transform2;
+	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
 	begin
 		result.trans := UMath.Rotate(trans, rot);
 		result.rot := rot;

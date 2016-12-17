@@ -129,6 +129,8 @@ type
 			TEXTURE_COORD_ARRAY = $8078;
 			COLOR_ARRAY         = $8076;
 
+			INTENSITY           = $8049;
+
 			MODULATE            = $2100;
 			DECAL               = $2101;
 			REPLACE             = $1E01;

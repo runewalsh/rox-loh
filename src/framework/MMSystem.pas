@@ -97,7 +97,7 @@ var
 implementation
 
 uses
-	U_GL, GLBase, Cameras, Script_EngineAPI
+	U_GL, GLBase, Script_EngineAPI
 {$ifdef use_serialization}, GLUtils, Serialization {$endif}
 {$ifdef Profile}, Profile {$endif};
 
@@ -345,7 +345,7 @@ type
 		if (not Assigned(scene)) or (not Assigned(script)) then exit;
 		repeat
 			if not BeginFrame then break;
-			bgm.Process(scene^.Camera{, FrameDt});
+			bgm.Process(@scene^.Camera);
 
 			repeat
 				osc := scene;
@@ -994,7 +994,7 @@ type
 			SetRef(pMultimediaSystem(ss.ToSelf)^.gui, ss.ToObject(3, TypeOf(GUIRoot)));
 	end;
 
-	procedure OnOpenCloseBGM(var cam: Camera; const info: SingleDelegateInfo);
+	procedure OnOpenCloseBGM(cam: pObject; const info: SingleDelegateInfo);
 	var
 		sd: pScriptDelegate absolute info.user;
 	begin
@@ -1002,12 +1002,12 @@ type
 		if not sd^.GetFunction {$ifdef Debug}('OnOpenCloseBGM'){$endif} then exit;
 		with sd^.ss^ do
 		begin
-			PushObject(@cam);
+			PushObject(cam);
 			Call(1, 0);
 		end;
 	end;
 
-	procedure OnProcessBGM(var au: Sound; var cam: Camera; const info: SingleDelegateInfo);
+	procedure OnProcessBGM(var au: Sound; cam: pObject; const info: SingleDelegateInfo);
 	var
 		sd: pScriptDelegate absolute info.user;
 	begin
@@ -1016,7 +1016,7 @@ type
 		with sd^.ss^ do
 		begin
 			PushObject(@au);
-			PushObject(@cam);
+			PushObject(cam);
 			Call(2, 0);
 		end;
 	end;

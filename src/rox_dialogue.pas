@@ -4,7 +4,7 @@ unit rox_dialogue;
 interface
 
 uses
-	USystem, UClasses, UMath, Algo, Utils, Streams, U_GL, GLBase, {$ifdef Debug} ULog, {$endif} GLUtils, TextProcessing,
+	USystem, UClasses, UMath, Algo, Human, Utils, Streams, U_GL, GLBase, {$ifdef Debug} ULog, {$endif} GLUtils, TextProcessing,
 	rox_gl, rox_state, rox_gfx, rox_ui, rox_paths;
 
 type
@@ -40,7 +40,7 @@ type
 		function CalculateTransparentRect(const nvp: Vec2; const border: float): Rect;
 	public const
 		StartingSymbolThreshold = High(uint8) div 2;
-		FloodFillThreshold = (High(uint8) * 3) div 4;
+		FloodFillThreshold = (High(uint8) * 6) div 7;
 		PicSize = 0.3;
 	end;
 
@@ -49,13 +49,18 @@ type
 	type
 		ItemDesc = object
 			char, pic, sentence: string;
+			size, delay: float;
 		end;
+
+		DoneCallback = procedure(param: pointer);
 	var
 		state: pState;
 		items: array of ItemDesc;
 		nextItem: sint;
 		active: pTextBox;
 		finalTimeout: float;
+		onDone: DoneCallback;
+		param: pointer;
 
 		procedure Invalidate;
 		function Valid: boolean;
@@ -63,6 +68,7 @@ type
 		procedure Done;
 		procedure Update(const dt: float);
 		function Finished: boolean;
+		procedure Skip;
 	private
 		procedure Parse(const s: string);
 	const
@@ -88,9 +94,7 @@ implementation
 			Prepare(si^.im, src);
 			sumSize := si^.im.Size.XY;
 
-			// Хак: должно быть GLformat_R, но он плохо взаимодействует с легаси.
-			// Конкретно, на моей AMD выставленная в свиззле альфа игнорируется GL_MODULATE, если её не содержала оригинальная текстура.
-			ChangeTexture(Texture.Dynamic({GLformat_R} GLformat_RGBA, sumSize));
+			ChangeTexture(Texture.Dynamic(GLformat_R {обрабатывается особо, см. Texture.InternalFormat}, sumSize));
 			tex^.Swizzle(Swizzle.One, Swizzle.One, Swizzle.One, Swizzle.R);
 
 			sum := GetMem(sumSize.Product * sizeof(uint8));
@@ -119,7 +123,7 @@ implementation
 		while (nextSym < length(syms)) and (letterTimeout < 0) do
 		begin
 			Advance(1);
-			letterTimeout += 0.1;
+			letterTimeout += 0.06;
 			if nextSym >= length(syms) then skip := no;
 		end;
 		inherited Update(dt);
@@ -348,6 +352,7 @@ type
 				begin
 					active^.Detach;
 					Release(active);
+					if Finished and Assigned(onDone) then onDone(param);
 				end;
 			end;
 		end;
@@ -357,10 +362,10 @@ type
 			na := new(pTextBox, Init(
 				rox_paths.Dialogue(items[nextItem].char, items[nextItem].sentence),
 				Face(items[nextItem].char, items[nextItem].pic)))^.NewRef;
-			finalTimeout := 1;
+			finalTimeout := items[nextItem].delay;
 
 			try
-				na^.size := state^.mgr^.nvp.x - 2 * Border;
+				na^.size := 2 * state^.mgr^.nvp.x * items[nextItem].size - 2 * Border;
 				na^.local.trans := -state^.mgr^.nvp + Vec2.Make(Border);
 				na^.local.trans.y := max(na^.local.trans.y, -state^.mgr^.nvp.y + Border - na^.CalculateRawSize.y + 0.3);
 				inc(nextItem);
@@ -378,25 +383,50 @@ type
 		result := (nextItem >= length(items)) and not Assigned(active);
 	end;
 
+	procedure Dialogue.Skip;
+	begin
+		if Assigned(active) then active^.skip := yes;
+	end;
+
 	procedure Dialogue.Parse(const s: string);
 	var
 		t: StringTokenizer;
 		n: size_t;
 		ni: ItemDesc;
+		cp: t.Guard;
+		id: string;
 	begin
 		t := s;
 		try
 			repeat
 				// персонаж: реплика
 				// персонаж [эмоция]: реплика
+				// персонаж [sizeX = размер по X]
 				if not t.MaybeTokenEndingWith(ni.char, ['[']) then begin t.ExpectEnd; break; end;
-				if t.Maybe('[') then begin ni.pic := t.ScanTokenEndingWith([']']); t.Expect(']'); end else ni.pic := 'indifferent.png';
+				ni.pic := 'indifferent.png';
+				ni.size := 1.0;
+				ni.delay := 2.0;
+				if t.Maybe('[') then
+				begin
+					while t.MaybeTokenEndingWith(id, [',', ']', '='], cp) do
+					begin
+						case id of
+							'face': begin t.Expect('='); ni.pic := t.ScanTokenEndingWith([',', ']']); end;
+							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; end;
+							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
+							else t.UnknownIdentifier(cp);
+						end;
+						if not t.Maybe(',') then break;
+					end;
+					t.Expect(']');
+				end;
 				t.Expect(':');
 
 				t.SkipWhitespace;
 				n := 0;
 				while (n < t.Remaining) and not Prefixed('>>', t.Current + n, t.Remaining - n) do
 					inc(n);
+				while (n > 0) and Symbol.IsWhitespace(t.Current[n - 1]) do dec(n);
 				ni.sentence := t.Read(n);
 				if not t.Maybe('>>') then t.ExpectEnd;
 

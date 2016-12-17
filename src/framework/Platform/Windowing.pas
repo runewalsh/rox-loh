@@ -329,10 +329,16 @@ uses
 	function WindowCaption.Join: string;
 	var
 		i: sint;
+		surrounded: string;
 	begin
 		result := Continued(_base, '   ', _suffix);
 		for i := 0 to High(notes) do
-			result := Continued(result, '   ', '[' + notes[i].text + ']');
+		begin
+			surrounded := notes[i].text;
+			if (length(notes[i].text) = 0) or not (notes[i].text[length(notes[i].text)] in [')', ']']) then
+				surrounded := '[' + surrounded + ']';
+			result := Continued(result, '   ', surrounded);
+		end;
 	end;
 
 	function WindowCaption.FindNote(uid: uint; throw: boolean): sint;
