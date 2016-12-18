@@ -304,7 +304,7 @@ implementation
 	procedure Location.AddWall(n: pNode; const dA, dB: Vec2);
 	begin
 		Add(n);
-		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dB));
+		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB));
 	end;
 
 	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;

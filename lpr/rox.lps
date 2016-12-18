@@ -4,12 +4,12 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Debug"/>
-    <Units Count="87">
+    <Units Count="88">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
-        <TopLine Value="92"/>
-        <CursorPos Y="126"/>
+        <IsVisibleTab Value="True"/>
+        <CursorPos X="66" Y="13"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit0>
@@ -43,7 +43,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="39" Y="4"/>
-        <UsageCount Value="196"/>
+        <UsageCount Value="200"/>
       </Unit4>
       <Unit5>
         <Filename Value="..\src\rox_ui.pas"/>
@@ -51,41 +51,42 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="205"/>
         <CursorPos X="30" Y="222"/>
-        <UsageCount Value="195"/>
+        <UsageCount Value="199"/>
       </Unit5>
       <Unit6>
         <Filename Value="..\src\rox_state.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="279"/>
-        <CursorPos X="47" Y="283"/>
-        <UsageCount Value="164"/>
+        <EditorIndex Value="9"/>
+        <TopLine Value="195"/>
+        <CursorPos Y="212"/>
+        <UsageCount Value="168"/>
+        <Loaded Value="True"/>
       </Unit6>
       <Unit7>
         <Filename Value="..\src\rox_state_adventure.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="9"/>
-        <TopLine Value="106"/>
-        <CursorPos X="115" Y="119"/>
-        <UsageCount Value="138"/>
+        <EditorIndex Value="11"/>
+        <TopLine Value="59"/>
+        <CursorPos Y="87"/>
+        <UsageCount Value="142"/>
         <Loaded Value="True"/>
       </Unit7>
       <Unit8>
         <Filename Value="..\src\rox_actor.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="7"/>
-        <TopLine Value="27"/>
-        <CursorPos X="23" Y="27"/>
-        <UsageCount Value="137"/>
+        <TopLine Value="216"/>
+        <CursorPos X="29" Y="244"/>
+        <UsageCount Value="141"/>
         <Loaded Value="True"/>
       </Unit8>
       <Unit9>
         <Filename Value="..\src\rox_location.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="186"/>
-        <CursorPos X="27" Y="214"/>
-        <UsageCount Value="121"/>
+        <TopLine Value="55"/>
+        <CursorPos X="22" Y="83"/>
+        <UsageCount Value="125"/>
         <Loaded Value="True"/>
       </Unit9>
       <Unit10>
@@ -93,7 +94,7 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="3"/>
-        <UsageCount Value="121"/>
+        <UsageCount Value="125"/>
       </Unit10>
       <Unit11>
         <Filename Value="..\src\rox_dialogue.pas"/>
@@ -101,7 +102,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="71"/>
         <CursorPos X="12" Y="76"/>
-        <UsageCount Value="113"/>
+        <UsageCount Value="117"/>
       </Unit11>
       <Unit12>
         <Filename Value="..\src\rox_collision.pas"/>
@@ -109,23 +110,21 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="59"/>
         <CursorPos Y="93"/>
-        <UsageCount Value="94"/>
+        <UsageCount Value="98"/>
       </Unit12>
       <Unit13>
         <Filename Value="..\src\rox_paths.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="108" Y="25"/>
-        <UsageCount Value="83"/>
+        <UsageCount Value="87"/>
       </Unit13>
       <Unit14>
         <Filename Value="..\src\rox_ep1_entry.pas"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="8"/>
-        <TopLine Value="127"/>
-        <CursorPos Y="153"/>
-        <UsageCount Value="56"/>
+        <CursorPos X="44" Y="11"/>
+        <UsageCount Value="60"/>
         <Loaded Value="True"/>
       </Unit14>
       <Unit15>
@@ -134,15 +133,15 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="33"/>
         <CursorPos X="11" Y="67"/>
-        <UsageCount Value="49"/>
+        <UsageCount Value="53"/>
       </Unit15>
       <Unit16>
         <Filename Value="..\src\rox_ep2_bar.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="6"/>
-        <TopLine Value="57"/>
-        <CursorPos X="110" Y="91"/>
-        <UsageCount Value="34"/>
+        <TopLine Value="67"/>
+        <CursorPos X="68" Y="80"/>
+        <UsageCount Value="38"/>
         <Loaded Value="True"/>
       </Unit16>
       <Unit17>
@@ -217,7 +216,7 @@
         <EditorIndex Value="1"/>
         <TopLine Value="312"/>
         <CursorPos X="55" Y="340"/>
-        <UsageCount Value="12"/>
+        <UsageCount Value="14"/>
         <Loaded Value="True"/>
       </Unit27>
       <Unit28>
@@ -230,7 +229,7 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="1288"/>
         <CursorPos X="6" Y="1305"/>
-        <UsageCount Value="0"/>
+        <UsageCount Value="10"/>
       </Unit29>
       <Unit30>
         <Filename Value="..\..\..\shu-svn\framework\DynamicLoader.pas"/>
@@ -388,8 +387,8 @@
         <Filename Value="..\src\rox_state_mainmenu.pas"/>
         <EditorIndex Value="5"/>
         <TopLine Value="71"/>
-        <CursorPos X="15" Y="88"/>
-        <UsageCount Value="25"/>
+        <CursorPos X="49" Y="71"/>
+        <UsageCount Value="27"/>
         <Bookmarks Count="1">
           <Item0 X="35" Y="115" ID="9"/>
         </Bookmarks>
@@ -465,7 +464,7 @@
         <Filename Value="..\src\framework\Scene\Character.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="2"/>
-        <UsageCount Value="0"/>
+        <UsageCount Value="10"/>
       </Unit63>
       <Unit64>
         <Filename Value="..\src\framework\inc\sort.inc"/>
@@ -614,127 +613,134 @@
         <CursorPos Y="205"/>
         <UsageCount Value="12"/>
       </Unit86>
+      <Unit87>
+        <Filename Value="..\src\rox_world.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="10"/>
+        <CursorPos X="21" Y="31"/>
+        <UsageCount Value="21"/>
+        <Loaded Value="True"/>
+      </Unit87>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="132" Column="30" TopLine="104"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="110" TopLine="81"/>
       </Position1>
       <Position2>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="193" Column="57" TopLine="172"/>
+        <Filename Value="..\src\rox_location.pas"/>
+        <Caret Line="367" TopLine="350"/>
       </Position2>
       <Position3>
         <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="148" Column="26" TopLine="142"/>
+        <Caret Line="109" Column="27" TopLine="104"/>
       </Position3>
       <Position4>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="70" Column="65" TopLine="41"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="87" TopLine="59"/>
       </Position4>
       <Position5>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="54" Column="45" TopLine="37"/>
+        <Filename Value="..\src\rox_location.pas"/>
+        <Caret Line="123" TopLine="106"/>
       </Position5>
       <Position6>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="88" Column="38" TopLine="71"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="109" TopLine="102"/>
       </Position6>
       <Position7>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="104" Column="75" TopLine="75"/>
+        <Filename Value="..\src\rox_state.pas"/>
+        <Caret Line="212" TopLine="195"/>
       </Position7>
       <Position8>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="292" Column="19" TopLine="275"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="110" TopLine="81"/>
       </Position8>
       <Position9>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="104" Column="78" TopLine="75"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="109" TopLine="102"/>
       </Position9>
       <Position10>
         <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="54" Column="79" TopLine="35"/>
+        <Caret Line="110" TopLine="81"/>
       </Position10>
       <Position11>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="109" TopLine="75"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="109" TopLine="102"/>
       </Position11>
       <Position12>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="85" Column="14" TopLine="71"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="222" Column="66" TopLine="194"/>
       </Position12>
       <Position13>
         <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="138" Column="25" TopLine="131"/>
+        <Caret Line="9" Column="9"/>
       </Position13>
       <Position14>
-        <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="85" Column="73" TopLine="68"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="222" Column="46" TopLine="194"/>
       </Position14>
       <Position15>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="113" Column="59" TopLine="95"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="110" Column="66" TopLine="81"/>
       </Position15>
       <Position16>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="139" Column="114" TopLine="115"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="3"/>
       </Position16>
       <Position17>
         <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="88" Column="91" TopLine="71"/>
+        <Caret Line="11" Column="17"/>
       </Position17>
       <Position18>
         <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="92" Column="19" TopLine="66"/>
+        <Caret Line="12" Column="6"/>
       </Position18>
       <Position19>
         <Filename Value="..\src\rox_ep2_bar.pas"/>
-        <Caret Line="91" Column="105" TopLine="74"/>
+        <Caret Line="21" Column="18"/>
       </Position19>
       <Position20>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="139" Column="115" TopLine="122"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="110" Column="36" TopLine="81"/>
       </Position20>
       <Position21>
-        <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="220" Column="64" TopLine="192"/>
+        <Filename Value="..\src\rox_ep2_bar.pas"/>
+        <Caret Line="84" Column="20" TopLine="74"/>
       </Position21>
       <Position22>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="125" Column="83" TopLine="108"/>
+        <Filename Value="..\src\rox_location.pas"/>
+        <Caret Line="123" TopLine="106"/>
       </Position22>
       <Position23>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="32" Column="14"/>
+        <Filename Value="..\src\rox_location.pas"/>
       </Position23>
       <Position24>
         <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="159" Column="60" TopLine="137"/>
+        <Caret Line="114" Column="10" TopLine="97"/>
       </Position24>
       <Position25>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="89" Column="60" TopLine="67"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="121" Column="20" TopLine="101"/>
       </Position25>
       <Position26>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="90" Column="14" TopLine="67"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="114" Column="4" TopLine="91"/>
       </Position26>
       <Position27>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="91" Column="12" TopLine="67"/>
+        <Filename Value="rox.lpr"/>
+        <Caret Line="126" TopLine="92"/>
       </Position27>
       <Position28>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="257" TopLine="228"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="121" Column="25" TopLine="97"/>
       </Position28>
       <Position29>
-        <Filename Value="..\src\rox_state_mainmenu.pas"/>
-        <Caret Line="264" Column="16" TopLine="236"/>
+        <Filename Value="..\src\rox_ep1_entry.pas"/>
+        <Caret Line="242" TopLine="208"/>
       </Position29>
       <Position30>
         <Filename Value="..\src\rox_ep1_entry.pas"/>
-        <Caret Line="153" TopLine="137"/>
+        <Caret Line="114" Column="6" TopLine="87"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>

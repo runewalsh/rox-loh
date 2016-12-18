@@ -11,8 +11,9 @@ uses
 	procedure LoadBGM(var window: Window);
 	begin
 		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('phantasy2.mid'));
-		window.state.bgm.AddTheme(Ep1_Entry.StateID).AddItem(Music('restoration1.mid'));
+		window.state.bgm.AddTheme(Ep1_Entry.EntryStateID).AddItem(Music('restoration1.mid'));
 		window.state.bgm.AddTheme(Ep2_Bar.StateID).AddItem(Music('pressure5.mid'));
+		window.state.bgm.AddTheme(Ep1_Entry.DepartStateID).AddItem(Music('machinecenter4.mid'));
 	end;
 
 var

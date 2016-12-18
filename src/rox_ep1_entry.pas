@@ -5,7 +5,8 @@ interface
 
 uses
 	USystem, UMath, Utils,
-	rox_decoration, rox_actor, rox_ui, rox_gfx, rox_paths, rox_state_adventure, rox_location, rox_timer, rox_ep2_bar;
+	rox_decoration, rox_actor, rox_ui, rox_gfx, rox_paths, rox_state_adventure, rox_location, rox_timer, rox_world,
+	rox_ep2_bar;
 
 type
 	pEp1_Entry = ^Ep1_Entry;
@@ -17,7 +18,7 @@ type
 		hint: pControl;
 		hintTimer: pTimer;
 
-		constructor Init(player: pActor);
+		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleActivation; virtual;
 
@@ -29,10 +30,9 @@ type
 		state: (Setup, SetupRe, Monologue, Idle, MovingToBarRequested);
 
 	const
-		StateID = 'ep1_entry';
+		EntryStateID = 'ep1_entry';
+		DepartStateID = 'ep3_depart';
 	end;
-
-	function CreatePlayer: pActor;
 
 implementation
 
@@ -103,22 +103,22 @@ implementation
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingToBarRequested;
 	end;
 
-	constructor Ep1_Entry.Init(player: pActor);
+	constructor Ep1_Entry.Init(world: pWorld);
 	var
+		stateId: string;
 		d: pDecoration;
 	begin
-		inherited Init(StateID);
-		if Assigned(player) then
+		if Assigned(world) then
 		begin
-			if Assigned(player^.location) then player^.Detach;
-			self.player := player;
 			state := SetupRe;
+			stateId := DepartStateID;
 		end else
 		begin
-			self.player := CreatePlayer;
 			hints := yes;
 			state := Setup;
+			stateId := EntryStateID;
 		end;
+		inherited Init(stateId, world);
 
 		location := new(pLocation, Init(@self))^.NewRef;
 		door := new(pDecoration, Init(Environment('bar_door.png'), Translate(1, 0), Vec2.Make(0.3, 0.3*1.3)))^.NewRef;
@@ -137,8 +137,8 @@ implementation
 		d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(5, 1));
 		self.location^.AddWall(d, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 
-		if state = SetupRe then self.player^.local := door^.local * Translate(0.5 * (door^.size.x - self.player^.size.x), -0.15);
-		location^.Add(self.player);
+		if state = SetupRe then player^.local := door^.local * Translate(0.5 * (door^.size.x - player^.size.x), -0.15);
+		location^.Add(player);
 	end;
 
 	destructor Ep1_Entry.Done;
@@ -215,7 +215,7 @@ implementation
 						playerControlMode := PlayerControlDisabled;
 						player^.idclip := yes;
 						player^.local.trans := Vec2.Make(camera.target.x - mgr^.nvp.x - player^.size.x, -0.3);
-						player^.MoveTo('walk', Vec2.Make(-0.4, -0.3), WalkingVelocity, @PlayerWalkedIn, @self);
+						player^.MoveTo(Vec2.Make(-0.4, -0.3), WalkingVelocity, @PlayerWalkedIn, @self);
 					end else
 						state := Idle;
 				end;
@@ -224,7 +224,7 @@ implementation
 		inherited HandleUpdate(dt);
 
 		case state of
-			MovingToBarRequested: mgr^.Switch(new(pEp2_Bar, Init(player^.NewRef)));
+			MovingToBarRequested: mgr^.Switch(new(pEp2_Bar, Init(world)));
 		end;
 	end;
 
@@ -236,13 +236,6 @@ implementation
 	procedure Ep1_Entry.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
 	begin
 		inherited HandleKeyboard(action, key);
-	end;
-
-	function CreatePlayer: pActor;
-	begin
-		result := new(pActor, Init(Vec2.Make(0.14, 0.28), Character('player', 'model.png'), Vec2.Make(1/4, 1/8)))^.NewRef;
-		result^.AddState('idle', Vec2.Make(0, 0), 4, 8, 0.0, 'idle', []);
-		result^.AddState('walk', Vec2.Make(0, 0), 4, 8, 0.6, 'walk', [MovingState]);
 	end;
 
 end.

@@ -5,7 +5,7 @@ interface
 
 uses
 	USystem, Errors, UMath, UClasses, Utils, GLUtils,
-	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win;
+	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win, rox_world;
 
 type
 	pCamera = ^Camera;
@@ -24,13 +24,14 @@ type
 		shift: boolean;
 		camera: Camera;
 		cameraMode: (LookAfterPlayer, LookPredefined);
+		world: pWorld;
 		player: pActor;
 		lastMovementDirection: Vec2;
 		playerControlMode: (PlayerControlEnabled, PlayerControlDisabled);
 		location: pLocation;
 		dlg: Dialogue;
 		triggerHighlighted: boolean;
-		constructor Init(const id: string);
+		constructor Init(const id: string; world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
@@ -76,11 +77,14 @@ uses
 		result := viewTransform.Inversed * visiblePos;
 	end;
 
-	constructor Adventure.Init(const id: string);
+	constructor Adventure.Init(const id: string; world: pWorld);
 	begin
 		dlg.Invalidate;
 		inherited Init(id);
 		camera.Init;
+		if Assigned(world) then self.world := world^.NewRef else self.world := new(pWorld, Init)^.NewRef;
+		player := self.world^.player^.NewRef;
+		if Assigned(player^.location) then player^.Detach;
 	end;
 
 	destructor Adventure.Done;
@@ -88,6 +92,7 @@ uses
 		if Assigned(mgr) then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
 		Release(player);
 		Release(location);
+		Release(world);
 		dlg.Done;
 		inherited Done;
 	end;
@@ -105,7 +110,7 @@ uses
 			player^.SwitchToState('walk');
 			player^.rtMethod := NotRotating;
 			delta := Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls));
-			player^.MoveBy('walk', 0.3 * delta.Normalized, IfThen(shift, RunningVelocity, WalkingVelocity));
+			player^.MoveBy(0.3 * delta.Normalized, IfThen(shift, RunningVelocity, WalkingVelocity));
 			lastMovementDirection := lastMovementDirection + (delta - lastMovementDirection) * dt;
 		end;
 		location^.Update(dt);
@@ -141,7 +146,7 @@ uses
 					if (playerControlMode = PlayerControlEnabled) and extra.Handle then
 					begin
 						player^.rtMethod := NotRotating;
-						player^.MoveTo('walk', camera.Unproject(pos), WalkingVelocity, nil, nil);
+						player^.MoveTo(camera.Unproject(pos), WalkingVelocity, nil, nil);
 						lastMovementDirection := (camera.Unproject(pos) - player^.local.trans).Normalized;
 					end;
 				end;

@@ -5,14 +5,14 @@ interface
 
 uses
 	USystem, UMath,
-	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths;
+	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world;
 
 type
 	pEp2_Bar = ^Ep2_Bar;
 	Ep2_Bar = object(Adventure)
 		door: pDecoration;
 		doorTrig: pTrigger;
-		constructor Init(player: pActor);
+		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 	private
@@ -54,26 +54,18 @@ uses
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
 	end;
 
-	constructor Ep2_Bar.Init(player: pActor);
+	constructor Ep2_Bar.Init(world: pWorld);
 	var
 		d: pDecoration;
 	begin
-		inherited Init(StateID);
-		if Assigned(player) then
-		begin
-			if Assigned(player^.location) then player^.Detach;
-			self.player := player;
-		end else
-		begin
-			self.player := CreatePlayer;
-			self.player^.angle := HalfPi;
-		end;
+		inherited Init(StateID, world);
+		if not Assigned(world) then player^.angle := HalfPi;
 
 		location := new(pLocation, Init(@self))^.NewRef;
 		location^.limits := Rect.Make(-1.2, -0.7, 1.2, 0.7);
 		d := new(pDecoration, Init(Environment('parquet.png'), Translate(-1.2, -0.7), Vec2.Make(2.4, 1.4)));
 		d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(12, 7) * 0.5);
-		d^.layer := -1;
+		d^.layer := -2;
 		location^.Add(d);
 
 		door := new(pDecoration, Init(Environment('bar_door.png'), Translate(0.3, -0.9), Vec2.Make(0.3, 0.3*1.3)))^.NewRef;
@@ -89,10 +81,19 @@ uses
 		self.location^.Add(doorTrig);
 
 		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, 0.3*0.75)));
+		location^.AddWall(d, Vec2.Make(0.02, 0), Vec2.Make(0.02, 0));
+
+		d := new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, 0.58*(1/3))));
 		location^.Add(d);
 
-		self.player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - self.player^.size.x), location^.limits.A.y);
-		location^.Add(self.player);
+		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.35, 0.35*(67/92))));
+		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.02, 0.2));
+
+		d := new(pDecoration, Init(Environment('table2.png'), Translate(-0.6, -0.4), Vec2.Make(0.37, 0.35*(67/89))));
+		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.02, 0.2));
+
+		player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - player^.size.x), location^.limits.A.y);
+		location^.Add(player);
 	end;
 
 	destructor Ep2_Bar.Done;
@@ -106,7 +107,7 @@ uses
 	begin
 		inherited HandleUpdate(dt);
 		case state of
-			MovingOutsideRequested: mgr^.Switch(new(pEp1_Entry, Init(player^.NewRef)));
+			MovingOutsideRequested: mgr^.Switch(new(pEp1_Entry, Init(world)));
 		end;
 	end;
 

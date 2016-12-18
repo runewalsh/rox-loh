@@ -68,7 +68,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="17">
+    <Units Count="18">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -137,6 +137,10 @@
         <Filename Value="..\src\rox_ep2_bar.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit16>
+      <Unit17>
+        <Filename Value="..\src\rox_world.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit17>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

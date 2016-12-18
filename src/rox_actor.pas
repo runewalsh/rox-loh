@@ -60,13 +60,13 @@ type
 		procedure SwitchToState(const name: string);
 		procedure SwitchToState(id: uint);
 
-		procedure MoveBy(const state: string; const delta: Vec2; velocity: float);
-		procedure MoveTo(const state: string; const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+		procedure MoveBy(const delta: Vec2; velocity: float);
+		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 		function HeartPos: Vec2; virtual;
 
 		procedure RotateTo(const point: Vec2);
 	private
-		procedure SwitchMove(const state: string; method: MoveTargeter);
+		procedure SwitchMove(method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
 		function RotateStep(const target: float; const by: float): boolean;
 	end;
@@ -207,16 +207,16 @@ implementation
 		end;
 	end;
 
-	procedure Actor.MoveBy(const state: string; const delta: Vec2; velocity: float);
+	procedure Actor.MoveBy(const delta: Vec2; velocity: float);
 	begin
-		SwitchMove(state, MovingBy);
+		SwitchMove(MovingBy);
 		mvPointOrDelta := delta;
 		mvVel := velocity;
 	end;
 
-	procedure Actor.MoveTo(const state: string; const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+	procedure Actor.MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 	begin
-		SwitchMove(state, MovingTo);
+		SwitchMove(MovingTo);
 		mvPointOrDelta := target;
 		mvVel := velocity;
 		mvCb := cb;
@@ -234,14 +234,14 @@ implementation
 		rtPoint := point;
 	end;
 
-	procedure Actor.SwitchMove(const state: string; method: MoveTargeter);
+	procedure Actor.SwitchMove(method: MoveTargeter);
 	begin
 		if (mvMethod = MovingTo) and Assigned(mvCb) then
 		begin
 			mvCb(MovingCanceled, @self, mvParam);
 			mvCb := nil;
 		end;
-		SwitchToState(state);
+		SwitchToState('walk');
 		mvMethod := method;
 	end;
 
