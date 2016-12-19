@@ -12,7 +12,7 @@ const
 	ScreenAspect: UintVec2 = (data: (16, 9));
 
 type
-	CursorEnum = (DefaultCursor, Cursor0, Cursor1, Cursor2);
+	CursorEnum = (DefaultCursor, Cursor0, Cursor1, Cursor2, CursorHidden);
 	RepaintProc = procedure(param: pointer);
 
 	pWindow = ^Window;
@@ -411,13 +411,15 @@ type
 					if ht = HTCLIENT then
 						if realCursor <> activeCursor then
 						begin
-							ChangeCursor(cursors[activeCursor]);
+							if activeCursor = CursorHidden then ShowCursor(no) else ChangeCursor(cursors[activeCursor]);
+							if realCursor = CursorHidden then ShowCursor(yes);
 							realCursor := activeCursor;
 						end else
 					else
 						if realCursor <> DefaultCursor then
 						begin
 							ChangeCursor(cursors[DefaultCursor]);
+							if realCursor = CursorHidden then ShowCursor(yes);
 							realCursor := DefaultCursor;
 						end;
 				end;

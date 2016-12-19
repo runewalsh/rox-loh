@@ -17,7 +17,7 @@ type
 			procedure Done;
 		end;
 	var
-		pic: pTexture;
+		pic, name: pTexture;
 		syms: array of SymDesc;
 		nextSym: sint;
 		sum: pUint8;
@@ -25,7 +25,7 @@ type
 		letterTimeout: float;
 		skip: boolean;
 
-		constructor Init(const src, pic: string);
+		constructor Init(const char, pic, sentence: string);
 		destructor Done; virtual;
 		procedure Update(const dt: float); virtual;
 		procedure Draw; virtual;
@@ -42,6 +42,7 @@ type
 		StartingSymbolThreshold = High(uint8) div 2;
 		FloodFillThreshold = (High(uint8) * 6) div 7;
 		PicSize = 0.3;
+		NameHeight = 0.1;
 	end;
 
 	pDialogue = ^Dialogue;
@@ -82,16 +83,17 @@ implementation
 		FreeMem(data);
 	end;
 
-	constructor TextBox.Init(const src, pic: string);
+	constructor TextBox.Init(const char, pic, sentence: string);
 	var
 		si: pImageResource;
 	begin
 		inherited Init(nil, []);
-		self.pic := Texture.Load(pic);
+		self.pic := Texture.Load(Face(char, pic));
+		self.name := Texture.Load(Character(char, 'name.png'));
 
-		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), src);
+		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), rox_paths.Dialogue(char, sentence));
 		try
-			Prepare(si^.im, src);
+			Prepare(si^.im, rox_paths.Dialogue(char, sentence));
 			sumSize := si^.im.Size.XY;
 
 			ChangeTexture(Texture.Dynamic(GLformat_R {обрабатывается особо, см. Texture.InternalFormat}, sumSize));
@@ -113,6 +115,7 @@ implementation
 		for i := 0 to High(syms) do
 			syms[i].Done;
 		FreeMem(sum);
+		Release(name);
 		Release(pic);
 		inherited Done;
 	end;
@@ -144,6 +147,7 @@ implementation
 		q.fields := [q.Field.Transform];
 		q.transform := local;
 		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5 * GuessBorder), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
+		q.Draw(name, Vec2.Make(pic^.ap.Aspect2Item(asp2_x1, 0, PicSize), rawSize.y + 0.5 * GuessBorder), name^.ap.Aspect2(asp2_y1, NameHeight), Vec2.Zero, Vec2.Ones);
 	end;
 
 	procedure TextBox.Advance(n: uint);
@@ -359,9 +363,7 @@ type
 
 		if not Assigned(active) and not Finished then
 		begin
-			na := new(pTextBox, Init(
-				rox_paths.Dialogue(items[nextItem].char, items[nextItem].sentence),
-				Face(items[nextItem].char, items[nextItem].pic)))^.NewRef;
+			na := new(pTextBox, Init(items[nextItem].char, items[nextItem].pic, items[nextItem].sentence))^.NewRef;
 			finalTimeout := items[nextItem].delay;
 
 			try

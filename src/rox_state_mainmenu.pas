@@ -4,7 +4,7 @@ unit rox_state_mainmenu;
 interface
 
 uses
-	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_ep1_entry, rox_paths;
+	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_ep_entry, rox_paths;
 
 type
 	pMainMenu = ^MainMenu;
@@ -122,7 +122,7 @@ implementation
 
 			Idle: ;
 
-			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp1_Entry, Init(nil)));
+			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp_Entry, Init(nil)));
 		end;
 		if state > Prepare then bgTime := modf(bgTime + dt, PrettyTimeCycle);
 		stateTime += dt;

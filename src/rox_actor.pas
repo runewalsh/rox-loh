@@ -53,10 +53,12 @@ type
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
+		function Collision: Circle;
 
 		function AddState(const name: string; const base: Vec2; frames, angles: uint; const len: float; const next: string; flags: StateFlags): pStateDesc;
 		function TryFindState(const name: string): sint;
 		function FindState(const name: string): uint;
+		function TrySwitchToState(const name: string): boolean;
 		procedure SwitchToState(const name: string);
 		procedure SwitchToState(id: uint);
 
@@ -157,6 +159,11 @@ implementation
 		q.Draw(tex, Vec2.Zero, size, states[state].base + Vec2.Make(frame * texSize.x, anStep * texSize.y), texSize);
 	end;
 
+	function Actor.Collision: Circle;
+	begin
+		result := Circle.Make(HeartPos, 0.4 * size.x);
+	end;
+
 	function Actor.AddState(const name: string; const base: Vec2; frames, angles: uint; const len: float; const next: string; flags: StateFlags): pStateDesc;
 	begin
 		SetLength(states, length(states) + 1);
@@ -194,6 +201,15 @@ implementation
 	procedure Actor.SwitchToState(const name: string);
 	begin
 		SwitchToState(FindState(name));
+	end;
+
+	function Actor.TrySwitchToState(const name: string): boolean;
+	var
+		id: sint;
+	begin
+		id := TryFindState(name);
+		result := id >= 0;
+		if result then SwitchToState(id);
 	end;
 
 	procedure Actor.SwitchToState(id: uint);
@@ -241,7 +257,7 @@ implementation
 			mvCb(MovingCanceled, @self, mvParam);
 			mvCb := nil;
 		end;
-		SwitchToState('walk');
+		if not TrySwitchToState('walk') then SwitchToState('idle');
 		mvMethod := method;
 	end;
 
@@ -253,7 +269,7 @@ implementation
 		sql := delta.SqrLength;
 		result := sqr(by) >= sql;
 		if result then m := delta else m := delta * (by / sqrt(sql));
-		if not idclip and location^.Collide(Circle.Make(HeartPos, 0.5 * size.x), m) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
+		if not idclip and location^.Collide(Collision, m, @self) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
 		local.trans += m;
 		if Assigned(moved) then moved^ := m;
 	end;

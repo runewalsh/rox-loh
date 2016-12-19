@@ -1,5 +1,5 @@
 {$include opts.inc}
-unit rox_ep2_bar;
+unit rox_ep_bar;
 
 interface
 
@@ -8,36 +8,37 @@ uses
 	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world;
 
 type
-	pEp2_Bar = ^Ep2_Bar;
-	Ep2_Bar = object(Adventure)
+	pEp_Bar = ^Ep_Bar;
+	Ep_Bar = object(Adventure)
 		door: pDecoration;
 		doorTrig: pTrigger;
+		valera, twinkle: pActor;
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 	private
 		state: (Idle, MovingOutsideRequested);
 	const
-		StateID = 'ep2_bar';
+		StateID = 'ep_bar';
 	end;
 
 implementation
 
 uses
-	rox_ep1_entry;
+	rox_ep_entry;
 
 	function DoorTest(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
 	var
-		e: pEp2_Bar absolute param;
+		e: pEp_Bar absolute param;
 	begin
 		Assert(@param = @param);
 		result := (n = pNode(e^.player)) and (n^.local.trans.y > t^.local.trans.y) and
-			(abs(Angle(t^.HeartPos - pos, Rotate(Vec2.PositiveX, pActor(n)^.angle))) < Pi/6);
+			(abs(Angle(t^.local.trans + Vec2.Make(0.5 * t^.size.x, 0) - pos, Rotate(Vec2.PositiveX, pActor(n)^.angle))) < Pi/5);
 	end;
 
 	procedure DoorTrigger(n: pNode; reason: Trigger.Reason; param: pointer);
 	var
-		e: pEp2_Bar absolute param;
+		e: pEp_Bar absolute param;
 	begin
 		Assert(n = n);
 		case reason of
@@ -48,13 +49,13 @@ uses
 
 	procedure DoorActivate(t: pTrigger; param: pointer);
 	var
-		e: pEp2_Bar absolute param;
+		e: pEp_Bar absolute param;
 	begin
 		Assert(t = t);
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
 	end;
 
-	constructor Ep2_Bar.Init(world: pWorld);
+	constructor Ep_Bar.Init(world: pWorld);
 	var
 		d: pDecoration;
 	begin
@@ -86,28 +87,46 @@ uses
 		d := new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, 0.58*(1/3))));
 		location^.Add(d);
 
-		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.35, 0.35*(67/92))));
-		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.02, 0.2));
+		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.3, 0.3*(67/92))));
+		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.17));
 
-		d := new(pDecoration, Init(Environment('table2.png'), Translate(-0.6, -0.4), Vec2.Make(0.37, 0.35*(67/89))));
-		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.02, 0.2));
+		d := new(pDecoration, Init(Environment('table2.png'), Translate(-0.8, -0.5), Vec2.Make(0.3, 0.3*(67/89))));
+		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.17));
+
+		d := new(pDecoration, Init(Environment('table3.png'), Translate(0.75, -0.15), Vec2.Make(0.3, 0.3*(57/92))));
+		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.12));
+
+		valera := new(pActor, Init(Vec2.Make(0.14, 0.14), Character('valera', 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
+		valera^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
+		valera^.local := Translate(-0.93, 0.55);
+		location^.Add(valera);
+
+		twinkle := new(pActor, Init(Vec2.Make(0.14, 0.14), Character('twinkle', 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
+		twinkle^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
+		twinkle^.local := Translate(-0.7, 0.42);
+		twinkle^.angle := 0;
+		location^.Add(twinkle);
 
 		player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - player^.size.x), location^.limits.A.y);
 		location^.Add(player);
 	end;
 
-	destructor Ep2_Bar.Done;
+	destructor Ep_Bar.Done;
 	begin
+		Release(twinkle);
+		Release(valera);
 		Release(doorTrig);
 		Release(door);
 		inherited Done;
 	end;
 
-	procedure Ep2_Bar.HandleUpdate(const dt: float);
+	procedure Ep_Bar.HandleUpdate(const dt: float);
 	begin
 		inherited HandleUpdate(dt);
+		valera^.angle := NormalizeAngle(valera^.angle + dt);
+		twinkle^.angle := NormalizeAngle(twinkle^.angle + dt);
 		case state of
-			MovingOutsideRequested: mgr^.Switch(new(pEp1_Entry, Init(world)));
+			MovingOutsideRequested: mgr^.Switch(new(pEp_Entry, Init(world)));
 		end;
 	end;
 

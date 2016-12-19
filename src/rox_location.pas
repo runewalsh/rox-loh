@@ -77,7 +77,7 @@ type
 
 		procedure Add(n: pNode);
 		procedure Remove(n: pNode);
-		function Collide(const obj: Circle; var move: Vec2): boolean;
+		function Collide(const obj: Circle; var move: Vec2; ignore: pNode): boolean;
 		procedure AddObstacle(const obj: Circle);
 
 		procedure AddWall(const w: Rect; const angle: float = 0);
@@ -94,6 +94,9 @@ type
 	end;
 
 implementation
+
+uses
+	rox_actor;
 
 	constructor Node.Init(const local: Transform2; const size: Vec2);
 	begin
@@ -263,7 +266,7 @@ implementation
 		Remove(n, SuitableArray(n)^);
 	end;
 
-	function Location.Collide(const obj: Circle; var move: Vec2): boolean;
+	function Location.Collide(const obj: Circle; var move: Vec2; ignore: pNode): boolean;
 	var
 		i: sint;
 		nm: Vec2;
@@ -286,6 +289,10 @@ implementation
 					move := Rotate(nm, walls[i].angle);
 				end;
 			end;
+
+		for i := 0 to High(nodes) do
+			if InheritsFrom(TypeOf(nodes[i]^), TypeOf(Actor)) and (nodes[i] <> ignore) and not pActor(nodes[i])^.idclip then
+				result := CircleVsCircle(obj, pActor(nodes[i])^.Collision, move) or result;
 	end;
 
 	procedure Location.AddObstacle(const obj: Circle);

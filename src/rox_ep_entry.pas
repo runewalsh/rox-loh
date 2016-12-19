@@ -1,16 +1,16 @@
 {$include opts.inc}
-unit rox_ep1_entry;
+unit rox_ep_entry;
 
 interface
 
 uses
 	USystem, UMath, Utils,
 	rox_decoration, rox_actor, rox_ui, rox_gfx, rox_paths, rox_state_adventure, rox_location, rox_timer, rox_world,
-	rox_ep2_bar;
+	rox_ep_bar;
 
 type
-	pEp1_Entry = ^Ep1_Entry;
-	Ep1_Entry = object(Adventure)
+	pEp_Entry = ^Ep_Entry;
+	Ep_Entry = object(Adventure)
 		hints: boolean;
 		door: pDecoration;
 		doorTrig: pTrigger;
@@ -27,16 +27,16 @@ type
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
 
 	private
-		state: (Setup, SetupRe, Monologue, Idle, MovingToBarRequested);
+		state: (Setup, SetupRe, SetupDepart, Monologue, Idle, MovingToBarRequested);
 
 	const
-		EntryStateID = 'ep1_entry';
-		DepartStateID = 'ep3_depart';
+		EntryStateID = 'ep_entry';
+		DepartStateID = 'ep_depart';
 	end;
 
 implementation
 
-	procedure OpenHint(e: pEp1_Entry; const src: string);
+	procedure OpenHint(e: pEp_Entry; const src: string);
 	begin
 		if Assigned(e^.hintTimer) then begin e^.hintTimer^.Stop; Release(e^.hintTimer); end;
 		if Assigned(e^.hint) then begin e^.hint^.Detach; Release(e^.hint); end;
@@ -48,7 +48,7 @@ implementation
 
 	procedure CloseHintTimer(reason: Timer.DoneReason; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		if reason in [Timeout, Stopped] then
 		begin
@@ -60,7 +60,7 @@ implementation
 
 	function DoorTest(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(@param = @param);
 		result := (n = pNode(e^.player)) and (t^.local.trans.y > n^.local.trans.y) and
@@ -69,7 +69,7 @@ implementation
 
 	procedure ProcessDoorHint(timer: pTimer; const dt: float; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(dt = dt);
 		if not e^.doorTrig^.HasInside(e^.player) then timer^.Stop;
@@ -77,7 +77,7 @@ implementation
 
 	procedure DoorTrigger(n: pNode; reason: Trigger.Reason; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(n = n);
 		case reason of
@@ -97,26 +97,29 @@ implementation
 
 	procedure DoorActivate(t: pTrigger; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(t = t);
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingToBarRequested;
 	end;
 
-	constructor Ep1_Entry.Init(world: pWorld);
+	constructor Ep_Entry.Init(world: pWorld);
 	var
 		stateId: string;
 		d: pDecoration;
 	begin
+		stateId := EntryStateID;
 		if Assigned(world) then
-		begin
-			state := SetupRe;
-			stateId := DepartStateID;
-		end else
+			if world^.spaceshipArrived then
+			begin
+				state := SetupDepart;
+				stateId := DepartStateID;
+			end else
+				state := SetupRe
+		else
 		begin
 			hints := yes;
 			state := Setup;
-			stateId := EntryStateID;
 		end;
 		inherited Init(stateId, world);
 
@@ -137,11 +140,11 @@ implementation
 		d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(5, 1));
 		self.location^.AddWall(d, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 
-		if state = SetupRe then player^.local := door^.local * Translate(0.5 * (door^.size.x - player^.size.x), -0.15);
+		if state <> Setup then player^.local := door^.local * Translate(0.5 * (door^.size.x - player^.size.x), -0.15);
 		location^.Add(player);
 	end;
 
-	destructor Ep1_Entry.Done;
+	destructor Ep_Entry.Done;
 	begin
 		Release(hintTimer);
 		Release(hint);
@@ -150,7 +153,7 @@ implementation
 		inherited Done;
 	end;
 
-	procedure Ep1_Entry.HandleActivation;
+	procedure Ep_Entry.HandleActivation;
 	var
 		name: string;
 		time: float;
@@ -162,7 +165,7 @@ implementation
 
 	procedure ProcessMovementHint(timer: pTimer; const dt: float; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(dt = dt);
 		if (e^.controls <> []) or (e^.player^.mvMethod <> NotMoving) then timer^.left := min(timer^.left, 1.0);
@@ -170,7 +173,7 @@ implementation
 
 	procedure MonologueFinished(param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		e^.cameraMode := LookAfterPlayer;
 		e^.playerControlMode := PlayerControlEnabled;
@@ -183,27 +186,27 @@ implementation
 
 	procedure PlayerWalkedIn(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
 	var
-		e: pEp1_Entry absolute param;
+		e: pEp_Entry absolute param;
 	begin
 		Assert(ac = ac);
 		Assert(reason = TargetReached);
 		e^.state := Idle;
 
 		e^.state := Monologue;
-		e^.dlg.Init(e, 'player [face = indifferent.png, sizeX = 0.5]: 0.png >>' +
-			'player [face = saliva.png, sizeX = 0.6]: 1.png >>' +
-			'player [face = scared.png, sizeX = 0, delay = 0.5]: empty.png >>' +
-			'player [face = scared-refl.png, sizeX = 0, delay = 0.5]: empty.png >>' +
-			'player [face = scared.png, sizeX = 0.15, delay = 1]: 2.png >>' +
-			'player [sizeX = 0.4]: 3.png');
+		e^.dlg.Init(e, 'rox [face = indifferent.png, sizeX = 0.5]: 0.png >>' +
+			'rox [face = saliva.png, sizeX = 0.6]: 1.png >>' +
+			'rox [face = scared.png, sizeX = 0, delay = 0.5]: empty.png >>' +
+			'rox [face = scared-refl.png, sizeX = 0, delay = 0.5]: empty.png >>' +
+			'rox [face = scared.png, sizeX = 0.15, delay = 1]: 2.png >>' +
+			'rox [sizeX = 0.4]: 3.png');
 		e^.dlg.onDone := @MonologueFinished;
 		e^.dlg.param := e;
 	end;
 
-	procedure Ep1_Entry.HandleUpdate(const dt: float);
+	procedure Ep_Entry.HandleUpdate(const dt: float);
 	begin
 		case state of
-			Setup, SetupRe:
+			Setup, SetupRe, SetupDepart:
 				begin
 					location^.limits := Rect.Make(-mgr^.nvp, mgr^.nvp);
 					if state = Setup then
@@ -224,16 +227,16 @@ implementation
 		inherited HandleUpdate(dt);
 
 		case state of
-			MovingToBarRequested: mgr^.Switch(new(pEp2_Bar, Init(world)));
+			MovingToBarRequested: mgr^.Switch(new(pEp_Bar, Init(world)));
 		end;
 	end;
 
-	procedure Ep1_Entry.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
+	procedure Ep_Entry.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
 	begin
 		inherited HandleMouse(action, pos, extra);
 	end;
 
-	procedure Ep1_Entry.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
+	procedure Ep_Entry.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
 	begin
 		inherited HandleKeyboard(action, key);
 	end;
