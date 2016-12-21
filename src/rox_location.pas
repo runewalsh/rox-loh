@@ -32,7 +32,7 @@ type
 		Reason = (Entered, Leaved);
 		TestProc = function(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
 		TriggerProc = procedure(n: pNode; reason: Reason; param: pointer);
-		ActivateProc = procedure(t: pTrigger; param: pointer);
+		ActivateProc = procedure(t: pTrigger; activator: pNode; param: pointer);
 
 		pInnerDesc = ^InnerDesc;
 		InnerDesc = record
@@ -45,7 +45,6 @@ type
 		onActivate: ActivateProc;
 		param: pointer;
 		inside: array of InnerDesc;
-		highlight: boolean;
 
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
@@ -157,7 +156,8 @@ uses
 
 		rect := UMath.Rect.Make(local.trans, local.trans + size);
 		for i := 0 to High(location^.nodes) do
-			if rect.Intersects(UMath.Rect.MakeSize(location^.nodes[i]^.local.trans, location^.nodes[i]^.size)) and
+			if InheritsFrom(TypeOf(location^.nodes[i]^), TypeOf(Actor)) and
+				rect.Intersects(UMath.Rect.MakeSize(location^.nodes[i]^.local.trans, location^.nodes[i]^.size)) and
 				DoTest(location^.nodes[i], location^.nodes[i]^.HeartPos) then
 			begin
 				inner := FindInner(location^.nodes[i]);
@@ -236,10 +236,11 @@ uses
 	var
 		i: sint;
 	begin
-		for i := 0 to High(nodes) do
+		for i := High(nodes) downto 0 do
 			nodes[i]^.HandleUpdate(dt);
-		for i := 0 to High(triggers) do
-			triggers[i]^.HandleUpdate(dt);
+		for i := High(triggers) downto 0 do
+			if i < length(triggers) then
+				triggers[i]^.HandleUpdate(dt);
 	end;
 
 	procedure Location.Draw(const view: Transform2);
@@ -324,7 +325,7 @@ uses
 				triggers[i]^.HasInside(activator)
 			then
 			begin
-				triggers[i]^.onActivate(triggers[i], triggers[i]^.param);
+				triggers[i]^.onActivate(triggers[i], activator, triggers[i]^.param);
 				exit(yes);
 			end;
 		result := no;
@@ -337,7 +338,7 @@ uses
 		for i := 0 to High(triggers) do
 			if Assigned(triggers[i]^.onActivate) and triggers[i]^.HasInside(activator) then
 			begin
-				triggers[i]^.onActivate(triggers[i], triggers[i]^.param);
+				triggers[i]^.onActivate(triggers[i], activator, triggers[i]^.param);
 				exit(yes);
 			end;
 		result := no;
@@ -348,7 +349,7 @@ uses
 		i: sint;
 	begin
 		for i := 0 to High(triggers) do
-			if triggers[i]^.highlight and Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) then
+			if Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) then
 				exit(yes);
 		result := no;
 	end;

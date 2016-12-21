@@ -23,7 +23,7 @@ type
 		sum: pUint8;
 		sumSize: UintVec2;
 		letterTimeout: float;
-		skip: boolean;
+		skip, sumDirty: boolean;
 
 		constructor Init(const char, pic, sentence: string);
 		destructor Done; virtual;
@@ -43,6 +43,8 @@ type
 		FloodFillThreshold = (High(uint8) * 6) div 7;
 		PicSize = 0.3;
 		NameHeight = 0.1;
+		FirstLetterTimeout = 0.2;
+		DefaultLetterTimeout = 0.06;
 	end;
 
 	pDialogue = ^Dialogue;
@@ -53,6 +55,8 @@ type
 			size, delay: float;
 		end;
 
+		ItemEvent = (ItemStart);
+		ItemCallback = procedure(id: uint; what: ItemEvent; param: pointer);
 		DoneCallback = procedure(param: pointer);
 	var
 		state: pState;
@@ -60,8 +64,10 @@ type
 		nextItem: sint;
 		active: pTextBox;
 		finalTimeout: float;
+		onItem: ItemCallback;
 		onDone: DoneCallback;
 		param: pointer;
+		itemEndCalled: boolean; // вызвана ли onItem(ItemEnd) для отображаемой сейчас реплики
 
 		procedure Invalidate;
 		function Valid: boolean;
@@ -91,10 +97,15 @@ implementation
 		self.pic := Texture.Load(Face(char, pic));
 		self.name := Texture.Load(Character(char, 'name.png'));
 
-		si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), rox_paths.Dialogue(char, sentence));
-		try
-			Prepare(si^.im, rox_paths.Dialogue(char, sentence));
-			sumSize := si^.im.Size.XY;
+		if sentence <> '-' then
+		begin
+			si := ResourcePool.Shared^.LoadRef(TypeOf(ImageResource), rox_paths.Dialogue(char, sentence));
+			try
+				Prepare(si^.im, rox_paths.Dialogue(char, sentence));
+				sumSize := si^.im.Size.XY;
+			finally
+				Release(si);
+			end;
 
 			ChangeTexture(Texture.Dynamic(GLformat_R {обрабатывается особо, см. Texture.InternalFormat}, sumSize));
 			tex^.Swizzle(Swizzle.One, Swizzle.One, Swizzle.One, Swizzle.R);
@@ -102,10 +113,8 @@ implementation
 			sum := GetMem(sumSize.Product * sizeof(uint8));
 			Zero(sum, sumSize.Product * sizeof(uint8));
 			tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
-		finally
-			Release(si);
 		end;
-		letterTimeout := 0.2;
+		letterTimeout := FirstLetterTimeout;
 	end;
 
 	destructor TextBox.Done;
@@ -125,9 +134,16 @@ implementation
 		letterTimeout -= dt * (1 + 9*ord(skip));
 		while (nextSym < length(syms)) and (letterTimeout < 0) do
 		begin
+			// if skip then begin skip := no; letterTimeout := DefaultLetterTimeout; end;
 			Advance(1);
-			letterTimeout += 0.06;
+			letterTimeout += DefaultLetterTimeout;
 			if nextSym >= length(syms) then skip := no;
+		end;
+
+		if sumDirty then
+		begin
+			tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
+			sumDirty := no;
 		end;
 		inherited Update(dt);
 	end;
@@ -138,7 +154,7 @@ implementation
 		rect: UMath.Rect;
 	begin
 		q.fields := [q.Field.Color];
-		q.color := Vec4.Make(0, 0, 0, 0.5);
+		q.color := Vec4.Make(0, 0, 0, 0.7);
 		rect := CalculateTransparentRect(pStateManager(ui^._mgr)^.nvp, GuessBorder);
 		q.Draw(nil, rect.A, rect.Size, Vec2.Zero, Vec2.Ones);
 
@@ -156,6 +172,7 @@ implementation
 		sym: ^SymDesc;
 		b: uint8;
 	begin
+		sumDirty := sumDirty or (n > 0);
 		while (n > 0) and (nextSym < length(syms)) do
 		begin
 			sym := @syms[nextSym]; inc(nextSym); dec(n);
@@ -172,7 +189,6 @@ implementation
 				end;
 				inc(sy);
 			end;
-			if n = 0 then tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
 		end;
 	end;
 
@@ -334,6 +350,8 @@ type
 		self.state := state;
 		items := nil;
 		nextItem := 0;
+		onItem := nil;
+		onDone := nil;
 		Parse(scenario);
 	end;
 
@@ -363,11 +381,13 @@ type
 
 		if not Assigned(active) and not Finished then
 		begin
+			if Assigned(onItem) then onItem(nextItem, ItemStart, param);
 			na := new(pTextBox, Init(items[nextItem].char, items[nextItem].pic, items[nextItem].sentence))^.NewRef;
 			finalTimeout := items[nextItem].delay;
 
 			try
-				na^.size := 2 * state^.mgr^.nvp.x * items[nextItem].size - 2 * Border;
+				if not Assigned(na^.tex) then na^.size := 0 else
+					na^.size := 2 * state^.mgr^.nvp.x * items[nextItem].size - 2 * Border;
 				na^.local.trans := -state^.mgr^.nvp + Vec2.Make(Border);
 				na^.local.trans.y := max(na^.local.trans.y, -state^.mgr^.nvp.y + Border - na^.CalculateRawSize.y + 0.3);
 				inc(nextItem);
@@ -404,7 +424,7 @@ type
 				// персонаж: реплика
 				// персонаж [эмоция]: реплика
 				// персонаж [sizeX = размер по X]
-				if not t.MaybeTokenEndingWith(ni.char, ['[']) then begin t.ExpectEnd; break; end;
+				if not t.MaybeTokenEndingWith(ni.char, ['[', ':']) then begin t.ExpectEnd; break; end;
 				ni.pic := 'indifferent.png';
 				ni.size := 1.0;
 				ni.delay := 2.0;
@@ -414,7 +434,7 @@ type
 					begin
 						case id of
 							'face': begin t.Expect('='); ni.pic := t.ScanTokenEndingWith([',', ']']); end;
-							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; end;
+							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; if t.Maybe('/') then ni.size /= t.ScanFloatToken; end;
 							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
 							else t.UnknownIdentifier(cp);
 						end;

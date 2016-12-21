@@ -11,8 +11,11 @@ type
 	Decoration = object(Node)
 		tex: pTexture;
 		texRect: Rect;
+		animFrames: uint;
+		phase, animLen: float;
 		constructor Init(const tex: string; const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
+		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
 	end;
 
@@ -29,6 +32,15 @@ implementation
 	begin
 		Release(tex);
 		inherited Done;
+	end;
+
+	procedure Decoration.HandleUpdate(const dt: float);
+	begin
+		if animFrames > 0 then
+		begin
+			phase += dt;
+			if phase > animLen then Detach;
+		end;
 	end;
 
 	procedure Decoration.HandleDraw(const view: Transform2);

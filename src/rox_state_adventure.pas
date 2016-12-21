@@ -114,7 +114,11 @@ uses
 			lastMovementDirection := lastMovementDirection + (delta - lastMovementDirection) * dt;
 		end;
 		location^.Update(dt);
-		if dlg.Valid then dlg.Update(dt);
+		if dlg.Valid then
+		begin
+			dlg.Update(dt);
+			if dlg.Finished then dlg.Done;
+		end;
 
 		case cameraMode of
 			LookAfterPlayer:
@@ -140,7 +144,7 @@ uses
 		case action of
 			MouseLClick:
 				begin
-					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip;
+					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip; {if Assigned(dlg.active) then dlg.active^.lettertimeout:=0;}
 					if extra.HandleSilent and location^.ActivateTriggerAt(camera.Unproject(pos), player) then extra.Handle;
 
 					if (playerControlMode = PlayerControlEnabled) and extra.Handle then
@@ -175,7 +179,7 @@ uses
 					key_Up, key_Down, key_Left, key_Right: controls += [DirectionKeyToDir4(key).value];
 					key_LShift: shift := yes;
 					key_Esc: begin mgr^.Switch(new(pMainMenu, Init)); handled := yes; end;
-					key_Z: location^.ActivateTriggerFor(player);
+					key_Z: if dlg.Valid and not dlg.Finished then dlg.Skip else location^.ActivateTriggerFor(player);
 				end;
 			KeyRelease:
 				case key of

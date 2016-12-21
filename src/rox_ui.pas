@@ -212,6 +212,7 @@ uses
 	var
 		q: Quad;
 	begin
+		if size = 0 then exit;
 		q.fields := [q.Field.Transform]; q.transform := local;
 		if color <> Vec4.Ones then begin q.fields += [q.Field.Color]; q.color := color; end;
 		q.Draw(tex, Vec2.Zero, rawSize, states[state].rect.A, states[state].rect.Size);

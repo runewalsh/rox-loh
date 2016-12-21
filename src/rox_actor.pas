@@ -30,18 +30,16 @@ type
 		MoveCallback = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
 		MoveTargeter = (NotMoving, MovingBy, MovingTo);
 	var
-		// шаблон
 		tex: pTexture;
 		texSize: Vec2;
 		states: array of StateDesc;
 
-		// конкретные параметры
 		state: uint;
 		angle: float;
 
 		mvMethod: MoveTargeter;
 		mvPointOrDelta: Vec2;
-		mvVel: float;
+		mvVel, realMovementVel: float;
 		mvCb: MoveCallback;
 		mvParam: pointer;
 
@@ -92,28 +90,39 @@ implementation
 	procedure Actor.HandleUpdate(const dt: float);
 	var
 		moved: Vec2;
+		detached: boolean;
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
+		realMovementVel := 0;
 
 		case mvMethod of
 			NotMoving:
 				if MovingState in states[state].flags then SwitchToState('idle');
 			MovingBy:
 				begin
-					if RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then MoveByStep(mvPointOrDelta, mvVel * dt, @moved);
+					if RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
+						MoveByStep(mvPointOrDelta, mvVel * dt, @moved);
 					mvMethod := NotMoving;
+					// location^.ActivateTriggerAt(HeartPos, @self);
 				end;
 			MovingTo:
-				if RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
-					if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
-					begin
-						if Assigned(mvCb) then
+				begin
+					if RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
+						if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
 						begin
-							mvCb(TargetReached, @self, mvParam);
-							mvCb := nil;
+							if Assigned(mvCb) then
+							begin
+								MakeRef(@self);
+								mvCb(TargetReached, @self, mvParam);
+								detached := not Assigned(location);
+								ReleaseWeak(@self);
+								if detached then exit;
+								mvCb := nil;
+							end;
+							mvMethod := NotMoving;
 						end;
-						mvMethod := NotMoving;
-					end;
+					if mvMethod = NotMoving then location^.ActivateTriggerAt(mvPointOrDelta, @self);
+				end;
 		end;
 
 		case rtMethod of
@@ -272,6 +281,7 @@ implementation
 		if not idclip and location^.Collide(Collision, m, @self) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
 		local.trans += m;
 		if Assigned(moved) then moved^ := m;
+		realMovementVel := m.Length;
 	end;
 
 	function Actor.RotateStep(const target: float; const by: float): boolean;

@@ -4,15 +4,16 @@ unit rox_ep_bar;
 interface
 
 uses
-	USystem, UMath,
-	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world;
+	USystem, UMath, Utils,
+	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world, rox_dialogue, rox_timer;
 
 type
 	pEp_Bar = ^Ep_Bar;
 	Ep_Bar = object(Adventure)
 		door: pDecoration;
 		doorTrig: pTrigger;
-		valera, twinkle: pActor;
+		dlgTrig: pTrigger;
+		valera, twinkle, kazah: pActor;
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
@@ -21,6 +22,9 @@ type
 	const
 		StateID = 'ep_bar';
 	end;
+
+	function CreateKolobok(const char: string): pActor;
+	procedure RotateActors(const actors: array of pActor; const target: Vec2);
 
 implementation
 
@@ -47,12 +51,109 @@ uses
 		end;
 	end;
 
-	procedure DoorActivate(t: pTrigger; param: pointer);
+	procedure DoorActivate(t: pTrigger; activator: pNode; param: pointer);
 	var
 		e: pEp_Bar absolute param;
 	begin
 		Assert(t = t);
+		if activator <> pNode(e^.player) then exit;
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
+	end;
+
+	procedure Dialogue_4(reason: Timer.DoneReason; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		if reason = Timeout then
+		begin
+			e^.world^.spaceshipArrived := yes;
+			e^.playerControlMode := PlayerControlEnabled;
+			e^.player^.idclip := no;
+
+			if not e^.dlg.Valid then e^.dlg.Init(e, 'rox [sizeX = 650/800]: 6.png');
+		end;
+	end;
+
+	procedure Dialogue_4_QuitScene(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	begin
+		Assert(param = param);
+		if reason = TargetReached then ac^.Detach;
+	end;
+
+	procedure Dialogue_3(param: pointer);
+	// Конец диалога: все убегают, Рокс поворачивается вслед и выдаёт последнюю фразу.
+	var
+		e: pEp_Bar absolute param;
+		t: pTimer;
+	begin
+		e^.twinkle^.idclip := yes;
+		e^.twinkle^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.45), @Dialogue_4_QuitScene, nil);
+
+		e^.kazah^.idclip := yes;
+		e^.kazah^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.47), @Dialogue_4_QuitScene, nil);
+
+		e^.valera^.idclip := yes;
+		e^.valera^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.5), @Dialogue_4_QuitScene, nil);
+
+		e^.player^.RotateTo(e^.door^.HeartPos);
+
+		t := new(pTimer, Init(1.6, nil, @Dialogue_4, e));
+		e^.mgr^.AddTimer(t, e^.id);
+	end;
+
+	procedure Dialogue_2_Item(id: uint; what: Dialogue.ItemEvent; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		case what of
+			ItemStart:
+				case id of
+					2, 8: RotateActors([e^.player, e^.twinkle, e^.kazah], e^.valera^.HeartPos);
+					3: RotateActors([e^.valera, e^.twinkle, e^.kazah], e^.player^.HeartPos);
+					4, 6: RotateActors([e^.valera, e^.player, e^.kazah], e^.twinkle^.HeartPos);
+					5, 7: RotateActors([e^.valera, e^.player, e^.twinkle], e^.kazah^.HeartPos);
+				end;
+		end;
+	end;
+
+	procedure Dialogue_2(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	// Рокс пришёл, начало диалога.
+	var
+		e: pEp_Bar absolute param;
+	begin
+		Assert(ac = ac);
+		Assert(reason = TargetReached);
+
+		e^.player^.RotateTo(e^.player^.HeartPos + Vec2.PositiveY);
+		if e^.dlg.Valid then e^.dlg.Done;
+		e^.dlg.Init(e,
+			{0} 'valera [sizeX = 220/800]: 0.png >>' +
+			{1} 'rox [sizeX = 560/800]: 4.png >>' +
+			{2} 'valera [sizeX = 620/800]: 1.png >>' +
+			{3} 'rox [face = x-eyes.png, sizeX = 230/800]: 5.png >>' +
+			{4} 'twinkle [face = eyes-closed.png, sizeX = 540/800]: 0.png >>' +
+			{5} 'kazah [face = suspicious.png, sizeX = 470/800]: 0.png >>' +
+			{6} 'twinkle [face = x-eyes.png, sizeX = 340/800]: 1.png >>' +
+			{7} 'kazah [sizeX = 108/800]: 1.png >>' +
+			{8} 'valera [sizeX = 200/800]: 2.png');
+		e^.dlg.onItem := @Dialogue_2_Item;
+		e^.dlg.onDone := @Dialogue_3;
+		e^.dlg.param := e;
+		RotateActors([e^.valera, e^.twinkle, e^.kazah], e^.player^.HeartPos);
+	end;
+
+	procedure Dialogue_1(t: pTrigger; activator: pNode; param: pointer);
+	// Активация диалога между командой.
+	// Сначала Рокс идёт за стол.
+	var
+		e: pEp_Bar absolute param;
+	begin
+		Assert(t = t);
+		if activator <> pNode(e^.player) then exit;
+		e^.dlgTrig^.Detach; Release(e^.dlgTrig);
+		e^.playerControlMode := PlayerControlDisabled;
+		e^.player^.idclip := yes;
+		e^.player^.MoveTo(Vec2.Make(-0.85, 0.3), Ep_Bar.WalkingVelocity, @Dialogue_2, e);
 	end;
 
 	constructor Ep_Bar.Init(world: pWorld);
@@ -78,7 +179,6 @@ uses
 		doorTrig^.onTrigger := @DoorTrigger;
 		doorTrig^.onActivate := @DoorActivate;
 		doorTrig^.param := @self;
-		doorTrig^.highlight := yes;
 		self.location^.Add(doorTrig);
 
 		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, 0.3*0.75)));
@@ -96,16 +196,28 @@ uses
 		d := new(pDecoration, Init(Environment('table3.png'), Translate(0.75, -0.15), Vec2.Make(0.3, 0.3*(57/92))));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.12));
 
-		valera := new(pActor, Init(Vec2.Make(0.14, 0.14), Character('valera', 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
-		valera^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
-		valera^.local := Translate(-0.93, 0.55);
-		location^.Add(valera);
+		if not self.world^.spaceshipArrived then
+		begin
+			valera := CreateKolobok('valera');
+			valera^.local := Translate(-0.93, 0.55);
+			valera^.angle := -HalfPi;
+			location^.Add(valera);
 
-		twinkle := new(pActor, Init(Vec2.Make(0.14, 0.14), Character('twinkle', 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
-		twinkle^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
-		twinkle^.local := Translate(-0.7, 0.42);
-		twinkle^.angle := 0;
-		location^.Add(twinkle);
+			twinkle := CreateKolobok('twinkle');
+			twinkle^.local := Translate(-0.7, 0.42);
+			twinkle^.angle := Pi;
+			location^.Add(twinkle);
+
+			kazah := CreateKolobok('kazah');
+			kazah^.local := Translate(-1.12, 0.42);
+			kazah^.angle := 0;
+			location^.Add(kazah);
+
+			dlgTrig := new(pTrigger, Init(Translate(-1.17, 0.37), Vec2.Make(0.65, 0.32)))^.NewRef;
+			dlgTrig^.onActivate := @Dialogue_1;
+			dlgTrig^.param := @self;
+			location^.Add(dlgTrig);
+		end;
 
 		player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - player^.size.x), location^.limits.A.y);
 		location^.Add(player);
@@ -113,6 +225,8 @@ uses
 
 	destructor Ep_Bar.Done;
 	begin
+		Release(dlgTrig);
+		Release(kazah);
 		Release(twinkle);
 		Release(valera);
 		Release(doorTrig);
@@ -123,11 +237,27 @@ uses
 	procedure Ep_Bar.HandleUpdate(const dt: float);
 	begin
 		inherited HandleUpdate(dt);
-		valera^.angle := NormalizeAngle(valera^.angle + dt);
-		twinkle^.angle := NormalizeAngle(twinkle^.angle + dt);
+		{valera^.angle := NormalizeAngle(valera^.angle + 0.8*dt);
+		twinkle^.angle := NormalizeAngle(twinkle^.angle + 0.85*dt);
+		kazah^.angle := NormalizeAngle(twinkle^.angle + 0.9*dt);}
 		case state of
 			MovingOutsideRequested: mgr^.Switch(new(pEp_Entry, Init(world)));
 		end;
+	end;
+
+	function CreateKolobok(const char: string): pActor;
+	begin
+		result := new(pActor, Init(Vec2.Make(0.14, 0.14), Character(char, 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
+		result^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
+		result^.AddState('walk', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', [MovingState]);
+	end;
+
+	procedure RotateActors(const actors: array of pActor; const target: Vec2);
+	var
+		ac: pActor;
+	begin
+		for ac in actors do
+			ac^.RotateTo(target);
 	end;
 
 end.

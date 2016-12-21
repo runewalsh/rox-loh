@@ -95,11 +95,12 @@ implementation
 		end;
 	end;
 
-	procedure DoorActivate(t: pTrigger; param: pointer);
+	procedure DoorActivate(t: pTrigger; activator: pNode; param: pointer);
 	var
 		e: pEp_Entry absolute param;
 	begin
 		Assert(t = t);
+		if activator <> pNode(e^.player) then exit;
 		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingToBarRequested;
 	end;
 
@@ -128,12 +129,11 @@ implementation
 		door^.texRect := Rect.Make(0, 0, 0.5, 1);
 		location^.AddWall(door, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 
-		doorTrig := new(pTrigger, Init(door^.local, door^.size))^.NewRef;
+		doorTrig := new(pTrigger, Init(Translate(0, -0.1) * door^.local, door^.size))^.NewRef;
 		doorTrig^.onTest := @DoorTest;
 		doorTrig^.onTrigger := @DoorTrigger;
 		doorTrig^.onActivate := @DoorActivate;
 		doorTrig^.param := @self;
-		doorTrig^.highlight := yes;
 		self.location^.Add(doorTrig);
 
 		d := new(pDecoration, Init(Environment('brick.png'), Translate(0, 0.02), Vec2.Make(1.5, 0.3)));
@@ -195,8 +195,8 @@ implementation
 		e^.state := Monologue;
 		e^.dlg.Init(e, 'rox [face = indifferent.png, sizeX = 0.5]: 0.png >>' +
 			'rox [face = saliva.png, sizeX = 0.6]: 1.png >>' +
-			'rox [face = scared.png, sizeX = 0, delay = 0.5]: empty.png >>' +
-			'rox [face = scared-refl.png, sizeX = 0, delay = 0.5]: empty.png >>' +
+			'rox [face = scared.png, sizeX = 0, delay = 0.5]: - >>' +
+			'rox [face = scared-refl.png, sizeX = 0, delay = 0.5]: - >>' +
 			'rox [face = scared.png, sizeX = 0.15, delay = 1]: 2.png >>' +
 			'rox [sizeX = 0.4]: 3.png');
 		e^.dlg.onDone := @MonologueFinished;
