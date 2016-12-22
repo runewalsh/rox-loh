@@ -468,7 +468,7 @@ const
 
 	destructor VitalParameter.Done;
 	begin
-		ReleaseArray(bindings);
+		ReleaseArray(USystem.ObjectsList(bindings));
 
 		onTrailEnd.Done;
 		onTrailProcess.Done;

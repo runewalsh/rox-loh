@@ -47,6 +47,8 @@ type
 		rtPoint: Vec2;
 		idclip: boolean;
 
+		wieldingWeapon: boolean;
+
 		constructor Init(const size: Vec2; const tex: string; const texSize: Vec2);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;

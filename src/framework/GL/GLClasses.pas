@@ -1136,7 +1136,7 @@ type
 		end;
 		if Assigned(_inGL) then gl.DeleteProgram(_inGL);
 		for i := 0 to High(_ubos) do _ubos[i].Done;
-		ReleaseArray(shaders);
+		ReleaseArray(USystem.ObjectsList(shaders));
 	{$ifdef Debug} LogR('Шейдерная программа ' + _name + ' уничтожена; ', logDebug); {$endif}
 		inherited Done;
 	end;
@@ -1205,7 +1205,7 @@ type
 				if Assigned(sp) then sp^._parent := nil;
 			end;
 			_p.Done;
-			ReleaseArray(shaders);
+			ReleaseArray(USystem.ObjectsList(shaders));
 
 			name := StreamPath.FilenameNoExt(s^.path);
 			base := s^.path;
@@ -1303,7 +1303,7 @@ type
 				end;
 			end;
 			SetLength(shaders, n);
-			ReleaseArray(sh);
+			ReleaseArray(USystem.ObjectsList(sh));
 		end;
 	var
 		prep: array of tSingleShader.tPrepared;
@@ -1508,7 +1508,7 @@ type
 
 	stop:
 		Init(newName, sh);
-		ReleaseArray(sh);
+		ReleaseArray(USystem.ObjectsList(sh));
 	end;
 
 	destructor ShaderProgram.Done;
@@ -1523,7 +1523,7 @@ type
 			if Assigned(sp) then sp^._parent := nil;
 		end;
 		_p.Done;
-		ReleaseArray(shaders);
+		ReleaseArray(USystem.ObjectsList(shaders));
 		inherited Done;
 	end;
 

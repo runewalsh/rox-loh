@@ -2756,7 +2756,7 @@ var
 
 	procedure EntityActions.Done;
 	begin
-		ReleaseArray(list);
+		ReleaseArray(USystem.ObjectsList(list));
 	end;
 
 	function EntityActions.Add(entity: pObject; ac: pEntityAction): boolean;

@@ -68,7 +68,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="18">
+    <Units Count="19">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -141,6 +141,10 @@
         <Filename Value="..\src\rox_world.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit17>
+      <Unit18>
+        <Filename Value="..\src\rox_particles.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit18>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

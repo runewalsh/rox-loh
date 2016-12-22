@@ -12,6 +12,9 @@ const
 type
 	pTexture = ^Texture;
 	Texture = object(&Object)
+	type
+		Special = (JustTexture, DynamicTextureForTextBox);
+	var
 		handle: gl.uint;
 		size: UintVec2;
 		sizeZ: uint;
@@ -19,7 +22,7 @@ type
 		targetEnum: gl.enum;
 
 		function Load(const filename: string): pTexture; static;
-		function Dynamic(format: GLImageFormat; const size: UintVec2): pTexture; static;
+		function Dynamic(format: GLImageFormat; const size: UintVec2; special: Special): pTexture; static;
 		destructor Done; virtual;
 		procedure Swizzle(r, g, b, a: U_GL.Swizzle);
 		procedure Sub(x, y, w, h: uint; format: GLImageFormat; data: pointer);
@@ -27,7 +30,8 @@ type
 		function Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture; static;
 		function UnsupportedTargetMessage(target: GLTextureTarget): string; static;
 		function Load(s: pStream): pTexture; static;
-		function InternalFormat(fmt: GLImageFormat): gl.enum; static;
+		function InternalFormat(fmt: GLImageFormat; special: Special = JustTexture): gl.enum; static;
+		function Components(fmt: GLImageFormat): gl.enum; static;
 	end;
 
 	pImageResource = ^ImageResource;
@@ -145,11 +149,11 @@ var
 		result := ResourcePool.Shared^.LoadRef(TypeOf(Texture), filename);
 	end;
 
-	function Texture.Dynamic(format: GLImageFormat; const size: UintVec2): pTexture;
+	function Texture.Dynamic(format: GLImageFormat; const size: UintVec2; special: Special): pTexture;
 	begin
 		result := Create(GLtexture_2D, size, no, no);
 		try
-			gl.TexImage2D(gl.TEXTURE_2D, 0, InternalFormat(format), size.x, size.y, 0, GLFormats[format].components, GLFormats[format].ctype, nil);
+			gl.TexImage2D(gl.TEXTURE_2D, 0, InternalFormat(format, special), size.x, size.y, 0, Components(format), GLFormats[format].ctype, nil);
 			result^.NewRef;
 		except
 			dispose(result, Done);
@@ -178,7 +182,7 @@ var
 	procedure Texture.Sub(x, y, w, h: uint; format: GLImageFormat; data: pointer);
 	begin
 		gl.BindTexture(targetEnum, handle);
-		gl.TexSubImage2D(targetEnum, 0, x, y, w, h, GLFormats[format].components, GLFormats[format].ctype, data);
+		gl.TexSubImage2D(targetEnum, 0, x, y, w, h, Components(format), GLFormats[format].ctype, data);
 	end;
 
 	function Texture.Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture;
@@ -245,14 +249,14 @@ var
 									im.info.GetLevelDataSize(lv), im.LevelPtr(lv))
 							else
 								gl.TexImage2D(gl.TEXTURE_2D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, 0,
-									GLFormats[im.format].components, GLFormats[im.format].ctype, im.LevelPtr(lv));
+									Components(im.format), GLFormats[im.format].ctype, im.LevelPtr(lv));
 						GLtexture_3D:
 							if GLformat_Compressed in GLImageFormatsInfo[im.format].flags then
 								gl.CompressedTexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, levelSize.z, 0,
 									im.info.GetLevelDataSize(lv), im.LevelPtr(lv))
 							else
 								gl.TexImage3D(gl.TEXTURE_3D, im.info.Defaced(lv), InternalFormat(im.format), levelSize.x, levelSize.y, levelSize.z, 0,
-									GLFormats[im.format].components, GLFormats[im.format].ctype, im.LevelPtr(lv));
+									Components(im.format), GLFormats[im.format].ctype, im.LevelPtr(lv));
 						else raise Error(StreamPath.Human(s^.path) + ': ' + UnsupportedTargetMessage(im.target));
 					end;
 				end;
@@ -265,12 +269,28 @@ var
 		end;
 	end;
 
-	function Texture.InternalFormat(fmt: GLImageFormat): gl.enum;
+	function Texture.InternalFormat(fmt: GLImageFormat; special: Special): gl.enum;
 	begin
-		// rox_dialogue.TextBox свиззлит R-текстуру в (0, 0, 0, R), и в FFP у такой отваливается альфа.
-		// INTENSITY обходит эту багофичу.
+		// В rox_dialogue.TextBox R-текстура свиззлится в (0, 0, 0, R), и в FFP у такой отваливается альфа.
+		// INTENSITY обходит эту багофичу (LUMINANCE полагает R=G=B=luminance и A=1, т. е. текстура гарантированно непрозрачная,
+		// тогда как в INTENSITY R=G=B=A=intensity).
 		// См. Issue 7: https://www.opengl.org/registry/specs/ARB/texture_swizzle.txt
-		if fmt = GLformat_R then result := gl.L.INTENSITY else result := GLFormats[fmt].internalFormat;
+		//
+		// Для остальных текстур полагается R = серый и RG = серый + альфа (хотя можно тоже свиззл заюзать вместо форматов).
+
+		case fmt of
+			GLformat_R: if special = DynamicTextureForTextBox then result := gl.L.INTENSITY else result := gl.L.LUMINANCE;
+			GLformat_RG: result := gl.L.LUMINANCE_ALPHA;
+			else result := GLFormats[fmt].internalFormat;
+		end;
+	end;
+
+	function Texture.Components(fmt: GLImageFormat): gl.enum;
+	begin
+		case fmt of
+			GLformat_RG: result := gl.L.LUMINANCE_ALPHA;
+			else result := GLFormats[fmt].components;
+		end;
 	end;
 
 	constructor ImageResource.Init(s: pStream);

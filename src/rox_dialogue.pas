@@ -107,7 +107,7 @@ implementation
 				Release(si);
 			end;
 
-			ChangeTexture(Texture.Dynamic(GLformat_R {обрабатывается особо, см. Texture.InternalFormat}, sumSize));
+			ChangeTexture(Texture.Dynamic(GLformat_R {обрабатывается особо, см. Texture.InternalFormat}, sumSize, DynamicTextureForTextBox));
 			tex^.Swizzle(Swizzle.One, Swizzle.One, Swizzle.One, Swizzle.R);
 
 			sum := GetMem(sumSize.Product * sizeof(uint8));
@@ -407,7 +407,12 @@ type
 
 	procedure Dialogue.Skip;
 	begin
-		if Assigned(active) then active^.skip := yes;
+		if Assigned(active) and not active^.skip then
+		begin
+			active^.skip := yes;
+			// увеличение времени паузы на часть пропускаемого времени (саму паузу тоже можно пропустить, отдельно)
+			if not active^.Finished then finalTimeout += 0.5 * TextBox.DefaultLetterTimeout * (length(active^.syms) - active^.nextSym);
+		end;
 	end;
 
 	procedure Dialogue.Parse(const s: string);

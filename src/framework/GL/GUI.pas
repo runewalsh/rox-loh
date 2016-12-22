@@ -2496,7 +2496,7 @@ var
 
 	destructor IndicatorGroup.IndicatorData.Done;
 	begin
-		ReleaseArray(anims);
+		ReleaseArray(USystem.ObjectsList(anims));
 	end;
 
 	procedure CallOnCreateIndicatorGroupControl(const info: SingleDelegateInfo; param: pointer);
@@ -3998,7 +3998,7 @@ var
 		onDestroy.Done;
 		onValidate.Done;
 		onDrop.Done;
-		ReleaseArray(_items);
+		ReleaseArray(USystem.ObjectsList(_items));
 		Release(_inv);
 		inherited Done;
 	end;

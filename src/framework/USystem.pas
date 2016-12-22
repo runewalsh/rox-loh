@@ -934,7 +934,7 @@ type
 	procedure Free(var obj: pObject);
 	procedure FreeWeak(obj: pObject); cinline
 	procedure Release(var r: pObject);
-	procedure ReleaseArray(var r);
+	procedure ReleaseArray(var r: ObjectsList);
 	procedure ReleaseWeak(r: pObject); cinline
 	procedure SetRef(var r: pObject; o2: pObject);
 	function MakeRef(obj: pObject): pointer;
@@ -2187,14 +2187,14 @@ var
 		end;
 	end;
 
-	procedure ReleaseArray(var r);
+	procedure ReleaseArray(var r: ObjectsList);
 	var
-		arr: ObjectsList;
+		trash: ObjectsList;
 		i: sint;
 	begin
-		arr := ObjectsList(r);
-		ObjectsList(r) := nil;
-		for i := 0 to High(arr) do Release(arr[i]);
+		trash := r;
+		r := nil;
+		for i := 0 to High(trash) do Release(trash[i]);
 	end;
 
 	procedure ReleaseWeak(r: pObject);

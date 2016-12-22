@@ -70,7 +70,7 @@ uses
 			e^.playerControlMode := PlayerControlEnabled;
 			e^.player^.idclip := no;
 
-			if not e^.dlg.Valid then e^.dlg.Init(e, 'rox [sizeX = 650/800]: 6.png');
+			if not e^.dlg.Valid then e^.dlg.Init(e, 'rox [sizeX = 630/800]: 6.png');
 		end;
 	end;
 
@@ -101,6 +101,18 @@ uses
 		e^.mgr^.AddTimer(t, e^.id);
 	end;
 
+	procedure RotateFour(at: pActor; e: pEp_Bar);
+		procedure Maybe(actor: pActor);
+		begin
+			if actor <> at then actor^.RotateTo(at^.HeartPos);
+		end;
+	begin
+		Maybe(e^.player);
+		Maybe(e^.valera);
+		Maybe(e^.twinkle);
+		Maybe(e^.kazah);
+	end;
+
 	procedure Dialogue_2_Item(id: uint; what: Dialogue.ItemEvent; param: pointer);
 	var
 		e: pEp_Bar absolute param;
@@ -108,10 +120,10 @@ uses
 		case what of
 			ItemStart:
 				case id of
-					2, 8: RotateActors([e^.player, e^.twinkle, e^.kazah], e^.valera^.HeartPos);
-					3: RotateActors([e^.valera, e^.twinkle, e^.kazah], e^.player^.HeartPos);
-					4, 6: RotateActors([e^.valera, e^.player, e^.kazah], e^.twinkle^.HeartPos);
-					5, 7: RotateActors([e^.valera, e^.player, e^.twinkle], e^.kazah^.HeartPos);
+					2, 8: RotateFour(e^.valera, e);
+					3: RotateFour(e^.player, e);
+					4, 6: RotateFour(e^.twinkle, e);
+					5, 7: RotateFour(e^.kazah, e);
 				end;
 		end;
 	end;
@@ -133,13 +145,13 @@ uses
 			{3} 'rox [face = x-eyes.png, sizeX = 230/800]: 5.png >>' +
 			{4} 'twinkle [face = eyes-closed.png, sizeX = 540/800]: 0.png >>' +
 			{5} 'kazah [face = suspicious.png, sizeX = 470/800]: 0.png >>' +
-			{6} 'twinkle [face = x-eyes.png, sizeX = 340/800]: 1.png >>' +
+			{6} 'twinkle [face = x-eyes.png, sizeX = 348/800]: 1.png >>' +
 			{7} 'kazah [sizeX = 108/800]: 1.png >>' +
 			{8} 'valera [sizeX = 200/800]: 2.png');
 		e^.dlg.onItem := @Dialogue_2_Item;
 		e^.dlg.onDone := @Dialogue_3;
 		e^.dlg.param := e;
-		RotateActors([e^.valera, e^.twinkle, e^.kazah], e^.player^.HeartPos);
+		RotateFour(e^.player, e);
 	end;
 
 	procedure Dialogue_1(t: pTrigger; activator: pNode; param: pointer);

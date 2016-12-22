@@ -1408,7 +1408,7 @@ var
 	destructor RenderScenario.Done;
 	begin
 		if not (scenario_Static in flags) then RenderScenarios.Remove(name);
-		ReleaseArray(passes);
+		ReleaseArray(USystem.ObjectsList(passes));
 		inherited Done;
 	end;
 

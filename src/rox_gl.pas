@@ -129,6 +129,8 @@ type
 			TEXTURE_COORD_ARRAY = $8078;
 			COLOR_ARRAY         = $8076;
 
+			LUMINANCE           = $1909;
+			LUMINANCE_ALPHA     = $190A;
 			INTENSITY           = $8049;
 
 			MODULATE            = $2100;

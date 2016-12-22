@@ -68,6 +68,7 @@ type
 		end;
 		obstacles: array of Circle;
 		triggers: array of pTrigger;
+		actors: array of pNode {pActor};
 		limits: Rect;
 		constructor Init(state: pState);
 		destructor Done; virtual;
@@ -86,9 +87,8 @@ type
 		function ActivateTriggerFor(activator: pNode): boolean;
 		function ShouldHighlightTrigger(const pos: Vec2): boolean;
 	private
-		function SuitableArray(n: pNode): pNodesArray;
-		procedure Add(n: pNode; var ary: NodesArray);
-		procedure Remove(n: pNode; var ary: NodesArray);
+		procedure AddOrRemove(n: pNode; add: boolean);
+		procedure AddOrRemove(n: pNode; var ary: NodesArray; add: boolean);
 		function IndexNode(n: pNode; const ary: array of pNode): sint;
 	end;
 
@@ -222,13 +222,10 @@ uses
 	end;
 
 	destructor Location.Done;
-	var
-		i: sint;
 	begin
-		for i := 0 to High(nodes) do
-			Release(nodes[i]);
-		for i := 0 to High(triggers) do
-			Release(triggers[i]);
+		ReleaseArray(USystem.ObjectsList(nodes));
+		ReleaseArray(USystem.ObjectsList(triggers));
+		ReleaseArray(USystem.ObjectsList(actors));
 		inherited Done;
 	end;
 
@@ -259,12 +256,12 @@ uses
 
 	procedure Location.Add(n: pNode);
 	begin
-		Add(n, SuitableArray(n)^);
+		AddOrRemove(n, yes);
 	end;
 
 	procedure Location.Remove(n: pNode);
 	begin
-		Remove(n, SuitableArray(n)^);
+		AddOrRemove(n, no);
 	end;
 
 	function Location.Collide(const obj: Circle; var move: Vec2; ignore: pNode): boolean;
@@ -291,9 +288,9 @@ uses
 				end;
 			end;
 
-		for i := 0 to High(nodes) do
-			if InheritsFrom(TypeOf(nodes[i]^), TypeOf(Actor)) and (nodes[i] <> ignore) and not pActor(nodes[i])^.idclip then
-				result := CircleVsCircle(obj, pActor(nodes[i])^.Collision, move) or result;
+		for i := 0 to High(actors) do
+			if (actors[i] <> ignore) and not pActor(actors[i])^.idclip then
+				result := CircleVsCircle(obj, pActor(actors[i])^.Collision, move) or result;
 	end;
 
 	procedure Location.AddObstacle(const obj: Circle);
@@ -354,31 +351,41 @@ uses
 		result := no;
 	end;
 
-	function Location.SuitableArray(n: pNode): pNodesArray;
+	procedure Location.AddOrRemove(n: pNode; add: boolean);
 	begin
-		if InheritsFrom(TypeOf(n^), TypeOf(Trigger)) then result := @NodesArray(triggers) else result := @nodes;
+		if add then
+			if Assigned(n^.location) then raise Error('Объект ужа принадлежит другой локации.') else
+		else
+			Assert(n^.location = @self);
+
+		if InheritsFrom(TypeOf(n^), TypeOf(Trigger)) then
+			AddOrRemove(n, NodesArray(triggers), add)
+		else
+			AddOrRemove(n, nodes, add);
+
+		if InheritsFrom(TypeOf(n^), TypeOf(Actor)) then
+			AddOrRemove(n, NodesArray(actors), add);
+
+		if add then n^.location := @self else n^.location := nil;
 	end;
 
-	procedure Location.Add(n: pNode; var ary: NodesArray);
-	begin
-		if Assigned(n^.location) then raise Error('Объект ужа принадлежит другой локации.');
-		if IndexNode(n, ary) >= 0 then raise Error('Объект уже добавлен в локацию.');
-		SetLength(ary, length(ary) + 1);
-		ary[High(ary)] := n^.NewRef;
-		n^.location := @self;
-	end;
-
-	procedure Location.Remove(n: pNode; var ary: NodesArray);
+	procedure Location.AddOrRemove(n: pNode; var ary: NodesArray; add: boolean);
 	var
 		id: sint;
 	begin
-		id := IndexNode(n, ary);
-		if id < 0 then raise Error('Объекта нет в локации.');
-		Assert(ary[id]^.location = @self);
-		ary[id]^.location := nil;
-		Release(ary[id]);
-		ary[id] := ary[High(ary)];
-		SetLength(ary, length(ary) - 1);
+		if add then
+		begin
+			if IndexNode(n, ary) >= 0 then raise Error('Объект уже добавлен в локацию.');
+			SetLength(ary, length(ary) + 1);
+			ary[High(ary)] := n^.NewRef;
+		end else
+		begin
+			id := IndexNode(n, ary);
+			if id < 0 then raise Error('Объекта нет в локации.');
+			Release(n); // = Release(ary[id])
+			ary[id] := ary[High(ary)];
+			SetLength(ary, length(ary) - 1);
+		end;
 	end;
 
 	function Location.IndexNode(n: pNode; const ary: array of pNode): sint;
