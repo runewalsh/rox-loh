@@ -803,8 +803,8 @@ uses
 		v2: Vec2;
 	begin
 	trace_call('RenderList.Render');
-		pm := cam.ProjectionMatrix;
-		invPm := cam.InversedProjectionMatrix;
+		pm := cam.Projection;
+		invPm := cam.InversedProjection;
 		UProjMatrix^.SetMat4(pm);
 		for i := 0 to 1 do
 		begin

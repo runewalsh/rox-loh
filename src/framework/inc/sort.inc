@@ -1,6 +1,10 @@
 {$ifndef procname} {$define procname := sort} {$endif}
 {$ifdef sort_less} {$error} {$endif}
-{$define sort_less := ({$ifdef less} less {$else} _1 < _2 {$endif}) {$undef _1} {$undef _2}}
+{$define sort_less :=
+	{$if defined(ref)} (ref < {$define _1 := _2} ref)
+	{$elseif defined(less)} (less)
+	{$else} (_1 < _2)
+	{$endif} {$undef _1} {$undef _2}}
 {-$define generic_implementation}
 
 {$include unique_def.inc}
@@ -241,4 +245,4 @@ type
 end_unique_def
 {$undef sort_elem} {$undef sort_pelem} {$undef sort_less}
 {$undef force_insert} {$undef force_heap} {$undef force_heap_arity} {$undef generic_implementation}
-{$undef elem} {$undef procname} {$undef less} {$undef openarray} {$undef no_math} {$undef less_is_consciously_intransitive)}
+{$undef elem} {$undef procname} {$undef less} {$undef ref} {$undef openarray} {$undef no_math} {$undef less_is_consciously_intransitive)}

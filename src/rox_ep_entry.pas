@@ -24,7 +24,7 @@ type
 
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
-		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
 
 	private
 		state: (Setup, SetupRe, SetupDepart, Monologue, Idle, MovingToBarRequested);
@@ -63,8 +63,7 @@ implementation
 		e: pEp_Entry absolute param;
 	begin
 		Assert(@param = @param);
-		result := (n = pNode(e^.player)) and (t^.local.trans.y > n^.local.trans.y) and
-			(abs(Angle(t^.HeartPos - pos, Rotate(Vec2.PositiveX, pActor(n)^.angle))) < Pi/6);
+		result := (n = pNode(e^.player)) and (abs(AngleDiff(ArcTan2(t^.HeartPos - pos), pActor(n)^.angle)) < Pi/6);
 	end;
 
 	procedure ProcessDoorHint(timer: pTimer; const dt: float; param: pointer);
@@ -138,6 +137,7 @@ implementation
 
 		d := new(pDecoration, Init(Environment('brick.png'), Translate(0, 0.02), Vec2.Make(1.5, 0.3)));
 		d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(5, 1));
+		// d^.local.rot := 1;
 		self.location^.AddWall(d, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 
 		if state <> Setup then player^.local := door^.local * Translate(0.5 * (door^.size.x - player^.size.x), -0.15);
@@ -236,9 +236,9 @@ implementation
 		inherited HandleMouse(action, pos, extra);
 	end;
 
-	procedure Ep_Entry.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
+	procedure Ep_Entry.HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra);
 	begin
-		inherited HandleKeyboard(action, key);
+		inherited HandleKeyboard(action, key, extra);
 	end;
 
 end.

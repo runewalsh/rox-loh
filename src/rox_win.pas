@@ -46,11 +46,17 @@ type
 		activeCursor, realCursor: CursorEnum;
 		magic: array[0 .. 3] of char;
 		redraws: uint;
+
+		wglChoosePixelFormatARB: function(hdc: HDC; piAttribIList: pcint; pfAttribFList: pcfloat; nMaxFormats: Windows.UINT;
+			piFormats: pcint; nNumFormats: Windows.PUINT): Windows.BOOL; stdcall;
+
 		function QueryRect(client: boolean): WindowRect;
 		function ClientToScreen(const rect: WindowRect; style: dword): WindowRect;
 		procedure CleanupRenderingContext;
 		function LoadCursor(const fn: string): HCURSOR;
 		procedure ChangeCursor(cur: HCURSOR);
+		procedure SetActiveCursor(cur: CursorEnum);
+		procedure UpdateRealCursor(cur: CursorEnum);
 
 		function RunWindowProc(wnd: hWnd; msg: Windows.UINT; wparam: wParam; lparam: lParam): lResult;
 		procedure Redraw;
@@ -60,11 +66,13 @@ type
 		CorrectMagic = 'WND~';
 		IncorrectMagic = '!wnd';
 	public
-		property Cursor: CursorEnum read activeCursor write activeCursor;
+		property Cursor: CursorEnum read activeCursor write SetActiveCursor;
 		property GLContextOwner: Thread.ID read rcThread;
 		property GLContext: HGLRC read rc;
 		property WasDeactivatedDuringLastProcess: boolean read wasDeactivated;
 		property RedrawsDuringLastProcess: uint read redraws;
+	const
+		MSAA = 4;
 	end;
 
 implementation
@@ -129,13 +137,25 @@ type
 	end;
 
 	procedure Window.Open;
+	const
+		WGL_DRAW_TO_WINDOW_ARB = $2001;
+		WGL_SUPPORT_OPENGL_ARB = $2010;
+		WGL_DOUBLE_BUFFER_ARB = $2011;
+		WGL_PIXEL_TYPE_ARB = $2013;
+		WGL_TYPE_RGBA_ARB = $202B;
+		WGL_COLOR_BITS_ARB = $2014;
+		WGL_DEPTH_BITS_ARB = $2022;
+		WGL_SAMPLE_BUFFERS_ARB = $2041;
+		WGL_SAMPLES_ARB = $2042;
+
 	var
 		wc: WNDCLASSW;
-		style: dword;
+		style, err: dword;
 		onScreen: WindowRect;
-		err: dword;
 		pfd: PIXELFORMATDESCRIPTOR;
-		pixfmt: cint;
+		pixfmt, rcTry: cint;
+		nFormats: Windows.UINT;
+		attribs: array[0 .. 16] of cint;
 	begin
 		Invalidate;
 		try
@@ -159,39 +179,73 @@ type
 			rect.pos := (IntVec2(ScreenSize) - self.size) div 2;
 			onScreen := ClientToScreen(rect, style);
 
-			handle := CreateWindowW(pWideChar(classn), pWideChar(UTF8Decode(caption.Join)), style,
-				onScreen.pos.x, onScreen.pos.y, onScreen.size.x, onScreen.size.y, 0, 0, 0, nil);
-			if handle = 0 then raise Win.OperationFailed('открыть окно (CreateWindow)');
-
-			SetLastError(0);
-			if SetWindowLongPtrW(handle, GWL_USERDATA, pointer(@self) - NULL) = 0 then
+			for rcTry := 1 to 2 do
 			begin
-				err := GetLastError;
-				if err <> 0 then raise Win.OperationFailed('выставить пользовательский указатель в окне (SetWindowLongPtrW)');
+				handle := CreateWindowW(pWideChar(classn), pWideChar(UTF8Decode(caption.Join)), style,
+					onScreen.pos.x, onScreen.pos.y, onScreen.size.x, onScreen.size.y, 0, 0, 0, nil);
+				if handle = 0 then raise Win.OperationFailed('открыть окно (CreateWindow)');
+
+				SetLastError(0);
+				if SetWindowLongPtrW(handle, GWL_USERDATA, pointer(@self) - NULL) = 0 then
+				begin
+					err := GetLastError;
+					if err <> 0 then raise Win.OperationFailed('выставить пользовательский указатель в окне (SetWindowLongPtrW)');
+				end;
+
+				dc := GetDC(handle);
+				if dc = 0 then raise Win.OperationFailed('получить контекст устройства (GetDC)');
+
+				if rcTry = 1 then
+				begin
+					Zero(@pfd, sizeof(pfd));
+					pfd.nSize := sizeof(pfd);
+					pfd.nVersion := 1;
+					pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
+					pfd.iPixelType := PFD_TYPE_RGBA;
+					pfd.cColorBits := 24;
+					pfd.cDepthBits := 24;
+					pfd.iLayerType := PFD_MAIN_PLANE;
+
+					pixfmt := ChoosePixelFormat(dc, @pfd);
+					if pixfmt = 0 then raise Win.OperationFailed('выбрать подходящий формат вывода картинки (ChoosePixelFormat)');
+				end else
+				begin
+					attribs[0] := WGL_DRAW_TO_WINDOW_ARB; attribs[1] := 1;
+					attribs[2] := WGL_SUPPORT_OPENGL_ARB; attribs[3] := 1;
+					attribs[4] := WGL_DOUBLE_BUFFER_ARB; attribs[5] := 1;
+					attribs[6] := WGL_PIXEL_TYPE_ARB; attribs[7] := WGL_TYPE_RGBA_ARB;
+					attribs[8] := WGL_COLOR_BITS_ARB; attribs[9] := 24;
+					attribs[10] := WGL_DEPTH_BITS_ARB; attribs[11] := 24;
+					attribs[12] := WGL_SAMPLE_BUFFERS_ARB; attribs[13] := 1;
+					attribs[14] := WGL_SAMPLES_ARB; attribs[15] := MSAA;
+					attribs[16] := 0;
+
+					if not wglChoosePixelFormatARB(dc, @attribs[0], nil, 1, @pixfmt, @nFormats) then
+						raise Win.OperationFailed('выбрать подходящий формат вывода картинки (wglChoosePixelFormatARB)');
+					if nFormats < 1 then raise Error('Не найдено подходящих форматов экранного изображения (24-битный цвет + 24-битная глубина + {0}x AA).', [MSAA]);
+				end;
+				if not SetPixelFormat(dc, pixfmt, @pfd) then raise Win.OperationFailed('выставить формат вывода картинки (SetPixelFormat)');
+
+				rc := wglCreateContext(dc);
+				if rc = 0 then raise Win.OperationFailed('создать GL-контекст (wglCreateContext)');
+
+				if not wglMakeCurrent(dc, rc) then raise Win.OperationFailed('привязать GL-контекст к потоку');
+				rcThread := Thread.Current;
+
+				if rcTry = 1 then
+				begin
+					pointer(wglChoosePixelFormatARB) := wglGetProcAddress('wglChoosePixelFormatARB');
+					if not Assigned(wglChoosePixelFormatARB) then
+					begin
+						Warning('Расширенный контекст OpenGL не будет создан (не найдена wglChoosePixelFormatARB).');
+						break;
+					end;
+					CleanupRenderingContext;
+
+					if not DestroyWindow(handle) then WindowsWarning('уничтожить окно (DestroyWindow)');
+					handle := 0;
+				end;
 			end;
-
-			dc := GetDC(handle);
-			if dc = 0 then raise Win.OperationFailed('получить контекст устройства (GetDC)');
-
-			Zero(@pfd, sizeof(pfd));
-			pfd.nSize := sizeof(pfd);
-			pfd.nVersion := 1;
-			pfd.dwFlags := PFD_DRAW_TO_WINDOW or PFD_SUPPORT_OPENGL or PFD_DOUBLEBUFFER;
-			pfd.iPixelType := PFD_TYPE_RGBA;
-			pfd.cColorBits := 24;
-			pfd.cDepthBits := 24;
-			pfd.iLayerType := PFD_MAIN_PLANE;
-
-			pixfmt := ChoosePixelFormat(dc, @pfd);
-			if pixfmt = 0 then raise Win.OperationFailed('выбрать подходящий формат вывода картинки (ChoosePixelFormat)');
-
-			if not SetPixelFormat(dc, pixfmt, @pfd) then raise Win.OperationFailed('выставить формат вывода картинки (SetPixelFormat)');
-
-			rc := wglCreateContext(dc);
-			if rc = 0 then raise Win.OperationFailed('создать GL-контекст (wglCreateContext)');
-
-			if not wglMakeCurrent(dc, rc) then raise Win.OperationFailed('привязать GL-контекст к потоку');
-			rcThread := Thread.Current;
 
 			gl.Load;
 			rox_gfx.InitGL(@self);
@@ -387,9 +441,30 @@ type
 		end;
 	end;
 
+	procedure Window.SetActiveCursor(cur: CursorEnum);
+	begin
+		if cur <> activeCursor then
+		begin
+			activeCursor := cur;
+			if realCursor <> DefaultCursor then UpdateRealCursor(cur);
+		end;
+	end;
+
+	procedure Window.UpdateRealCursor(cur: CursorEnum);
+	begin
+		if realCursor <> cur then
+		begin
+			if cur = CursorHidden then ShowCursor(no) else
+			begin
+				ChangeCursor(cursors[cur]);
+				if realCursor = CursorHidden then ShowCursor(yes);
+			end;
+			realCursor := cur;
+		end;
+	end;
+
 	function Window.RunWindowProc(wnd: hWnd; msg: Windows.UINT; wparam: wParam; lparam: lParam): lResult;
 	var
-		ht: uint;
 		activated: boolean;
 	begin
 		case msg of
@@ -406,23 +481,10 @@ type
 					end;
 				end;
 			WM_SETCURSOR:
-				begin
-					ht := LOWORD(lparam);
-					if ht = HTCLIENT then
-						if realCursor <> activeCursor then
-						begin
-							if activeCursor = CursorHidden then ShowCursor(no) else ChangeCursor(cursors[activeCursor]);
-							if realCursor = CursorHidden then ShowCursor(yes);
-							realCursor := activeCursor;
-						end else
-					else
-						if realCursor <> DefaultCursor then
-						begin
-							ChangeCursor(cursors[DefaultCursor]);
-							if realCursor = CursorHidden then ShowCursor(yes);
-							realCursor := DefaultCursor;
-						end;
-				end;
+				if LOWORD(lparam) = HTCLIENT then
+					UpdateRealCursor(activeCursor)
+				else
+					UpdateRealCursor(DefaultCursor);
 			WM_MOVE, WM_SIZE:
 				begin
 					rect := QueryRect(yes);

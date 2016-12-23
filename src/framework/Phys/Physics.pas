@@ -1614,8 +1614,8 @@ var
 		rig: RigidBody.pRigidSpecific;
 		w: pPhysWorld;
 		v3: Newton.Vec3;
-		force, torque, nv: Vec3;
-		k, vabs: float;
+		force, torque, v: Vec3;
+		k: float;
 		i: sint;
 		aabb: UMath.AABB;
 	begin
@@ -1632,10 +1632,10 @@ var
 		for i := 0 to High(rig^.water) do
 		begin
 			aabb := NewtonGetAABB(body);
-			nv := -w^.gravity.Normalized;
-			k := (aabb.B - aabb.A) ** nv;
+			v := -w^.gravity.Normalized;
+			k := (aabb.B - aabb.A) ** v;
 			if NotZero(k) then k := 1.0 / k else k := 1.0;
-			force += 200.0 * rig^.water[i]^.Density * Newton.ConvexCollisionCalculateVolume(b^.primitive^._newt) * nv *
+			force += 200.0 * rig^.water[i]^.Density * Newton.ConvexCollisionCalculateVolume(b^.primitive^._newt) * v *
 				Clamp(1.0 - Max(rig^.water[i]^.Plane.SignedDistance(aabb.A), rig^.water[i]^.Plane.SignedDistance(aabb.B)) * k, 0.0, 1.0);
 			{NewtonBodyAddBuoyancyForce(body, rig^.water[i]^.Density, rig^.water[i]^.LinearViscosity, rig^.water[i]^.AngularViscosity,
 				NewtonVec3(-w^.gravity.Normalized),  @_NewtonGetBuoyancyPlane, rig^.water[i]);}
@@ -1661,8 +1661,7 @@ var
 		if NotZero(rig^.entangle.Value) then
 		begin
 			k := rig^.EntangleCoef;
-			nv := b^.Velocity.Normalized(vabs);
-			b^.Velocity := nv * max(vabs - rig^.entangle.Value * timestep, 0) * pow(k, timestep);
+			b^.Velocity := b^.Velocity.Decreased(rig^.entangle.Value * timestep) * pow(k, timestep);
 			force *= k;
 			torque *= k;
 		end;

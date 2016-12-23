@@ -35,7 +35,7 @@ type
 		procedure HandleDraw; virtual;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
-		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
 	const
 		ButtonInfo: array[ButtonEnum] of record
 			id: string;
@@ -325,18 +325,20 @@ implementation
 		inherited HandleMouse(action, pos, extra);
 	end;
 
-	procedure MainMenu.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
-	var
-		handled: boolean;
+	procedure MainMenu.HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra);
 	begin
-		handled := no;
 		case action of
 			KeyClick:
 				case key of
-					key_Esc: mgr^.Pop;
+					key_Esc:
+						if extra.Handle then
+						begin
+							mgr^.Pop;
+							exit;
+						end;
 				end;
 		end;
-		if not handled then inherited HandleKeyboard(action, key);
+		inherited HandleKeyboard(action, key, extra);
 	end;
 
 	procedure MainMenu.HandleClick(selected: ButtonEnum);

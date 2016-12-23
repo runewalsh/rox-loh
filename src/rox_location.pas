@@ -60,10 +60,22 @@ type
 	end;
 
 	Location = object(&Object)
+	type
+		WallFlag = (NotObstacleForBullets);
+		WallFlags = set of WallFlag;
+
+		RaycastResultItem = record
+			n: pNode;
+			point: Vec2;
+			sqrDistance: float;
+		end;
+		RaycastResult = array of RaycastResultItem;
+	var
 		state: pState;
 		nodes: array of pNode;
 		walls: array of record
 			rect: Rect;
+			flags: WallFlags;
 			angle: float;
 		end;
 		obstacles: array of Circle;
@@ -78,10 +90,11 @@ type
 		procedure Add(n: pNode);
 		procedure Remove(n: pNode);
 		function Collide(const obj: Circle; var move: Vec2; ignore: pNode): boolean;
+		function Raycast(const origin, direction: Vec2; out r: RaycastResult; ignore: pNode): boolean;
 		procedure AddObstacle(const obj: Circle);
 
-		procedure AddWall(const w: Rect; const angle: float = 0);
-		procedure AddWall(n: pNode; const dA, dB: Vec2);
+		procedure AddWall(const w: Rect; const flags: WallFlags = []; const angle: float = 0);
+		procedure AddWall(n: pNode; const dA, dB: Vec2; const flags: WallFlags = []);
 
 		function ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
 		function ActivateTriggerFor(activator: pNode): boolean;
@@ -293,23 +306,71 @@ uses
 				result := CircleVsCircle(obj, pActor(actors[i])^.Collision, move) or result;
 	end;
 
+	function Location.Raycast(const origin, direction: Vec2; out r: RaycastResult; ignore: pNode): boolean;
+		procedure Push(n: pNode; const point: Vec2);
+		begin
+			SetLength(r, length(r) + 1);
+			r[High(r)].n := n;
+			r[High(r)].point := point;
+			r[High(r)].sqrDistance := SqrDistance(origin, point);
+		end;
+
+		{$define procname := SortByDistance} {$define elem := RaycastResultItem} {$define ref := _1.sqrDistance} {$define openarray}
+		{$include sort.inc}
+
+	var
+		i: sint;
+		point: Vec2;
+	begin
+		{walls: array of record
+			rect: Rect;
+			angle: float;
+		end;
+		obstacles: array of Circle;
+		actors: array of pNode;
+		limits: Rect;}
+
+		r := nil;
+		for i := 0 to High(walls) do
+			if not (NotObstacleForBullets in walls[i].flags) then
+				if walls[i].angle = 0 then
+				begin
+					if RayVsRect(origin, direction, walls[i].rect, @point) then
+						Push(nil, point);
+				end else
+				begin
+					if RayVsRect(Rotate(origin - walls[i].rect.A, -walls[i].angle), Rotate(direction, -walls[i].angle), Rect.Make(Vec2.Zero, walls[i].rect.Size), @point) then
+						Push(nil, walls[i].rect.A + Rotate(point, walls[i].angle));
+				end;
+
+		for i := 0 to High(actors) do
+			if (actors[i] <> ignore) and RayVsCircle(origin, direction, Circle.Make(actors[i]^.HeartPos, 0.4 * actors[i]^.size.x), nil, @point) then
+				Push(actors[i], point);
+
+		if (length(r) = 0) and RayVsRect(origin, direction, limits, @point) then
+			Push(nil, point);
+		SortByDistance(r);
+		result := length(r) > 0;
+	end;
+
 	procedure Location.AddObstacle(const obj: Circle);
 	begin
 		SetLength(obstacles, length(obstacles) + 1);
 		obstacles[High(obstacles)] := obj;
 	end;
 
-	procedure Location.AddWall(const w: Rect; const angle: float = 0);
+	procedure Location.AddWall(const w: Rect; const flags: WallFlags = []; const angle: float = 0);
 	begin
 		SetLength(walls, length(walls) + 1);
 		walls[High(walls)].rect := w;
+		walls[High(walls)].flags := flags;
 		walls[High(walls)].angle := angle;
 	end;
 
-	procedure Location.AddWall(n: pNode; const dA, dB: Vec2);
+	procedure Location.AddWall(n: pNode; const dA, dB: Vec2; const flags: WallFlags = []);
 	begin
 		Add(n);
-		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB));
+		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB), flags, n^.local.rot);
 	end;
 
 	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;

@@ -4,11 +4,14 @@ unit rox_collision;
 interface
 
 uses
-	USystem, UMath;
+	USystem, Utils, UMath;
 
 	function CircleVsEnclosingRect(const obj: Circle; const enclosing: Rect; var move: Vec2): boolean;
 	function CircleVsCircle(const obj, obstacle: Circle; var move: Vec2): boolean;
 	function CircleVsRect(const obj: Circle; const obstacle: Rect; var move: Vec2): boolean;
+
+	function RayVsCircle(const origin, direction: Vec2; const obj: Circle; k: pFloat; point: pVec2): boolean;
+	function RayVsRect(const origin, direction: Vec2; const obj: Rect; point: pVec2): boolean;
 
 implementation
 
@@ -87,6 +90,52 @@ implementation
 
 		if (obj.center.x > obstacle.A.x) and (obj.center.y > obstacle.A.y) and ((move.x < 0) or (move.y < 0)) then
 			result := CircleVsCircle(obj, Circle.Make(obstacle.B.x, obstacle.B.y, 0), move) or result;
+	end;
+
+	function RayVsCircle(const origin, direction: Vec2; const obj: Circle; k: pFloat; point: pVec2): boolean;
+	var
+		t: float;
+		x1, x2: hp_float;
+	begin
+		// direction не нормализованное
+		// луч — origin + k*direction, при успехе возвращается k, соответствующее ближайшей точке пересечения
+
+		// такое квадратное уравнение относительно x получается, если приравнять distance(origin + x*direction, obj.center) к obj.radius
+		if SolveQuadratic(direction.SqrLength, 2 * ((origin - obj.center) ** direction), SqrDistance(origin, obj.center) - sqr(obj.radius), x1, x2) then
+		begin
+			// больший корень в x1, а ближайшей точке, если оба валидны, соответствует меньший
+			if x2 >= 0 then t := x2 else
+				if x1 >= 0 then t := x1 else
+					exit(no); // все пересечения — на прямой, но не на луче
+
+			if Assigned(k) then k^ := t;
+			if Assigned(point) then point^ := origin + t * direction;
+			result := yes;
+		end else
+			result := no;
+	end;
+
+	function RayVsRect(const origin, direction: Vec2; const obj: Rect; point: pVec2): boolean;
+	var
+		ray: Line2;
+
+		function Test(const a, b: Vec2): boolean;
+		var
+			p: Vec2;
+		begin
+			result := (a <> b) and Line2.Intersect(ray, Line2.FromDirection(a, b - a), p) and ((p - origin) ** direction > 0) and ((p - a) ** (p - b) < 0);
+			if result and Assigned(point) then point^ := p;
+		end;
+
+	var
+		d, s: Vec2;
+	begin
+		ray := Line2.FromDirection(origin, direction);
+		d := direction;
+		if not obj.Contains(origin) then d := -d;
+
+		s := obj.SupportVertex(d);
+		result := Test(s, obj.SupportVertex(Vec2.Make(-d.x, d.y))) or Test(s, obj.SupportVertex(Vec2.Make(d.x, -d.y)));
 	end;
 
 end.

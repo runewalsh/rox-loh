@@ -194,7 +194,7 @@ uses
 		self.location^.Add(doorTrig);
 
 		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, 0.3*0.75)));
-		location^.AddWall(d, Vec2.Make(0.02, 0), Vec2.Make(0.02, 0));
+		location^.AddWall(d, Vec2.Make(0.02, 0), Vec2.Make(0.02, 0), [NotObstacleForBullets]);
 
 		d := new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, 0.58*(1/3))));
 		location^.Add(d);

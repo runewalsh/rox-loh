@@ -27,7 +27,7 @@ type
 		function QueryDeactivate: boolean; virtual;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
-		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
 		function QuerySwitchOff: boolean; virtual;
 	end;
 
@@ -109,7 +109,7 @@ uses
 	procedure State.HandleDraw; begin end;
 	function State.QueryDeactivate: boolean; begin result := yes; end;
 	procedure State.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); begin Assert((@action = @action) and (@pos = @pos) and (@extra = @extra)); end;
-	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey); begin Assert((@action = @action) and (@key = @key)); end;
+	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); begin Assert((@action = @action) and (@key = @key) and (@extra = @extra)); end;
 	function State.QuerySwitchOff: boolean; begin result := yes; end;
 
 	procedure StateManager.Invalidate;
@@ -245,17 +245,17 @@ uses
 
 	procedure StateManager.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
 	var
-		handled: boolean;
+		x: HandlerExtra;
 	begin
-		handled := no;
+		x.SetupReal;
 		case action of
 			KeyClick:
 				case key of
-					key_NumPlus: begin bgm.Rewind(+5); handled := yes; end;
-					key_NumMinus: begin bgm.Rewind(-5); handled := yes; end;
+					key_NumPlus: if x.Handle then bgm.Rewind(+5);
+					key_NumMinus: if x.Handle then bgm.Rewind(-5);
 				end;
 		end;
-		if not handled then state^.HandleKeyboard(action, key);
+		state^.HandleKeyboard(action, key, x);
 	end;
 
 	procedure StateManager.CheckCanSwitch;

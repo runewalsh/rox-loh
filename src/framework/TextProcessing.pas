@@ -133,7 +133,7 @@ uses
 
 	function StringTokenizer.ScanFloatToken: float;
 	type
-		StateEnum = (Whitespace, Sign, MantissaBeforePoint, MantissaAfterPoint, E, ExponentSign, Exponent);
+		StateEnum = (Whitespace, Sign, MantissaBeforePointOrSpecial, MantissaAfterPoint, E, ExponentSign, Exponent);
 	var
 		state: StateEnum;
 		n: size_t;
@@ -144,10 +144,10 @@ uses
 		while n < rest do
 			case state of
 				Whitespace: if Symbol.IsWhitespace(s[n]) then inc(n) else state := Sign;
-				Sign, ExponentSign: begin if s[n] in ['+', '-'] then inc(n); if state = Sign then state := MantissaBeforePoint else state := Exponent; end;
-				MantissaBeforePoint:
+				Sign, ExponentSign: begin if s[n] in ['+', '-'] then inc(n); if state = Sign then state := MantissaBeforePointOrSpecial else state := Exponent; end;
+				MantissaBeforePointOrSpecial:
 					case s[n] of
-						'0' .. '9': inc(n);
+						'0' .. '9', 'N', 'A', 'n', 'a', 'I', 'F', 'i', 'f': inc(n);
 						'.': begin inc(n); state := MantissaAfterPoint; end;
 						else state := E;
 					end;

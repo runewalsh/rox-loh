@@ -5,7 +5,7 @@ interface
 
 uses
 	USystem, Errors, UMath, UClasses, Utils, GLUtils,
-	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win, rox_world;
+	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win, rox_world, rox_gfx;
 
 type
 	pCamera = ^Camera;
@@ -31,18 +31,22 @@ type
 		location: pLocation;
 		dlg: Dialogue;
 		triggerHighlighted: boolean;
+		lastCursorPos: Vec2;
+		fxPhase: float;
 		constructor Init(const id: string; world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
-		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey); virtual;
+		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
 
 	const
 		RunningVelocity = 0.8;
 		WalkingVelocity = 0.3;
 	private
 		function DirectionKeyToDir4(k: KeyboardKey): Dir4;
+		procedure UpdateCursor(const pos: Vec2; force: boolean);
+		procedure UnwieldWeapon;
 	end;
 
 implementation
@@ -107,8 +111,7 @@ uses
 		inherited HandleUpdate(dt);
 		if (controls <> []) and (playerControlMode = PlayerControlEnabled) then
 		begin
-			player^.SwitchToState('walk');
-			player^.rtMethod := NotRotating;
+			if not player^.wieldingWeapon then player^.rtMethod := NotRotating;
 			delta := Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls));
 			player^.MoveBy(0.3 * delta.Normalized, IfThen(shift, RunningVelocity, WalkingVelocity));
 			lastMovementDirection := lastMovementDirection + (delta - lastMovementDirection) * dt;
@@ -129,65 +132,107 @@ uses
 				end;
 		end;
 		camera.Update(dt);
+		fxPhase := modf(fxPhase + dt, PrettyTimeCycle);
 	end;
 
 	procedure Adventure.HandleDraw;
+	var
+		acAsNode: pNode;
+		ac: pActor absolute acAsNode;
+		q: Quad;
+		rc: Location.RaycastResult;
+		dist, angle: float;
 	begin
 		inherited HandleDraw;
 		location^.Draw(camera.viewTransform);
+
+		for acAsNode in location^.actors do
+		begin
+			if ac^.wieldingWeapon then
+			begin
+				dist := 1.5;
+				angle := ac^.angle;
+				if location^.Raycast(ac^.HeartPos, Rotate(Vec2.PositiveX, ac^.angle), rc, ac) then
+					dist := clamp(sqrt(rc[0].sqrDistance) + (Distance(ac^.AimOrigin, rc[0].point) - Distance(ac^.HeartPos, rc[0].point)), 0, dist);
+
+
+				// красная линия прицела
+				q.fields := [q.Field.Transform, q.Field.ColorAB];
+				q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
+				q.colorA := Vec4.Make(1, 0, 0, 0.35 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
+				q.colorB := Vec4.Make(1, 0, 0, 0.1);
+				q.Draw(nil, Vec2.Make(-0.004, 0), Vec2.Make(0.008, dist), Vec2.Zero, Vec2.Ones);
+			end;
+		end;
 	end;
 
 	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
-	var
-		ht: boolean;
 	begin
 		case action of
 			MouseLClick:
 				begin
 					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip; {if Assigned(dlg.active) then dlg.active^.lettertimeout:=0;}
-					if extra.HandleSilent and location^.ActivateTriggerAt(camera.Unproject(pos), player) then extra.Handle;
-
-					if (playerControlMode = PlayerControlEnabled) and extra.Handle then
+					if playerControlMode = PlayerControlEnabled then
 					begin
-						player^.rtMethod := NotRotating;
-						player^.MoveTo(camera.Unproject(pos), WalkingVelocity, nil, nil);
-						lastMovementDirection := (camera.Unproject(pos) - player^.local.trans).Normalized;
+						if player^.wieldingWeapon and extra.Handle then player^.Fire;
+						if extra.HandleSilent and location^.ActivateTriggerAt(camera.Unproject(pos), player) then extra.Handle;
+
+						if extra.Handle then
+						begin
+							player^.rtMethod := NotRotating;
+							player^.MoveTo(camera.Unproject(pos), WalkingVelocity, nil, nil);
+							lastMovementDirection := (camera.Unproject(pos) - player^.local.trans).Normalized;
+						end;
 					end;
 				end;
+			MouseRClick:
+				if (playerControlMode = PlayerControlEnabled) and player^.wieldingWeapon and extra.Handle then UnwieldWeapon;
 			MouseMove:
 				begin
-					ht := location^.ShouldHighlightTrigger(camera.Unproject(pos));
-					if ht and extra.HandleSilent then Window.FromPointer(mgr^.win)^.cursor := Cursor1;
-					if not ht and triggerHighlighted and extra.HandleSilent then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
-					triggerHighlighted := ht;
+					if extra.HandleSilent then UpdateCursor(pos, no);
 
-					if (playerControlMode = PlayerControlEnabled) and (player^.mvMethod = NotMoving) and extra.Handle then
+					if (playerControlMode = PlayerControlEnabled) and ((player^.mvMethod = NotMoving) or player^.wieldingWeapon) and extra.Handle then
 						player^.RotateTo(camera.Unproject(pos));
 				end;
 		end;
 		inherited HandleMouse(action, pos, extra);
 	end;
 
-	procedure Adventure.HandleKeyboard(action: KeyboardAction; key: KeyboardKey);
-	var
-		handled: boolean;
+	procedure Adventure.HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra);
 	begin
-		handled := no;
 		case action of
 			KeyClick:
 				case key of
-					key_Up, key_Down, key_Left, key_Right: controls += [DirectionKeyToDir4(key).value];
-					key_LShift: shift := yes;
-					key_Esc: begin mgr^.Switch(new(pMainMenu, Init)); handled := yes; end;
-					key_Z: if dlg.Valid and not dlg.Finished then dlg.Skip else location^.ActivateTriggerFor(player);
+					key_Up, key_Down, key_Left, key_Right: if extra.Handle then controls += [DirectionKeyToDir4(key).value];
+					key_LShift: if extra.Handle then shift := yes;
+					key_Esc:
+						if extra.Handle then
+						begin
+							mgr^.Switch(new(pMainMenu, Init));
+							exit;
+						end;
+					key_Z:
+						if extra.Handle then
+							if dlg.Valid and not dlg.Finished then
+								dlg.Skip
+							else
+								if playerControlMode = PlayerControlEnabled then
+									location^.ActivateTriggerFor(player);
+					key_1:
+						if playerControlMode = PlayerControlEnabled then
+							if player^.wieldingWeapon then UnwieldWeapon else
+							begin
+								player^.WieldWeapon;
+								UpdateCursor(lastCursorPos, yes);
+							end;
 				end;
 			KeyRelease:
 				case key of
-					key_Up, key_Down, key_Left, key_Right: controls -= [DirectionKeyToDir4(key).value];
-					key_LShift: shift := no;
+					key_Up, key_Down, key_Left, key_Right: if extra.Handle then controls -= [DirectionKeyToDir4(key).value];
+					key_LShift: if extra.Handle then shift := no;
 				end;
 		end;
-		if not handled then inherited HandleKeyboard(action, key);
+		inherited HandleKeyboard(action, key, extra);
 	end;
 
 	function Adventure.DirectionKeyToDir4(k: KeyboardKey): Dir4;
@@ -199,6 +244,22 @@ uses
 			key_Right: result := Dir4.Right;
 			else raise ExhaustiveCase(ord(k), 'DirKey');
 		end;
+	end;
+
+	procedure Adventure.UpdateCursor(const pos: Vec2; force: boolean);
+	var
+		ht: boolean;
+	begin
+		lastCursorPos := pos;
+		ht := location^.ShouldHighlightTrigger(camera.Unproject(pos));
+		if ht then Window.FromPointer(mgr^.win)^.cursor := Cursor1;
+		if not ht and (triggerHighlighted or force) then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
+		triggerHighlighted := ht;
+	end;
+
+	procedure Adventure.UnwieldWeapon;
+	begin
+		player^.UnwieldWeapon;
 	end;
 
 end.

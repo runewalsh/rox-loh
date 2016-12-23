@@ -22,7 +22,7 @@ type
 		nextSym: sint;
 		sum: pUint8;
 		sumSize: UintVec2;
-		letterTimeout: float;
+		nextLetterTimeout, letterTimeout: float;
 		skip, sumDirty: boolean;
 
 		constructor Init(const char, pic, sentence: string);
@@ -43,7 +43,7 @@ type
 		FloodFillThreshold = (High(uint8) * 6) div 7;
 		PicSize = 0.3;
 		NameHeight = 0.1;
-		FirstLetterTimeout = 0.2;
+		FirstLetterTimeoutK = 3;
 		DefaultLetterTimeout = 0.06;
 	end;
 
@@ -52,7 +52,7 @@ type
 	type
 		ItemDesc = object
 			char, pic, sentence: string;
-			size, delay: float;
+			size, delay, letterTimeout: float;
 		end;
 
 		ItemEvent = (ItemStart);
@@ -114,7 +114,9 @@ implementation
 			Zero(sum, sumSize.Product * sizeof(uint8));
 			tex^.Sub(0, 0, sumSize.X, sumSize.Y, GLformat_R, sum);
 		end;
-		letterTimeout := FirstLetterTimeout;
+
+		letterTimeout := DefaultLetterTimeout;
+		nextLetterTimeout := FirstLetterTimeoutK * letterTimeout;
 	end;
 
 	destructor TextBox.Done;
@@ -131,12 +133,12 @@ implementation
 
 	procedure TextBox.Update(const dt: float);
 	begin
-		letterTimeout -= dt * (1 + 9*ord(skip));
-		while (nextSym < length(syms)) and (letterTimeout < 0) do
+		nextLetterTimeout -= dt * (1 + 9*ord(skip));
+		while (nextSym < length(syms)) and (nextLetterTimeout < 0) do
 		begin
-			// if skip then begin skip := no; letterTimeout := DefaultLetterTimeout; end;
+			// if skip then begin skip := no; nextLetterTimeout := letterTimeout; end;
 			Advance(1);
-			letterTimeout += DefaultLetterTimeout;
+			nextLetterTimeout += letterTimeout;
 			if nextSym >= length(syms) then skip := no;
 		end;
 
@@ -383,6 +385,7 @@ type
 		begin
 			if Assigned(onItem) then onItem(nextItem, ItemStart, param);
 			na := new(pTextBox, Init(items[nextItem].char, items[nextItem].pic, items[nextItem].sentence))^.NewRef;
+			if items[nextItem].letterTimeout > 0 then na^.letterTimeout := items[nextItem].letterTimeout;
 			finalTimeout := items[nextItem].delay;
 
 			try
@@ -411,7 +414,7 @@ type
 		begin
 			active^.skip := yes;
 			// увеличение времени паузы на часть пропускаемого времени (саму паузу тоже можно пропустить, отдельно)
-			if not active^.Finished then finalTimeout += 0.5 * TextBox.DefaultLetterTimeout * (length(active^.syms) - active^.nextSym);
+			if not active^.Finished then finalTimeout += 0.5 * active^.letterTimeout * (length(active^.syms) - active^.nextSym);
 		end;
 	end;
 
@@ -433,6 +436,7 @@ type
 				ni.pic := 'indifferent.png';
 				ni.size := 1.0;
 				ni.delay := 2.0;
+				ni.letterTimeout := 0;
 				if t.Maybe('[') then
 				begin
 					while t.MaybeTokenEndingWith(id, [',', ']', '='], cp) do
@@ -441,6 +445,7 @@ type
 							'face': begin t.Expect('='); ni.pic := t.ScanTokenEndingWith([',', ']']); end;
 							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; if t.Maybe('/') then ni.size /= t.ScanFloatToken; end;
 							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
+							'letterTimeout': begin t.Expect('='); ni.letterTimeout := t.ScanFloatToken; end;
 							else t.UnknownIdentifier(cp);
 						end;
 						if not t.Maybe(',') then break;

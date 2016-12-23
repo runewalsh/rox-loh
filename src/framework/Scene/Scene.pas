@@ -328,7 +328,7 @@ type
 		water: pWater;
 	begin
 	trace_call('SceneRoot._CreateRenderList');
-		frustum := Frustum.FromMatrix(cam.ProjectionMatrix * cam.viewTransform.ToMatrix);
+		frustum := Frustum.FromMatrix(cam.Projection * cam.viewTransform.ToMatrix);
 		p.update := (@cam = @camera) and (scenario_Uvis in sc^.flags);
 		p.cam := @cam;
 		p.rl := @rl;

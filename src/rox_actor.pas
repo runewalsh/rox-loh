@@ -33,6 +33,8 @@ type
 		tex: pTexture;
 		texSize: Vec2;
 		states: array of StateDesc;
+		forceState: sint;
+		forceStateTimeout: float;
 
 		state: uint;
 		angle: float;
@@ -48,6 +50,7 @@ type
 		idclip: boolean;
 
 		wieldingWeapon: boolean;
+		aimOrigins: array of Vec2;
 
 		constructor Init(const size: Vec2; const tex: string; const texSize: Vec2);
 		destructor Done; virtual;
@@ -65,8 +68,14 @@ type
 		procedure MoveBy(const delta: Vec2; velocity: float);
 		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
 		function HeartPos: Vec2; virtual;
+		function AimOrigin: Vec2;
 
 		procedure RotateTo(const point: Vec2);
+
+		procedure WieldWeapon;
+		procedure UnwieldWeapon;
+		procedure SetupAimOrigins(const orig: array of Vec2);
+		procedure Fire;
 	private
 		procedure SwitchMove(method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
@@ -81,6 +90,7 @@ implementation
 		self.tex := Texture.Load(tex);
 		self.texSize := texSize;
 		angle := -HalfPi;
+		forceState := -1;
 	end;
 
 	destructor Actor.Done;
@@ -96,20 +106,29 @@ implementation
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
 		realMovementVel := 0;
+		if forceState >= 0 then
+		begin
+			forceStateTimeout -= dt;
+			if forceStateTimeout <= 0 then forceState := -1;
+		end;
 
 		case mvMethod of
 			NotMoving:
-				if MovingState in states[state].flags then SwitchToState('idle');
+				if MovingState in states[state].flags then
+					if wieldingWeapon then SwitchToState('idle-wpn') else SwitchToState('idle');
 			MovingBy:
 				begin
-					if RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
+					if wieldingWeapon or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
 						MoveByStep(mvPointOrDelta, mvVel * dt, @moved);
 					mvMethod := NotMoving;
+
 					// location^.ActivateTriggerAt(HeartPos, @self);
+					// ↑ это активирует триггеры при входе через стрелки (в дверь, например)
+					// иногда удобно, иногда нежелательно, так что лучше настраивать для каждого, а пока убрал
 				end;
 			MovingTo:
 				begin
-					if RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
+					if wieldingWeapon or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
 						if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
 						begin
 							if Assigned(mvCb) then
@@ -123,6 +142,9 @@ implementation
 							end;
 							mvMethod := NotMoving;
 						end;
+
+					// а вот здесь безусловное автосрабатывание уже получше смотрится
+					// (но всё равно для чего-то, что игрок может активировать случайно, лучше настраивать)
 					if mvMethod = NotMoving then location^.ActivateTriggerAt(mvPointOrDelta, @self);
 				end;
 		end;
@@ -151,23 +173,27 @@ implementation
 	end;
 
 	procedure Actor.HandleDraw(const view: Transform2);
-	var
-		q: Quad;
-		an, anStep, frame: float;
+		procedure Draw(const state: StateDesc);
+		var
+			q: Quad;
+			an, anStep, frame: float;
+		begin
+			Assert(AngleNormalized(angle), ToString(angle));
+			an := angle; if an < 0 then an += TwoPi;
+			anStep := floor(state.angles * an * (1/TwoPi) + 0.5); if anStep = state.angles then anStep := 0;
+			Assert((anStep >= 0) and (anStep < state.angles), Format('{0}/{1}', [anStep, state.angles]));
+
+			frame := floor(state.frames * state.phase / max(0.1, state.len) + 0.5); if frame = state.frames then frame := 0;
+			Assert((frame >= 0) and (frame < state.frames), Format('{0}/{1}', [frame, state.frames]));
+
+			q.fields := [q.Field.Transform];
+			q.transform := view * self.local;
+			q.Draw(tex, Vec2.Zero, size, state.base + Vec2.Make(frame * texSize.x, anStep * texSize.y), texSize);
+		end;
+
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
-		Assert(AngleNormalized(angle), ToString(angle));
-
-		an := angle; if an < 0 then an += TwoPi;
-		anStep := floor(states[state].angles * an * (1/TwoPi) + 0.5); if anStep = states[state].angles then anStep := 0;
-		Assert((anStep >= 0) and (anStep < states[state].angles), Format('{0}/{1}', [anStep, states[state].angles]));
-
-		frame := floor(states[state].frames * states[state].phase / max(0.1, states[state].len) + 0.5); if frame = states[state].frames then frame := 0;
-		Assert((frame >= 0) and (frame < states[state].frames), Format('{0}/{1}', [frame, states[state].frames]));
-
-		q.fields := [q.Field.Transform];
-		q.transform := view * self.local;
-		q.Draw(tex, Vec2.Zero, size, states[state].base + Vec2.Make(frame * texSize.x, anStep * texSize.y), texSize);
+		if forceState >= 0 then Draw(states[forceState]) else Draw(states[state]);
 	end;
 
 	function Actor.Collision: Circle;
@@ -255,10 +281,55 @@ implementation
 		result := Vec2.Make(local.trans.x + 0.5 * size.x, local.trans.y + 0.2 * size.y);
 	end;
 
+	function Actor.AimOrigin: Vec2;
+	var
+		an: float;
+		step: sint;
+	begin
+		if length(aimOrigins) = 0 then
+			result := HeartPos
+		else
+		begin
+			an := NormalizeAngle(angle); if an < 0 then an += TwoPi;
+			step := round(an * (1/TwoPi) * length(aimOrigins)); if step = length(aimOrigins) then step := 0;
+			Assert((step >= 0) and (step < length(aimOrigins)), Format('{0}/{1}/{2}', [an, step, length(aimOrigins)]));
+			result := local * (aimOrigins[step] * size);
+		end;
+	end;
+
 	procedure Actor.RotateTo(const point: Vec2);
 	begin
 		rtMethod := RotatingToPoint;
 		rtPoint := point;
+	end;
+
+	procedure Actor.WieldWeapon;
+	begin
+		if wieldingWeapon then exit;
+		wieldingWeapon := yes;
+		SwitchToState(states[state].name + '-wpn');
+	end;
+
+	procedure Actor.UnwieldWeapon;
+	begin
+		if not wieldingWeapon then exit;
+		wieldingWeapon := no;
+		SwitchToState(CutSuffix('-wpn', states[state].name));
+	end;
+
+	procedure Actor.SetupAimOrigins(const orig: array of Vec2);
+	var
+		i: sint;
+	begin
+		SetLength(aimOrigins, length(orig));
+		for i := 0 to High(aimOrigins) do
+			aimOrigins[i] := orig[i];
+	end;
+
+	procedure Actor.Fire;
+	begin
+		forceState := FindState('firing');
+		forceStateTimeout := states[forceState].len;
 	end;
 
 	procedure Actor.SwitchMove(method: MoveTargeter);
@@ -268,7 +339,10 @@ implementation
 			mvCb(MovingCanceled, @self, mvParam);
 			mvCb := nil;
 		end;
-		if not TrySwitchToState('walk') then SwitchToState('idle');
+		if wieldingWeapon then
+			if not TrySwitchToState('walk-wpn') then SwitchToState('idle-wpn') else
+		else
+			if not TrySwitchToState('walk') then SwitchToState('idle') else;
 		mvMethod := method;
 	end;
 

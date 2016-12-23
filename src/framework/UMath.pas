@@ -118,10 +118,10 @@ type
 		function MaybeNormalized: vec;
 		function Normalized(out len: base_type): vec;
 		function Clamped(const lim: base_type): vec;
-		function WithNonOvercomingLength(const len: base_type): vec;
+		function Decreased(const by: base_type): vec;
 
-	{$if veclen = 3} function LineEquation(const a, b: pair2): vec; {$endif}
-	{$if veclen = 4} function Homo3: pair3; {$endif}
+	{$if veclen = 3} function Dehomo: pair2; {$endif}
+	{$if veclen = 4} function Dehomo: pair3; {$endif}
 {$endif}
 
 		function Sum: base_type;
@@ -405,6 +405,26 @@ type
 	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
 
 type
+	pLine2 = ^Line2;
+	Line2 = object
+	type
+		DataUnion = record
+		case uint of
+			0: (coefs: Vec3.LinearData);
+			1: (v: Vec3);
+		end;
+	var
+		data: DataUnion;
+		function FromPoints(const a, b: Vec2): Line2; static;
+		function FromDirection(const origin, direction: Vec2): Line2; static;
+		function Intersect(const a, b: Line2; out point: Vec2): boolean; static;
+
+		property A: float read data.coefs[0] write data.coefs[0];
+		property B: float read data.coefs[1] write data.coefs[1];
+		property C: float read data.coefs[2] write data.coefs[2];
+		property v: Vec3 read data.v write data.v;
+	end;
+
 	pPlane = ^Plane;
 	Plane = object
 	type
@@ -488,7 +508,7 @@ type
 	type
 		EightPoints = array[0 .. 7] of Vec3;
 	var
-		function GetEightPoints: EightPoints;
+		function ToEightPoints: EightPoints;
 		function SizeX: float;
 		function SizeY: float;
 		function SizeZ: float;
@@ -548,6 +568,7 @@ type
 		function Intersects(const second: Rect): boolean;
 		function Intersection(const second: Rect): Rect;
 		function AsVec4: Vec4;
+		function SupportVertex(const d: Vec2): Vec2;
 
 	type
 		// В FPC 3.0 нельзя встраивать внешний тип во внутренний, но такой обходной манёвр работает.
@@ -609,7 +630,7 @@ type
 implementation
 
 uses
-	Utils;
+	Utils {$ifdef selftest}, Tests, TextProcessing {$endif};
 
 const
 	IdentityVectorEps = sqrt(sqrt(CloseToZeroEps)) * sqrt(sqrt(sqrt(CloseToZeroEps)));
@@ -617,28 +638,22 @@ const
 {$define numberf :=
 	function Min(const a, b: typ): typ;
 	begin
-		if a < b then result := a else result := b;
+		if (a <= b) or (b <> b) then result := a else result := b;
 	end;
 
 	function Min(const a, b, c: typ): typ;
 	begin
-		if a < b then
-			if a < c then result := a else result := c
-		else // b <= a
-			if b < c then result := b else result := c;
+		result := Min(Min(a, b), c);
 	end;
 
 	function Max(const a, b: typ): typ;
 	begin
-		if a > b then result := a else result := b;
+		if (a >= b) or (b <> b) then result := a else result := b;
 	end;
 
 	function Max(const a, b, c: typ): typ;
 	begin
-		if a > b then
-			if a > c then result := a else result := c
-		else // b >= a
-			if b > c then result := b else result := c;
+		result := Max(Max(a, b), c);
 	end;
 
 	procedure Swap(var a, b: typ);
@@ -1020,18 +1035,9 @@ end_unchecked
 	var
 		t: base_type;
 	begin
-		t := sqrlen;
-		if NotZero(t) then
-		begin
-			t := sqrt(t);
-			len := t;
-			t := 1/t;
-		end else
-		begin
-			t := 0;
-			len := 0;
-		end;
-		result := self * t;
+		t := sqrt(sqrlen);
+		len := t;
+		result := self * (1/t);
 	end;
 
 	function vec.Clamped(const lim: base_type): vec;
@@ -1039,49 +1045,19 @@ end_unchecked
 		t: base_type;
 	begin
 		t := sqrlen;
-		if t <= sqr(lim) then
-			result := self
-		else
-		begin
-			if NotZero(t) then
-				t := lim / sqrt(t)
-			else
-				t := 0;
-			result := self * t;
-		end;
+		if t <= sqr(lim) then result := self else result := self * (lim / sqrt(t));
 	end;
 
-	function vec.WithNonOvercomingLength(const len: base_type): vec;
+	function vec.Decreased(const by: base_type): vec;
 	var
 		t: base_type;
 	begin
-		t := sqrlen;
-		if t > sqr(len) then result := self else
-			if UMath.IsZero(t) then result := Zero
-				else result := self * sqrt(sqr(len) / t);
+		t := sqrt(sqrlen);
+		if t <= by then result := Zero else result := self * ((t-by)/t);
 	end;
 
-{$if veclen = 3}
-	function vec.LineEquation(const a, b: pair2): vec;
-	var
-		d: pair2;
-		s: float;
-	begin
-		d := b - a;
-		s := d.SqrLength;
-		if UMath.IsZero(s) then result := vec.PositiveZ else
-		begin
-			s := 1 / sqrt(s);
-			result.x := d.y * s;
-			result.y := -d.x * s;
-			result.z := -(result.x * a.x + result.y * a.y);
-		end;
-	end;
-{$endif}
-
-{$if veclen = 4}
-	function vec.Homo3: pair3; begin result := xyz / w; end;
-{$endif veclen = 4}
+{$if veclen = 3} function vec.Dehomo: pair2; begin result := xy / z; end; {$endif veclen = 3}
+{$if veclen = 4} function vec.Dehomo: pair3; begin result := xyz / w; end; {$endif veclen = 4}
 {$endif floating}
 
 	function vec.Sum: base_type; begin result := {$define one := item} reduce_vec; end;
@@ -1206,8 +1182,8 @@ end_unchecked
 		if not aspect.Positive then exit(UintVec2.Zero);
 		rx := size.x * aspect.y;
 		ry := size.y * aspect.x;
-		if rx > ry then result := UintVec2.Make((size.y * aspect.x) div aspect.y, size.y) else
-			if rx < ry then result := UintVec2.Make(size.x, (size.x * aspect.y) div aspect.x) else
+		if rx > ry then result := UintVec2.Make(ry div aspect.y, size.y) else
+			if rx < ry then result := UintVec2.Make(size.x, rx div aspect.x) else
 				result := size;
 	end;
 
@@ -1969,6 +1945,42 @@ end_unchecked
 		result.scale := 1;
 	end;
 
+	function Line2.FromPoints(const a, b: Vec2): Line2;
+	var
+		d: Vec2;
+		s: float;
+	begin
+		d := b - a;
+		s := d.SqrLength;
+		// if UMath.IsZero(s) then result := vec.PositiveZ else
+		begin
+			s := 1 / sqrt(s);
+			result.A := d.y * s;
+			result.B := -d.x * s;
+			result.C := -(result.A * a.x + result.B * a.y);
+		end;
+	end;
+
+	function Line2.FromDirection(const origin, direction: Vec2): Line2;
+	begin
+		result.A := direction.y;
+		result.B := -direction.x;
+		result.C := -(result.A * origin.x + result.B * origin.y);
+	end;
+
+	function Line2.Intersect(const a, b: Line2; out point: Vec2): boolean;
+	var
+		x: Vec3;
+	begin
+		x := a.data.v >< b.data.v;
+		if x.z <> 0 then
+		begin
+			result := yes;
+			point := x.Dehomo;
+		end else
+			result := no;
+	end;
+
 	function Plane.Make(const p1, p2, p3: Vec3): Plane;
 	var
 		n: Vec3;
@@ -2016,6 +2028,7 @@ end_unchecked
 	begin
 		result := point - 2 * normal * (point - Vec3.Make(d));
 	end;
+
 	function Plane.ReflectVector(const vec: Vec3): Vec3;
 	begin
 		result := UMath.Reflect(vec, normal);
@@ -2243,7 +2256,7 @@ end_unchecked
 			for i := 0 to 2 do
 			begin
 				sz := B.data[i] - A.data[i];
-				if NotZero(sz) then
+				if sz <> 0 then
 				begin
 					mid := 0.5 * (A.data[i] + B.data[i]);
 					d := 0.5 * factor * sz;
@@ -2262,9 +2275,7 @@ end_unchecked
 
 	function AABB.Contains(const pt: Vec3): boolean;
 	begin
-		result := GreaterThanEqual(pt.x, A.x) and LessThanEqual(pt.x, B.x) and
-			GreaterThanEqual(pt.y, A.y) and LessThanEqual(pt.y, B.y) and
-			GreaterThanEqual(pt.z, A.z) and LessThanEqual(pt.z, B.z);
+		result := InRange(pt.x, A.x, B.x) and InRange(pt.y, A.y, B.y) and InRange(pt.z, A.z, B.z);
 	end;
 
 	procedure AABB.ClampToSphere(const sph: Sphere);
@@ -2276,7 +2287,7 @@ end_unchecked
 		B := min(B, sph.center + rs);
 	end;
 
-	function AABB.GetEightPoints: EightPoints;
+	function AABB.ToEightPoints: EightPoints;
 	begin
 		result[0] := Vec3.Make(A.x, A.y, A.z);
 		result[1] := Vec3.Make(A.x, A.y, B.z);
@@ -2466,7 +2477,7 @@ end_unchecked
 		B.y := max(B.y, r.B.y);
 	end;
 
-	function Rect.Contains(const pt: Vec2): boolean; begin result := (pt.x >= A.x) and (pt.x <= B.x) and (pt.y >= A.y) and (pt.y <= B.y); end;
+	function Rect.Contains(const pt: Vec2): boolean; begin result := InRange(pt.x, A.x, B.x) and InRange(pt.y, A.y, B.y); end;
 	function Rect.Corporeal: boolean; begin result := (SizeX >= CloseToZeroEps) and (SizeY >= CloseToZeroEps); end;
 
 	function Rect.Intersects(const second: Rect): boolean;
@@ -2483,6 +2494,12 @@ end_unchecked
 	function Rect.AsVec4: Vec4;
 	begin
 		result := Vec4.Make(A, B);
+	end;
+
+	function Rect.SupportVertex(const d: Vec2): Vec2;
+	begin
+		if d.x > 0 then result.x := B.x else result.x := A.x;
+		if d.y > 0 then result.y := B.y else result.y := A.y;
 	end;
 
 	function Rect.Subdivision.GetRect(id: uint): Rect;
@@ -2670,12 +2687,12 @@ end_unchecked
 
 	function SolveLinear(const a, b: hp_float; out x: hp_float): boolean;
 	begin
-		if NotZero(a) then
+		if {NotZero(a)} a <> 0 then
 		begin
 			x := -b / a;
 			result := yes;
 		end else
-			if NotZero(b) then
+			if {NotZero(b)} b <> 0 then
 				result := no
 			else
 			begin
@@ -2688,10 +2705,10 @@ end_unchecked
 	var
 		D, itwoa: hp_float;
 	begin
-		if NotZero(a) then
+		if {NotZero(a)} a <> 0 then
 		begin
 			D := sqr(b) - 4*a*c;
-			if GreaterThan(D, 0.0) then
+			if {GreaterThan(D, 0.0)} D >= 0 then
 			begin
 				D := sqrt(D);
 				itwoa := 1.0 / (2*a);
@@ -2699,12 +2716,12 @@ end_unchecked
 				x2 := (-b - D) * itwoa;
 				result := yes;
 			end else
-				if IsZero(D) then
+				{if IsZero(D) then
 				begin
 					x1 := -b / (2*a);
 					x2 := x1;
 					result := yes;
-				end else
+				end else}
 					result := no;
 		end else
 		begin
@@ -2713,4 +2730,34 @@ end_unchecked
 		end;
 	end;
 
+{$ifdef selftest}
+	function MinMaxCase(const input: string): string;
+	var
+		t: StringTokenizer;
+		useMin: boolean;
+		a, b, r: float;
+	begin
+		t := input;
+		if t.Maybe('Min') then useMin := yes else begin useMin := no; t.Expect('Max'); end;
+		t.Expect('('); a := t.ScanFloatToken; t.Expect(','); b := t.ScanFloatToken; t.Expect(')');
+		t.Done;
+		if useMin then r := min(a, b) else r := max(a, b);
+		result := ToString(r);
+	end;
+
+	procedure Test;
+	begin
+		TestSuite.Start
+		.Feature('Min/Max', @MinMaxCase)
+		.&Case('Min(NaN, 0)', '0').&Case('Max(NaN, 0)', '0')
+		.&Case('Min(NaN, Inf)', '+Inf').&Case('Max(NaN, -Inf)', '-Inf')
+		.&Case('Min(Inf, NaN)', '+Inf').&Case('Max(-Inf, NaN)', '-Inf')
+		.Done;
+	end;
+{$endif}
+
+{$ifdef selftest}
+initialization
+	&Unit('Math').Test(@Test);
+{$endif}
 end.

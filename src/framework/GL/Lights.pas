@@ -820,7 +820,7 @@ uses
 			then
 			begin
 				_csmLazyUpd^[si].lastCamPos := cam^.pos;
-				_csmLazyUpd^[si].lastFrustum := Frustum.FromMatrix(cam^.ProjectionMatrix * cam^.viewTransform.ToMatrix);
+				_csmLazyUpd^[si].lastFrustum := Frustum.FromMatrix(cam^.Projection * cam^.viewTransform.ToMatrix);
 				_csmLazyUpd^[si].lastCamRot := cam^.viewTransform.rot;
 			end;
 			f := _csmLazyUpd^[si].lastFrustum;
@@ -831,7 +831,7 @@ uses
 				f.planes[Far].d := f.planes[Far].d - camZFar + cam^.Split(si);
 
 			fpts := f.GetEightPoints;
-			spts := pScene(Root)^.GetAABB.GetEightPoints;
+			spts := pScene(Root)^.GetAABB.ToEightPoints;
 
 			_sm[si]^.LocalRot := Quaternion.RotationThroughX0Z(Vec3.NegativeZ, -position);
 			it := (globalTransform * Rotate(_sm[si]^.LocalRot)).Inversed;
@@ -1204,7 +1204,7 @@ type
 				begin
 					for j := 0 to GLBase.Config.nCsmSplits-1 do
 					begin
-						UTargS.PVmat[j]^.SetMat4(curLt^._sm[j]^.camera.ProjectionMatrix * curLt^._sm[j]^.camera.viewTransform.ToMatrix, ids[ulight_TargetedS]);
+						UTargS.PVmat[j]^.SetMat4(curLt^._sm[j]^.camera.Projection * curLt^._sm[j]^.camera.viewTransform.ToMatrix, ids[ulight_TargetedS]);
 						UTargS.SM[ids[ulight_TargetedS], j]^.SetTex(curLt^._sm[j]^.colors[0].tex);
 					end;
 				end;

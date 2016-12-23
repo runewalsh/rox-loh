@@ -44,12 +44,12 @@ type
 type
 	Quad = object
 	type
-	scoped_enum_ Field = (Z, TexZ, Color, Transform); _end
+	scoped_enum_ Field = (Z, TexZ, Color, ColorAB, Transform); _end
 	var
 		fields: set of Field;
 		z: float;
 		texZ: float;
-		color: Vec4;
+		color, colorA, colorB: Vec4;
 		transform: Transform2;
 
 		procedure DrawPlain(tex: pTexture; const pos, size, texPos, texSize: Vec2); static;
@@ -315,7 +315,7 @@ var
 
 	procedure Quad.Draw(tex: pTexture; const pos, size, texPos, texSize: Vec2);
 	var
-		data: array[0 .. 3*4 + 3*4] of gl.float;
+		data: array[0 .. 3*4 + 3*4 + 4*4 - 1] of gl.float;
 		vp, n: uint;
 		t, a, b, c, d: Vec2;
 	begin
@@ -345,10 +345,10 @@ var
 			data[3] := b.x;
 			data[4] := b.y;
 			data[5] := z;
-			data[6] := c.x;;
+			data[6] := c.x;
 			data[7] := c.y;
 			data[8] := z;
-			data[9] := d.x;;
+			data[9] := d.x;
 			data[10] := d.y;
 			data[11] := z;
 		end else
@@ -358,9 +358,9 @@ var
 			data[1] := a.y;
 			data[2] := b.x;
 			data[3] := b.y;
-			data[4] := c.x;;
+			data[4] := c.x;
 			data[5] := c.y;
-			data[6] := d.x;;
+			data[6] := d.x;
 			data[7] := d.y;
 		end;
 
@@ -397,7 +397,7 @@ var
 				data[vp+7] := texPos.y + texSize.y;
 			end;
 			gl.L.TexCoordPointer(n, gl.FLOAT_TYPE, 0, gl.pfloat(data) + vp);
-
+			vp += 4*n;
 
 			if tex^.targetEnum <> gl.TEXTURE_2D then
 			begin
@@ -412,9 +412,24 @@ var
 			gl.L.DisableClientState(gl.L.TEXTURE_COORD_ARRAY);
 		end;
 
+		if Field.ColorAB in fields then
+		begin
+			data[vp+0] := colorA.x; data[vp+1] := colorA.y; data[vp+2] := colorA.z; data[vp+3] := colorA.w;
+			data[vp+4] := colorB.x; data[vp+5] := colorB.y; data[vp+6] := colorB.z; data[vp+7] := colorB.w;
+			data[vp+8] := colorA.x; data[vp+9] := colorA.y; data[vp+10] := colorA.z; data[vp+11] := colorA.w;
+			data[vp+12] := colorB.x; data[vp+13] := colorB.y; data[vp+14] := colorB.z; data[vp+15] := colorB.w;
+
+			gl.L.EnableClientState(gl.L.COLOR_ARRAY);
+			gl.L.ColorPointer(4, gl.FLOAT_TYPE, 0, gl.pfloat(data) + vp);
+			vp += 4*4;
+		end;
+
 		if Field.Color in fields then gl.L.Color4f(color.x, color.y, color.z, color.w);
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		if Field.Color in fields then gl.L.Color4f(1, 1, 1, 1);
+
+		if Field.ColorAB in fields then
+			gl.L.DisableClientState(gl.L.COLOR_ARRAY);
 
 		if Assigned(tex) then
 		begin

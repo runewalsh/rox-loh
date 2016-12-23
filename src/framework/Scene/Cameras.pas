@@ -42,7 +42,7 @@ type
 		_owner: pSceneNode;
 
 		_projMode: CameraProjectionMode;
-		_projectionMatrix, _invProjectionMatrix: Matrix4;
+		proj, invProj: Matrix4;
 		_zNear, _zFar, _zFarLimit: float;
 		_fov: float;
 		_orthoRect: Rect;
@@ -102,8 +102,8 @@ type
 		property ClampToScene: boolean read _GetClampToScene write _SetClampToScene;
 		function NSplits: sint;
 		function Split(id: sint): float;
-		function ProjectionMatrix: Matrix4;
-		function InversedProjectionMatrix: Matrix4;
+		function Projection: Matrix4;
+		function InversedProjection: Matrix4;
 		function ViewDirection: Vec3;
 
 		property OrieMode: CameraOrieMode read _mode;
@@ -253,16 +253,16 @@ uses
 		result := _splits[id];
 	end;
 
-	function Camera.ProjectionMatrix: Matrix4;
+	function Camera.Projection: Matrix4;
 	begin
 		_UpdateProjection(no);
-		result := _projectionMatrix;
+		result := proj;
 	end;
 
-	function Camera.InversedProjectionMatrix: Matrix4;
+	function Camera.InversedProjection: Matrix4;
 	begin
 		_UpdateProjection(no);
-		result := _invProjectionMatrix;
+		result := invProj;
 	end;
 
 	function Camera.ViewDirection: Vec3;
@@ -449,13 +449,13 @@ uses
 					if forceAspect <> 0.0 then aspect := forceAspect else
 						if _rt^.size.Y <> 0 then aspect := _rt^.size.Aspect else aspect := 1.0;
 					if _fov < 0 then aspect := -aspect;
-					_projectionMatrix := Matrix4.PerspectiveProjection(_fov, aspect, _zNear, _zFar);
+					proj := Matrix4.PerspectiveProjection(_fov, aspect, _zNear, _zFar);
 				end;
 			proj_Ortho:
-				_projectionMatrix := Matrix4.OrthographicProjection(_orthoRect.A.x, _orthoRect.B.x, _orthoRect.A.y, _orthoRect.B.y, _zFar, _zNear);
+				proj := Matrix4.OrthographicProjection(_orthoRect.A.x, _orthoRect.B.x, _orthoRect.A.y, _orthoRect.B.y, _zFar, _zNear);
 			else Assert(no);
 		end;
-		_invProjectionMatrix := _projectionMatrix.Inversed;
+		invProj := proj.Inversed;
 		if Assigned(_splits) then
 		begin
 			n := NSplits;
@@ -470,7 +470,7 @@ uses
 		Scale: Vec3 = (data: (2, -2, 2));
 		Shift: Vec3 = (data: (-1, +1, -1));
 	begin
-		result := DirectTransform * (InversedProjectionMatrix * Vec4.Make(Scale * v + Shift, 1.0)).Homo3;
+		result := DirectTransform * (InversedProjection * Vec4.Make(Scale * v + Shift, 1.0)).Dehomo;
 	end;
 
 	procedure Camera.AdjustZToAABB(const bb: AABB);
