@@ -67,11 +67,12 @@ type
 
 		procedure MoveBy(const delta: Vec2; velocity: float);
 		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
-		procedure StopMove;
+		procedure StopMoving;
 		function HeartPos: Vec2; virtual;
 		function AimOrigin: Vec2;
 
 		procedure RotateTo(const point: Vec2);
+		procedure StopRotating;
 
 		procedure WieldWeapon;
 		procedure UnwieldWeapon;
@@ -119,7 +120,7 @@ implementation
 					if wieldingWeapon then SwitchToState('idle-wpn') else SwitchToState('idle');
 			MovingBy:
 				begin
-					if wieldingWeapon or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
+					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
 						MoveByStep(mvPointOrDelta, mvVel * dt, @moved);
 					mvMethod := NotMoving;
 
@@ -129,7 +130,7 @@ implementation
 				end;
 			MovingTo:
 				begin
-					if wieldingWeapon or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
+					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
 						if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
 						begin
 							if Assigned(mvCb) then
@@ -166,10 +167,12 @@ implementation
 			else
 				states[state].phase += dt;
 			if states[state].phase >= states[state].len then
-			begin
-				states[state].phase := modf(states[state].phase, states[state].len);
-				SwitchToState(states[state].next);
-			end;
+				if states[state].next <> '' then
+				begin
+					states[state].phase := modf(states[state].phase, states[state].len);
+					SwitchToState(states[state].next);
+				end else
+					states[state].phase := states[state].len;
 		end;
 	end;
 
@@ -184,7 +187,9 @@ implementation
 			anStep := floor(state.angles * an * (1/TwoPi) + 0.5); if anStep = state.angles then anStep := 0;
 			Assert((anStep >= 0) and (anStep < state.angles), Format('{0}/{1}', [anStep, state.angles]));
 
-			frame := floor(state.frames * state.phase / max(0.1, state.len) + 0.5); if frame = state.frames then frame := 0;
+			frame := floor(state.frames * state.phase / max(0.1, state.len) + IfThen(state.next <> '', 0.5, 0));
+			if frame = state.frames then
+				if state.next = '' then frame := state.frames - 1 else frame := 0;
 			Assert((frame >= 0) and (frame < state.frames), Format('{0}/{1}', [frame, state.frames]));
 
 			q.fields := [q.Field.Transform];
@@ -277,7 +282,7 @@ implementation
 		mvParam := param;
 	end;
 
-	procedure Actor.StopMove;
+	procedure Actor.StopMoving;
 	begin
 		if (mvMethod = MovingTo) and Assigned(mvCb) then
 		begin
@@ -289,7 +294,7 @@ implementation
 
 	function Actor.HeartPos: Vec2;
 	begin
-		result := Vec2.Make(local.trans.x + 0.5 * size.x, local.trans.y + 0.2 * size.y);
+		result := local.trans + local.rot * Vec2.Make(0.5, 0.2) * size;
 	end;
 
 	function Actor.AimOrigin: Vec2;
@@ -312,6 +317,11 @@ implementation
 	begin
 		rtMethod := RotatingToPoint;
 		rtPoint := point;
+	end;
+
+	procedure Actor.StopRotating;
+	begin
+		rtMethod := NotRotating;
 	end;
 
 	procedure Actor.WieldWeapon;
@@ -345,7 +355,7 @@ implementation
 
 	procedure Actor.SwitchMove(method: MoveTargeter);
 	begin
-		StopMove;
+		StopMoving;
 		if wieldingWeapon then
 			if not TrySwitchToState('walk-wpn') then SwitchToState('idle-wpn') else
 		else

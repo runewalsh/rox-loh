@@ -194,9 +194,7 @@ implementation
 			'rox [face = scared.png, sizeX = 0, delay = 0.5]: - >>' +
 			'rox [face = scared-refl.png, sizeX = 0, delay = 0.5]: - >>' +
 			'rox [face = scared.png, sizeX = 0.15, delay = 1]: 2.png >>' +
-			'rox [sizeX = 0.4]: 3.png');
-		e^.dlg.onDone := @MonologueFinished;
-		e^.dlg.param := e;
+			'rox [sizeX = 0.4]: 3.png')^.Callbacks(nil, @MonologueFinished, e);
 	end;
 
 	procedure Ep_Entry.HandleUpdate(const dt: float);

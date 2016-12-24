@@ -32,7 +32,7 @@ type
 		dlg: Dialogue;
 		triggerHighlighted: boolean;
 		lastCursorPos: Vec2;
-		fxPhase: float;
+		fxPhase, deathPhase: float;
 		constructor Init(const id: string; world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
@@ -111,7 +111,7 @@ uses
 		inherited HandleUpdate(dt);
 		if (controls <> []) and (playerControlMode = PlayerControlEnabled) then
 		begin
-			if not player^.wieldingWeapon then player^.rtMethod := NotRotating;
+			// if player^.wieldingWeapon then player^.RotateTo(camera.Unproject(lastCursorPos));
 			delta := Vec2.Make(sint(_Right in controls) - sint(_Left in controls), sint(_Up in controls) - sint(_Down in controls));
 			player^.MoveBy(0.3 * delta.Normalized, IfThen(shift, RunningVelocity, WalkingVelocity));
 			lastMovementDirection := lastMovementDirection + (delta - lastMovementDirection) * dt;
@@ -133,6 +133,12 @@ uses
 		end;
 		camera.Update(dt);
 		fxPhase := modf(fxPhase + dt, PrettyTimeCycle);
+
+		if player^.states[player^.state].name = 'death' then
+		begin
+			deathPhase += dt;
+			if deathPhase > 4 then mgr^.Switch(new(pMainMenu, Init));
+		end;
 	end;
 
 	procedure Adventure.HandleDraw;
@@ -144,27 +150,37 @@ uses
 		dist, angle: float;
 	begin
 		inherited HandleDraw;
-		location^.Draw(camera.viewTransform);
-
-		for acAsNode in location^.actors do
+		if deathPhase < 2.25 then
 		begin
-			if ac^.wieldingWeapon then
-			begin
-				dist := 1.5;
-				angle := ac^.angle;
-				if location^.Raycast(ac^.HeartPos, Rotation2(ac^.angle).ToDirection, rc, ac) then
-					dist := clamp(sqrt(rc[0].sqrDistance) + (Distance(ac^.AimOrigin, rc[0].point) - Distance(ac^.HeartPos, rc[0].point)), 0, dist);
+			location^.Draw(camera.viewTransform);
 
-				// красная линия прицела
-				q.fields := [q.Field.Transform, q.Field.ColorAB];
-				q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
-				q.colorA := Vec4.Make(1, 0, 0, 0.2 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
-				q.colorB := Vec4.Make(1, 0, 0, 0.08);
-				q.Draw(nil, Vec2.Make(-0.005, 0), Vec2.Make(0.01, dist), Vec2.Zero, Vec2.Ones);
-				gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
-				q.Draw(nil, Vec2.Make(-0.002, 0), Vec2.Make(0.004, dist), Vec2.Zero, Vec2.Ones);
-				gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+			for acAsNode in location^.actors do
+			begin
+				if ac^.wieldingWeapon then
+				begin
+					dist := 1.5;
+					angle := ac^.angle;
+					if location^.Raycast(ac^.HeartPos, Rotation2(ac^.angle).ToDirection, rc, ac) then
+						dist := clamp(sqrt(rc[0].sqrDistance) + (Distance(ac^.AimOrigin, rc[0].point) - Distance(ac^.HeartPos, rc[0].point)), 0, dist);
+
+					// красная линия прицела
+					q.fields := [q.Field.Transform, q.Field.ColorAB];
+					q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
+					q.colorA := Vec4.Make(1, 0, 0, 0.2 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
+					q.colorB := Vec4.Make(1, 0, 0, 0.08);
+					q.Draw(nil, Vec2.Make(-0.005, 0), Vec2.Make(0.01, dist), Vec2.Zero, Vec2.Ones);
+					gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
+					q.Draw(nil, Vec2.Make(-0.002, 0), Vec2.Make(0.004, dist), Vec2.Zero, Vec2.Ones);
+					gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+				end;
 			end;
+		end;
+
+		if player^.states[player^.state].name = 'death' then
+		begin
+			q.fields := [q.Field.Color];
+			q.color := Vec4.Make(0.75 * smoothstep(3.75, 2.25, deathPhase), 0, 0, smoothstep(1, 2, deathPhase) * smoothstep(3.75, 2.25, deathPhase));
+			q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 		end;
 	end;
 
@@ -173,7 +189,7 @@ uses
 		case action of
 			MouseLClick:
 				begin
-					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip;
+					if dlg.Valid and not dlg.Finished and dlg.Skippable and extra.Handle then dlg.Skip;
 					if playerControlMode = PlayerControlEnabled then
 					begin
 						if player^.wieldingWeapon and extra.Handle then player^.Fire;
@@ -181,7 +197,7 @@ uses
 
 						if extra.Handle then
 						begin
-							player^.rtMethod := NotRotating;
+							// player^.StopRotating;
 							player^.MoveTo(camera.Unproject(pos), WalkingVelocity, nil, nil);
 							lastMovementDirection := (camera.Unproject(pos) - player^.local.trans).Normalized;
 						end;
@@ -215,7 +231,7 @@ uses
 						end;
 					key_Z:
 						if extra.Handle then
-							if dlg.Valid and not dlg.Finished then
+							if dlg.Valid and dlg.Skippable and not dlg.Finished then
 								dlg.Skip
 							else
 								if playerControlMode = PlayerControlEnabled then

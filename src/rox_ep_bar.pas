@@ -14,7 +14,7 @@ type
 		valera, twinkle, kazah, obrub: pActor;
 
 		obrubState: (ObrubStanding, ObrubStandingAndWatching, ObrubWalking, ObrubFiring);
-		obrubMood: (ObrubIndifferent, ObrubAnnoyed, ObrubAngry);
+		obrubMood: (ObrubIndifferent, ObrubAnnoyed, ObrubGettingAngry, ObrubAngry);
 		obrubTimer: pTimer;
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
@@ -71,6 +71,7 @@ uses
 		if reason = Timeout then
 		begin
 			e^.world^.spaceshipArrived := yes;
+			if e^.obrubMood = ObrubGettingAngry then e^.obrubMood := ObrubAngry;
 			e^.playerControlMode := PlayerControlEnabled;
 			e^.player^.idclip := no;
 
@@ -84,6 +85,40 @@ uses
 		if reason = TargetReached then ac^.Detach;
 	end;
 
+	procedure RollKoloboks(t: pTimer; const dt: float; param: pointer);
+		function Roll(var ac: Actor; const vel: float): boolean;
+		var
+			dAn, newDAn: float;
+			h: Vec2;
+		begin
+			if ac.mvMethod = MovingTo then dAn := AngleDiff(ArcTan2(ac.mvPointOrDelta - ac.HeartPos), ac.angle);
+			h := ac.local.trans + ac.local.rot * (0.5 * ac.size);
+			ac.local := Translate(h) * (Rotate(-vel * dt) * (Translate(-h) * ac.local));
+
+			if ac.mvMethod = MovingTo then
+			begin
+				newDAn := AngleDiff(ArcTan2(ac.mvPointOrDelta - ac.HeartPos), ac.angle);
+				if abs(dAn) < abs(newDAn) then ac.angle := NormalizeAngle(ac.angle + AngleDiff(newDAn, dAn));
+			end;
+			result := Assigned(ac.location);
+		end;
+	var
+		e: pEp_Bar absolute param;
+		done: boolean;
+	begin
+		done := yes;
+		done := not Roll(e^.valera^, 6) and done;
+		if done then t^.Stop;
+	end;
+
+	procedure StartRolling(reason: Timer.DoneReason; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		if reason <> Timeout then exit;
+		e^.mgr^.AddTimer(new(pTimer, Init(99, @RollKoloboks, nil, e)), e^.id);
+	end;
+
 	procedure Dialogue_3(param: pointer);
 	// Конец диалога: все убегают, Рокс поворачивается вслед и выдаёт последнюю фразу.
 	var
@@ -91,13 +126,14 @@ uses
 		t: pTimer;
 	begin
 		e^.twinkle^.idclip := yes;
-		e^.twinkle^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.45), @Dialogue_4_QuitScene, nil);
+		e^.twinkle^.MoveTo(e^.door^.HeartPos + Vec2.Make(0.03, 0.03), lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.45), @Dialogue_4_QuitScene, nil);
 
 		e^.kazah^.idclip := yes;
-		e^.kazah^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.47), @Dialogue_4_QuitScene, nil);
+		e^.kazah^.MoveTo(e^.door^.HeartPos + Vec2.Make(-0.04, 0), lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.44), @Dialogue_4_QuitScene, nil);
 
 		e^.valera^.idclip := yes;
-		e^.valera^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.5), @Dialogue_4_QuitScene, nil);
+		e^.valera^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.37), @Dialogue_4_QuitScene, nil);
+		e^.mgr^.AddTimer(new(pTimer, Init(1, nil, @StartRolling, e)), e^.id);
 
 		e^.player^.RotateTo(e^.door^.HeartPos);
 
@@ -151,10 +187,7 @@ uses
 			{5} 'kazah [face = suspicious.png, sizeX = 470/800]: 0.png >>' +
 			{6} 'twinkle [face = x-eyes.png, sizeX = 348/800]: 1.png >>' +
 			{7} 'kazah [sizeX = 108/800]: 1.png >>' +
-			{8} 'valera [sizeX = 200/800]: 2.png');
-		e^.dlg.onItem := @Dialogue_2_Item;
-		e^.dlg.onDone := @Dialogue_3;
-		e^.dlg.param := e;
+			{8} 'valera [sizeX = 200/800]: 2.png')^.Callbacks(@Dialogue_2_Item, @Dialogue_3, e);
 		RotateFour(e^.player, e);
 	end;
 
@@ -178,7 +211,40 @@ uses
 		e^.SetupObrubWandering;
 	end;
 
+	procedure Obrub_Aim(t: pTimer; const dt: float; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		Assert((t = t) and (dt = dt));
+		e^.obrub^.RotateTo(e^.player^.HeartPos);
+	end;
+
+	procedure Obrub_Shot(reason: Timer.DoneReason; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		if reason <> Timeout then exit;
+		e^.obrub^.Fire;
+		e^.player^.StopMoving;
+		e^.playerControlMode := PlayerControlDisabled;
+		e^.player^.SwitchToState('death');
+		// e^.mgr^.AddTimer(new(pTimer, Init(2, @Obrub_Aim, @Obrub_Shot, e)), e^.id);
+		e^.obrub^.UnwieldWeapon;
+		e^.SetupObrubWandering;
+	end;
+
+	procedure Dialogue_Obrub_2(param: pointer);
+	// Обрубенс окончательно разозлился
+	var
+		e: pEp_Bar absolute param;
+	begin
+		e^.obrubState := ObrubFiring;
+		e^.obrub^.WieldWeapon;
+		e^.mgr^.AddTimer(new(pTimer, Init(2, @Obrub_Aim, @Obrub_Shot, e)), e^.id);
+	end;
+
 	procedure Dialogue_Obrub_1(t: pTrigger; activator: pNode; param: pointer);
+	// реплики Обрубенса за стойкой
 	var
 		e: pEp_Bar absolute param;
 	begin
@@ -189,26 +255,22 @@ uses
 		case e^.obrubMood of
 			ObrubIndifferent:
 				begin
-					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 224/800, letterTimeout = 1.1]: 0.png');
-					e^.dlg.onDone := @Dialogue_Obrub_RestartWandering;
-					e^.dlg.param := e;
+					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 224/800, letterTimeout = 0.1]: 0.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
 					e^.obrubMood := ObrubAnnoyed;
 				end;
-			ObrubAnnoyed:
+			ObrubAnnoyed, ObrubGettingAngry:
 				begin
-					e^.dlg.Init(e, 'obrubens [face = annoyed.png, sizeX = 58/800, letterTimeout = 0.3]: 1.png');
+					e^.dlg.Init(e, 'obrubens [face = annoyed.png, sizeX = 58/800, letterTimeout = 0.3]: 1.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
 					if e^.world^.spaceshipArrived then
-					begin
-						e^.obrubMood := ObrubAngry;
-					end else
-					begin
-						e^.dlg.onDone := @Dialogue_Obrub_RestartWandering;
-						e^.dlg.param := e;
-					end;
+						e^.obrubMood := ObrubAngry
+					else
+						e^.obrubMood := ObrubGettingAngry;
 				end;
 			ObrubAngry:
 				begin
-
+					t^.Detach;
+					e^.dlg.Init(e, 'obrubens [face = mad.png, sizeX = 100/800, letterTimeout = 0.2, delay = 1]: 2.png')^.Callbacks(nil, @Dialogue_Obrub_2, e);
+					e^.dlg.skippable := no;
 				end;
 		end;
 	end;
@@ -293,7 +355,7 @@ uses
 
 		state := Setup;
 		obrubState := ObrubStandingAndWatching;
-		obrubMood := ObrubIndifferent;
+		obrubMood := ObrubAngry;
 	end;
 
 	destructor Ep_Bar.Done;
@@ -347,7 +409,7 @@ uses
 					else
 						target := Vec2.Make(GlobalRNG.GetFloat(0.66, 0.7), GlobalRNG.GetFloat(0.64, 0.69));
 					e^.obrubState := ObrubWalking;
-					e^.obrub^.rtMethod := NotRotating;
+					e^.obrub^.StopRotating;
 					e^.obrub^.MoveTo(target, e^.WalkingVelocity, @ObrubMoved, e);
 				end;
 			ObrubWalking: ;
@@ -370,8 +432,10 @@ uses
 
 	procedure Ep_Bar.SetupObrubWandering;
 	begin
-		Assert(obrubMood in [ObrubIndifferent, ObrubAnnoyed]);
-		if GlobalRNG.XInY(5, 6) then obrubState := ObrubStandingAndWatching else obrubState := ObrubStanding;
+		if abs(AngleDiff(obrub^.angle, ArcTan2(player^.HeartPos - obrub^.HeartPos))) < HalfPi then
+			obrubState := ObrubStandingAndWatching
+		else
+			obrubState := ObrubStanding;
 		StopObrubWandering;
 		obrubTimer := new(pTimer, Init(GlobalRNG.GetFloat(5.0, 10.0), @ObrubTimerProcess, @ObrubTimerShot, @self))^.NewRef;
 		mgr^.AddTimer(obrubTimer, id);
@@ -379,7 +443,7 @@ uses
 
 	procedure Ep_Bar.StopObrubWandering;
 	begin
-		obrub^.StopMove;
+		obrub^.StopMoving;
 		if Assigned(obrubTimer) then obrubTimer^.Stop;
 		Release(obrubTimer);
 	end;

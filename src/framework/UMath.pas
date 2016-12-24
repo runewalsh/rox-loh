@@ -417,7 +417,7 @@ type
 
 	function Translate(const trans: Vec2): Transform2;
 	function Translate(const x, y: float): Transform2;
-	function Rotate(const rot: float): Transform2;
+	function Rotate(const rot: Rotation2): Transform2;
 	function Scale2(const scale: float): Transform2;
 	function TranslateRotate(const trans: Vec2; const rot: float): Transform2;
 	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
@@ -1980,7 +1980,7 @@ end_unchecked
 
 	function Translate(const x, y: float): Transform2; begin result := Translate(Vec2.Make(x, y)); end;
 
-	function Rotate(const rot: float): Transform2;
+	function Rotate(const rot: Rotation2): Transform2;
 	begin
 		result.trans := Vec2.Zero;
 		result.rot := rot;

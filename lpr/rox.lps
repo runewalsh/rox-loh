@@ -4,19 +4,19 @@
     <PathDelim Value="\"/>
     <Version Value="9"/>
     <BuildModes Active="Debug"/>
-    <Units Count="47">
+    <Units Count="49">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
-        <TopLine Value="113"/>
-        <CursorPos X="72" Y="125"/>
+        <TopLine Value="80"/>
+        <CursorPos X="38" Y="92"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit0>
       <Unit1>
         <Filename Value="..\src\rox_win.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="14"/>
+        <EditorIndex Value="15"/>
         <TopLine Value="284"/>
         <CursorPos Y="284"/>
         <UsageCount Value="200"/>
@@ -25,9 +25,9 @@
       <Unit2>
         <Filename Value="..\src\rox_gfx.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="9"/>
-        <TopLine Value="224"/>
-        <CursorPos Y="241"/>
+        <EditorIndex Value="10"/>
+        <TopLine Value="22"/>
+        <CursorPos X="42" Y="22"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit2>
@@ -56,7 +56,7 @@
       <Unit6>
         <Filename Value="..\src\rox_state.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="12"/>
+        <EditorIndex Value="13"/>
         <TopLine Value="200"/>
         <CursorPos X="53" Y="217"/>
         <UsageCount Value="200"/>
@@ -65,17 +65,19 @@
       <Unit7>
         <Filename Value="..\src\rox_state_adventure.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="-1"/>
-        <TopLine Value="182"/>
-        <CursorPos X="17" Y="198"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="9"/>
+        <TopLine Value="122"/>
+        <CursorPos X="27" Y="140"/>
         <UsageCount Value="226"/>
+        <Loaded Value="True"/>
       </Unit7>
       <Unit8>
         <Filename Value="..\src\rox_actor.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="8"/>
-        <TopLine Value="53"/>
-        <CursorPos X="25" Y="70"/>
+        <TopLine Value="162"/>
+        <CursorPos X="71" Y="174"/>
         <UsageCount Value="225"/>
         <Loaded Value="True"/>
       </Unit8>
@@ -98,8 +100,8 @@
         <Filename Value="..\src\rox_dialogue.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="3"/>
-        <TopLine Value="34"/>
-        <CursorPos X="20" Y="58"/>
+        <TopLine Value="428"/>
+        <CursorPos X="21" Y="456"/>
         <UsageCount Value="201"/>
         <Loaded Value="True"/>
       </Unit11>
@@ -122,15 +124,15 @@
         <Filename Value="..\src\rox_ep_entry.pas"/>
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="4"/>
-        <TopLine Value="120"/>
-        <CursorPos X="32" Y="131"/>
+        <TopLine Value="34"/>
+        <CursorPos Y="36"/>
         <UsageCount Value="200"/>
         <Loaded Value="True"/>
       </Unit14>
       <Unit15>
         <Filename Value="..\src\rox_timer.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="11"/>
+        <EditorIndex Value="12"/>
         <TopLine Value="61"/>
         <CursorPos X="29" Y="70"/>
         <UsageCount Value="200"/>
@@ -139,19 +141,21 @@
       <Unit16>
         <Filename Value="..\src\rox_ep_bar.pas"/>
         <IsPartOfProject Value="True"/>
-        <IsVisibleTab Value="True"/>
         <EditorIndex Value="1"/>
-        <TopLine Value="177"/>
-        <CursorPos X="33" Y="194"/>
+        <TopLine Value="243"/>
+        <CursorPos X="105" Y="272"/>
         <UsageCount Value="201"/>
+        <Bookmarks Count="1">
+          <Item0 X="16" Y="101" ID="9"/>
+        </Bookmarks>
         <Loaded Value="True"/>
       </Unit16>
       <Unit17>
         <Filename Value="..\src\rox_world.pas"/>
         <IsPartOfProject Value="True"/>
-        <EditorIndex Value="13"/>
+        <EditorIndex Value="14"/>
         <TopLine Value="2"/>
-        <CursorPos X="127" Y="32"/>
+        <CursorPos X="61" Y="17"/>
         <UsageCount Value="202"/>
         <Loaded Value="True"/>
       </Unit17>
@@ -160,61 +164,61 @@
         <IsPartOfProject Value="True"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="23" Y="12"/>
-        <UsageCount Value="122"/>
+        <UsageCount Value="129"/>
       </Unit18>
       <Unit19>
         <Filename Value="..\src\rox_trigger.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="16"/>
         <CursorPos X="4" Y="47"/>
-        <UsageCount Value="20"/>
+        <UsageCount Value="19"/>
       </Unit19>
       <Unit20>
         <Filename Value="..\src\rox_node.pas"/>
         <EditorIndex Value="-1"/>
         <CursorPos Y="7"/>
-        <UsageCount Value="6"/>
+        <UsageCount Value="5"/>
       </Unit20>
       <Unit21>
         <Filename Value="..\src\framework\USystem.pas"/>
         <EditorIndex Value="5"/>
         <TopLine Value="2221"/>
         <CursorPos Y="2238"/>
-        <UsageCount Value="23"/>
+        <UsageCount Value="26"/>
         <Loaded Value="True"/>
       </Unit21>
       <Unit22>
         <Filename Value="..\src\framework\MMSystem.pas"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit22>
       <Unit23>
         <Filename Value="..\src\framework\UMath.pas"/>
-        <EditorIndex Value="10"/>
-        <TopLine Value="755"/>
-        <CursorPos X="40" Y="778"/>
-        <UsageCount Value="61"/>
+        <EditorIndex Value="11"/>
+        <TopLine Value="392"/>
+        <CursorPos Y="420"/>
+        <UsageCount Value="64"/>
         <Loaded Value="True"/>
       </Unit23>
       <Unit24>
         <Filename Value="..\src\framework\inc\all_numbers.inc"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="48" Y="15"/>
-        <UsageCount Value="6"/>
+        <UsageCount Value="5"/>
       </Unit24>
       <Unit25>
         <Filename Value="..\src\framework\Platform\Windowing.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2050"/>
         <CursorPos X="43" Y="2069"/>
-        <UsageCount Value="75"/>
+        <UsageCount Value="74"/>
       </Unit25>
       <Unit26>
         <Filename Value="..\src\rox_state_mainmenu.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="318"/>
         <CursorPos X="27" Y="339"/>
-        <UsageCount Value="26"/>
+        <UsageCount Value="25"/>
         <Bookmarks Count="1">
           <Item0 X="35" Y="115" ID="9"/>
         </Bookmarks>
@@ -224,258 +228,272 @@
         <EditorIndex Value="-1"/>
         <TopLine Value="754"/>
         <CursorPos X="37" Y="771"/>
-        <UsageCount Value="71"/>
+        <UsageCount Value="70"/>
       </Unit27>
       <Unit28>
         <Filename Value="..\src\framework\Scene\Character.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="454"/>
         <CursorPos X="28" Y="471"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit28>
       <Unit29>
         <Filename Value="..\src\framework\Formats\SectionedFiles.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="33"/>
         <CursorPos X="83" Y="45"/>
-        <UsageCount Value="4"/>
+        <UsageCount Value="3"/>
       </Unit29>
       <Unit30>
         <Filename Value="..\src\framework\GL\GUI.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="3984"/>
         <CursorPos X="48" Y="4001"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit30>
       <Unit31>
         <Filename Value="..\src\framework\GL\GLClasses.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="9"/>
         <CursorPos X="18" Y="26"/>
-        <UsageCount Value="4"/>
+        <UsageCount Value="3"/>
       </Unit31>
       <Unit32>
         <Filename Value="..\src\framework\GL\GLBase.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="2966"/>
         <CursorPos X="66" Y="2978"/>
-        <UsageCount Value="4"/>
+        <UsageCount Value="3"/>
       </Unit32>
       <Unit33>
         <Filename Value="..\src\framework\Formats\PNG.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="263"/>
         <CursorPos X="69" Y="294"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit33>
       <Unit34>
         <Filename Value="..\src\framework\GL\OpenGL_Headers.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="937"/>
         <CursorPos X="26" Y="954"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit34>
       <Unit35>
         <Filename Value="..\src\framework\GL\U_GL.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="685"/>
         <CursorPos Y="685"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit35>
       <Unit36>
         <Filename Value="..\src\framework\Formats\Diffed3DTexture.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="38"/>
         <CursorPos X="89" Y="66"/>
-        <UsageCount Value="3"/>
+        <UsageCount Value="2"/>
       </Unit36>
       <Unit37>
         <Filename Value="..\src\framework\Utils.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="140"/>
         <CursorPos X="17" Y="168"/>
-        <UsageCount Value="4"/>
+        <UsageCount Value="3"/>
       </Unit37>
       <Unit38>
         <Filename Value="..\src\framework\Scene\Cameras.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="463"/>
         <CursorPos X="54" Y="473"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit38>
       <Unit39>
         <Filename Value="..\src\framework\Scene\Scene.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="314"/>
         <CursorPos X="51" Y="331"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit39>
       <Unit40>
         <Filename Value="..\src\framework\Script.pas"/>
         <EditorIndex Value="-1"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit40>
       <Unit41>
         <Filename Value="..\src\framework\GL\RenderLists.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="789"/>
         <CursorPos X="38" Y="807"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit41>
       <Unit42>
         <Filename Value="..\src\framework\GL\Lights.pas"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="817"/>
         <CursorPos X="42" Y="834"/>
-        <UsageCount Value="5"/>
+        <UsageCount Value="4"/>
       </Unit42>
       <Unit43>
         <Filename Value="..\src\framework\inc\sort.inc"/>
         <EditorIndex Value="-1"/>
         <TopLine Value="215"/>
         <CursorPos X="59" Y="248"/>
-        <UsageCount Value="7"/>
+        <UsageCount Value="6"/>
       </Unit43>
       <Unit44>
         <Filename Value="..\src\framework\inc\opts.inc"/>
         <EditorIndex Value="-1"/>
         <CursorPos X="50" Y="29"/>
-        <UsageCount Value="8"/>
+        <UsageCount Value="7"/>
       </Unit44>
       <Unit45>
         <Filename Value="..\src\framework\Random.pas"/>
         <EditorIndex Value="6"/>
         <TopLine Value="34"/>
         <CursorPos Y="34"/>
-        <UsageCount Value="12"/>
+        <UsageCount Value="15"/>
         <Loaded Value="True"/>
       </Unit45>
       <Unit46>
         <Filename Value="..\src\framework\TextProcessing.pas"/>
         <EditorIndex Value="2"/>
-        <UsageCount Value="10"/>
+        <UsageCount Value="13"/>
         <Loaded Value="True"/>
       </Unit46>
+      <Unit47>
+        <Filename Value="C:\dev\lazarus1.6.2-fpc3.0.0\fpc\3.0.0\source\packages\ptc\examples\random.pp"/>
+        <UnitName Value="RandomExample"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="53"/>
+        <CursorPos Y="67"/>
+        <UsageCount Value="10"/>
+      </Unit47>
+      <Unit48>
+        <Filename Value="C:\dev\lazarus1.6.2-fpc3.0.0\fpc\3.0.0\source\packages\ptc\src\core\consoled.inc"/>
+        <EditorIndex Value="-1"/>
+        <TopLine Value="4"/>
+        <CursorPos Y="37"/>
+        <UsageCount Value="10"/>
+      </Unit48>
     </Units>
     <JumpHistory Count="30" HistoryIndex="29">
       <Position1>
         <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="292" Column="40" TopLine="264"/>
+        <Caret Line="356" Column="10" TopLine="328"/>
       </Position1>
       <Position2>
         <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="335" Column="25" TopLine="307"/>
+        <Caret Line="380" Column="21" TopLine="352"/>
       </Position2>
       <Position3>
         <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="313" Column="23" TopLine="302"/>
+        <Caret Line="392" Column="21" TopLine="364"/>
       </Position3>
       <Position4>
         <Filename Value="..\src\rox_ep_bar.pas"/>
+        <Caret Line="403" Column="21" TopLine="375"/>
       </Position4>
       <Position5>
         <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="18" Column="10"/>
+        <Caret Line="217" Column="47" TopLine="207"/>
       </Position5>
       <Position6>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="180" Column="23" TopLine="153"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="386" Column="42" TopLine="369"/>
       </Position6>
       <Position7>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="344" Column="21" TopLine="316"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
       </Position7>
       <Position8>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="349" Column="28" TopLine="322"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="66" Column="7" TopLine="38"/>
       </Position8>
       <Position9>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="2"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="385" Column="17" TopLine="357"/>
       </Position9>
       <Position10>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="18" Column="13"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="386" Column="21" TopLine="358"/>
       </Position10>
       <Position11>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="270" Column="21" TopLine="242"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="399" Column="16" TopLine="371"/>
       </Position11>
       <Position12>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="279" Column="22" TopLine="251"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="435" Column="45" TopLine="407"/>
       </Position12>
       <Position13>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="280" Column="22" TopLine="252"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="66" Column="15" TopLine="49"/>
       </Position13>
       <Position14>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="295" Column="22" TopLine="267"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="385" Column="17" TopLine="357"/>
       </Position14>
       <Position15>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="305" Column="22" TopLine="277"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="386" Column="21" TopLine="358"/>
       </Position15>
       <Position16>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="345" Column="96" TopLine="317"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="399" Column="16" TopLine="378"/>
       </Position16>
       <Position17>
         <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="346" Column="27" TopLine="318"/>
+        <Caret Line="264" Column="79" TopLine="243"/>
       </Position17>
       <Position18>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="352" Column="42" TopLine="324"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="430" Column="30" TopLine="430"/>
       </Position18>
       <Position19>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="353" Column="21" TopLine="325"/>
+        <Filename Value="..\src\rox_dialogue.pas"/>
+        <Caret Line="34" TopLine="34"/>
       </Position19>
       <Position20>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="19" Column="72"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="184" Column="31" TopLine="156"/>
       </Position20>
       <Position21>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="182" Column="23" TopLine="162"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
       </Position21>
       <Position22>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="191" Column="91" TopLine="166"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="104" Column="25" TopLine="76"/>
       </Position22>
       <Position23>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="179" TopLine="175"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="35" Column="9" TopLine="14"/>
       </Position23>
       <Position24>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="174" Column="32" TopLine="156"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="135" Column="26" TopLine="107"/>
       </Position24>
       <Position25>
-        <Filename Value="..\src\rox_dialogue.pas"/>
-        <Caret Line="449" Column="19" TopLine="432"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="161" Column="80" TopLine="133"/>
       </Position25>
       <Position26>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="178" Column="6" TopLine="172"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="38" Column="14" TopLine="13"/>
       </Position26>
       <Position27>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="204" Column="21" TopLine="174"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="179" Column="23" TopLine="147"/>
       </Position27>
       <Position28>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="195" Column="35" TopLine="181"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="140" Column="38" TopLine="123"/>
       </Position28>
       <Position29>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="206" Column="25" TopLine="177"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="183" Column="57" TopLine="153"/>
       </Position29>
       <Position30>
-        <Filename Value="..\src\rox_ep_bar.pas"/>
-        <Caret Line="385" Column="19" TopLine="370"/>
+        <Filename Value="..\src\rox_state_adventure.pas"/>
+        <Caret Line="153" Column="63" TopLine="136"/>
       </Position30>
     </JumpHistory>
   </ProjectSession>

@@ -67,12 +67,13 @@ type
 		onItem: ItemCallback;
 		onDone: DoneCallback;
 		param: pointer;
-		itemEndCalled: boolean; // вызвана ли onItem(ItemEnd) для отображаемой сейчас реплики
+		skippable: boolean;
 
 		procedure Invalidate;
 		function Valid: boolean;
-		procedure Init(state: pState; const scenario: string);
+		function Init(state: pState; const scenario: string): pDialogue;
 		procedure Done;
+		procedure Callbacks(onItem: ItemCallback; onDone: DoneCallback; param: pointer);
 		procedure Update(const dt: float);
 		function Finished: boolean;
 		procedure Skip;
@@ -346,7 +347,7 @@ type
 		result := nextItem >= 0;
 	end;
 
-	procedure Dialogue.Init(state: pState; const scenario: string);
+	function Dialogue.Init(state: pState; const scenario: string): pDialogue;
 	begin
 		Invalidate;
 		self.state := state;
@@ -355,6 +356,8 @@ type
 		onItem := nil;
 		onDone := nil;
 		Parse(scenario);
+		result := @self;
+		skippable := yes;
 	end;
 
 	procedure Dialogue.Done;
@@ -363,9 +366,17 @@ type
 		Invalidate;
 	end;
 
+	procedure Dialogue.Callbacks(onItem: ItemCallback; onDone: DoneCallback; param: pointer);
+	begin
+		self.onItem := onItem;
+		self.onDone := onDone;
+		self.param := param;
+	end;
+
 	procedure Dialogue.Update(const dt: float);
 	var
 		na: pTextBox;
+		t: DoneCallback;
 	begin
 		if Assigned(active) then
 		begin
@@ -376,7 +387,6 @@ type
 				begin
 					active^.Detach;
 					Release(active);
-					if Finished and Assigned(onDone) then onDone(param);
 				end;
 			end;
 		end;
@@ -401,6 +411,13 @@ type
 				raise;
 			end;
 		end;
+
+		if Finished and Assigned(onDone) then
+		begin
+			t := onDone;
+			onDone := nil;
+			t(param);
+		end;
 	end;
 
 	function Dialogue.Finished: boolean;
@@ -410,6 +427,7 @@ type
 
 	procedure Dialogue.Skip;
 	begin
+		if not skippable then exit;
 		if Assigned(active) and not active^.skip then
 		begin
 			active^.skip := yes;
