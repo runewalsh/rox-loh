@@ -78,7 +78,7 @@ uses
 
 	function Camera.Unproject(const visiblePos: Vec2): Vec2;
 	begin
-		result := viewTransform.Inversed * visiblePos;
+		result := -viewTransform * visiblePos;
 	end;
 
 	constructor Adventure.Init(const id: string; world: pWorld);
@@ -152,16 +152,18 @@ uses
 			begin
 				dist := 1.5;
 				angle := ac^.angle;
-				if location^.Raycast(ac^.HeartPos, Rotate(Vec2.PositiveX, ac^.angle), rc, ac) then
+				if location^.Raycast(ac^.HeartPos, Rotation2(ac^.angle).ToDirection, rc, ac) then
 					dist := clamp(sqrt(rc[0].sqrDistance) + (Distance(ac^.AimOrigin, rc[0].point) - Distance(ac^.HeartPos, rc[0].point)), 0, dist);
-
 
 				// красная линия прицела
 				q.fields := [q.Field.Transform, q.Field.ColorAB];
 				q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
-				q.colorA := Vec4.Make(1, 0, 0, 0.35 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
-				q.colorB := Vec4.Make(1, 0, 0, 0.1);
-				q.Draw(nil, Vec2.Make(-0.004, 0), Vec2.Make(0.008, dist), Vec2.Zero, Vec2.Ones);
+				q.colorA := Vec4.Make(1, 0, 0, 0.2 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
+				q.colorB := Vec4.Make(1, 0, 0, 0.08);
+				q.Draw(nil, Vec2.Make(-0.005, 0), Vec2.Make(0.01, dist), Vec2.Zero, Vec2.Ones);
+				gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
+				q.Draw(nil, Vec2.Make(-0.002, 0), Vec2.Make(0.004, dist), Vec2.Zero, Vec2.Ones);
+				gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 			end;
 		end;
 	end;
@@ -171,7 +173,7 @@ uses
 		case action of
 			MouseLClick:
 				begin
-					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip; {if Assigned(dlg.active) then dlg.active^.lettertimeout:=0;}
+					if dlg.Valid and not dlg.Finished and extra.Handle then dlg.Skip;
 					if playerControlMode = PlayerControlEnabled then
 					begin
 						if player^.wieldingWeapon and extra.Handle then player^.Fire;

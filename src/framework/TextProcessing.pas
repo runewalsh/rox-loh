@@ -201,8 +201,11 @@ uses
 	end;
 
 	function StringTokenizer.UnknownIdentifier(const cp: Guard): Exception;
+	var
+		n: size_t;
 	begin
-		result := Error(Highlight(0, Revert(cp)) + ': неизвестный идентификатор.');
+		n := Revert(cp);
+		result := Error(Highlight(0, n) + ': неизвестный идентификатор ' + Tail(n) + '.');
 	end;
 
 	function StringTokenizer.Checkpoint: Guard;

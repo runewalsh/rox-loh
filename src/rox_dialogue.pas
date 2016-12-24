@@ -446,7 +446,7 @@ type
 							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; if t.Maybe('/') then ni.size /= t.ScanFloatToken; end;
 							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
 							'letterTimeout': begin t.Expect('='); ni.letterTimeout := t.ScanFloatToken; end;
-							else t.UnknownIdentifier(cp);
+							else raise t.UnknownIdentifier(cp);
 						end;
 						if not t.Maybe(',') then break;
 					end;

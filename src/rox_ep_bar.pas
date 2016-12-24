@@ -4,21 +4,25 @@ unit rox_ep_bar;
 interface
 
 uses
-	USystem, UMath, Utils,
+	USystem, UMath, Utils, Random,
 	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world, rox_dialogue, rox_timer;
 
 type
 	pEp_Bar = ^Ep_Bar;
 	Ep_Bar = object(Adventure)
 		door: pDecoration;
-		doorTrig: pTrigger;
-		dlgTrig: pTrigger;
-		valera, twinkle, kazah: pActor;
+		valera, twinkle, kazah, obrub: pActor;
+
+		obrubState: (ObrubStanding, ObrubStandingAndWatching, ObrubWalking, ObrubFiring);
+		obrubMood: (ObrubIndifferent, ObrubAnnoyed, ObrubAngry);
+		obrubTimer: pTimer;
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 	private
-		state: (Idle, MovingOutsideRequested);
+		state: (Setup, Idle, MovingOutsideRequested);
+		procedure SetupObrubWandering;
+		procedure StopObrubWandering;
 	const
 		StateID = 'ep_bar';
 	end;
@@ -37,7 +41,7 @@ uses
 	begin
 		Assert(@param = @param);
 		result := (n = pNode(e^.player)) and (n^.local.trans.y > t^.local.trans.y) and
-			(abs(Angle(t^.local.trans + Vec2.Make(0.5 * t^.size.x, 0) - pos, Rotate(Vec2.PositiveX, pActor(n)^.angle))) < Pi/5);
+			(abs(Angle(t^.local.trans + Vec2.Make(0.5 * t^.size.x, 0) - pos, Rotation2(pActor(n)^.angle).ToDirection)) < Pi/5);
 	end;
 
 	procedure DoorTrigger(n: pNode; reason: Trigger.Reason; param: pointer);
@@ -57,7 +61,7 @@ uses
 	begin
 		Assert(t = t);
 		if activator <> pNode(e^.player) then exit;
-		if e^.doorTrig^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
+		if t^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
 	end;
 
 	procedure Dialogue_4(reason: Timer.DoneReason; param: pointer);
@@ -160,17 +164,59 @@ uses
 	var
 		e: pEp_Bar absolute param;
 	begin
-		Assert(t = t);
 		if activator <> pNode(e^.player) then exit;
-		e^.dlgTrig^.Detach; Release(e^.dlgTrig);
+		t^.Detach;
 		e^.playerControlMode := PlayerControlDisabled;
 		e^.player^.idclip := yes;
-		e^.player^.MoveTo(Vec2.Make(-0.85, 0.3), Ep_Bar.WalkingVelocity, @Dialogue_2, e);
+		e^.player^.MoveTo(Vec2.Make(-0.85, 0.34), Ep_Bar.WalkingVelocity, @Dialogue_2, e);
+	end;
+
+	procedure Dialogue_Obrub_RestartWandering(param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		e^.SetupObrubWandering;
+	end;
+
+	procedure Dialogue_Obrub_1(t: pTrigger; activator: pNode; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		if (activator <> pNode(e^.player)) or e^.dlg.Valid then exit;
+		e^.StopObrubWandering;
+		e^.obrub^.RotateTo(e^.player^.HeartPos);
+
+		case e^.obrubMood of
+			ObrubIndifferent:
+				begin
+					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 224/800, letterTimeout = 1.1]: 0.png');
+					e^.dlg.onDone := @Dialogue_Obrub_RestartWandering;
+					e^.dlg.param := e;
+					e^.obrubMood := ObrubAnnoyed;
+				end;
+			ObrubAnnoyed:
+				begin
+					e^.dlg.Init(e, 'obrubens [face = annoyed.png, sizeX = 58/800, letterTimeout = 0.3]: 1.png');
+					if e^.world^.spaceshipArrived then
+					begin
+						e^.obrubMood := ObrubAngry;
+					end else
+					begin
+						e^.dlg.onDone := @Dialogue_Obrub_RestartWandering;
+						e^.dlg.param := e;
+					end;
+				end;
+			ObrubAngry:
+				begin
+
+				end;
+		end;
 	end;
 
 	constructor Ep_Bar.Init(world: pWorld);
 	var
 		d: pDecoration;
+		t: pTrigger;
 	begin
 		inherited Init(StateID, world);
 		if not Assigned(world) then player^.angle := HalfPi;
@@ -186,18 +232,28 @@ uses
 		door^.texRect := Rect.Make(0, 0, 0.5, 1);
 		location^.Add(door);
 
-		doorTrig := new(pTrigger, Init(door^.local, door^.size))^.NewRef;
-		doorTrig^.onTest := @DoorTest;
-		doorTrig^.onTrigger := @DoorTrigger;
-		doorTrig^.onActivate := @DoorActivate;
-		doorTrig^.param := @self;
-		self.location^.Add(doorTrig);
+		t := new(pTrigger, Init(door^.local, door^.size))^.WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self);
+		self.location^.Add(t);
 
 		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, 0.3*0.75)));
 		location^.AddWall(d, Vec2.Make(0.02, 0), Vec2.Make(0.02, 0), [NotObstacleForBullets]);
 
 		d := new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, 0.58*(1/3))));
 		location^.Add(d);
+
+		obrub := new(pActor, Init(Vec2.Make(0.14, 0.28), Character('obrubens', 'model.png'), Vec2.Make(1/9, 1/8)))^.NewRef;
+		obrub^.AddState('idle', Vec2.Make(0, 0), 4, 8, 0.0, 'idle', []);
+		obrub^.AddState('walk', Vec2.Make(0, 0), 4, 8, 0.6, 'walk', [MovingState]);
+		obrub^.AddState('idle-wpn', Vec2.Make(4/9, 0), 4, 8, 0.0, 'idle-wpn', []);
+		obrub^.AddState('walk-wpn', Vec2.Make(4/9, 0), 4, 8, 0.6, 'walk-wpn', [MovingState]);
+		obrub^.AddState('firing', Vec2.Make(8/9, 0), 1, 8, 0.2, 'idle-wpn', [MovingState]);
+		obrub^.SetupAimOrigins([
+			Vec2.Make(49/50, 1-44/100), Vec2.Make(1-2/50, 1-27/100), Vec2.Make(23/50,1-11/100), Vec2.Make(2/50, 1-27/100),
+			Vec2.Make(1-49/50, 1-44/100), Vec2.Make(1-45/50, 1-58/100), Vec2.Make(25/50, 1-61/100), Vec2.Make(45/50, 1-58/100)]);
+
+		obrub^.idclip := yes;
+		obrub^.local := Translate(0.64, 0.6);
+		location^.Add(obrub);
 
 		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.3, 0.3*(67/92))));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.17));
@@ -211,7 +267,7 @@ uses
 		if not self.world^.spaceshipArrived then
 		begin
 			valera := CreateKolobok('valera');
-			valera^.local := Translate(-0.93, 0.55);
+			valera^.local := Translate(-0.93, 0.54);
 			valera^.angle := -HalfPi;
 			location^.Add(valera);
 
@@ -225,36 +281,107 @@ uses
 			kazah^.angle := 0;
 			location^.Add(kazah);
 
-			dlgTrig := new(pTrigger, Init(Translate(-1.17, 0.37), Vec2.Make(0.65, 0.32)))^.NewRef;
-			dlgTrig^.onActivate := @Dialogue_1;
-			dlgTrig^.param := @self;
-			location^.Add(dlgTrig);
+			t := new(pTrigger, Init(Translate(-1.17, 0.37), Vec2.Make(0.65, 0.32)))^.WithCallbacks(nil, nil, @Dialogue_1, @self);
+			location^.Add(t);
 		end;
+
+		t := new(pTrigger, Init(Translate(0.45, 0.45), Vec2.Make(0.4, 0.4)))^.WithCallbacks(nil, nil, @Dialogue_Obrub_1, @self);
+		location^.Add(t);
 
 		player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - player^.size.x), location^.limits.A.y);
 		location^.Add(player);
+
+		state := Setup;
+		obrubState := ObrubStandingAndWatching;
+		obrubMood := ObrubIndifferent;
 	end;
 
 	destructor Ep_Bar.Done;
 	begin
-		Release(dlgTrig);
+		Release(obrubTimer);
+		Release(obrub);
 		Release(kazah);
 		Release(twinkle);
 		Release(valera);
-		Release(doorTrig);
 		Release(door);
 		inherited Done;
+	end;
+
+	procedure ObrubTimerProcess(timer: pTimer; const dt: float; param: pointer); forward;
+	procedure ObrubTimerShot(reason: Timer.DoneReason; param: pointer); forward;
+
+	procedure ObrubMoved(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		Assert(ac = ac);
+		if reason <> TargetReached then exit;
+		case e^.obrubState of
+			ObrubStanding, ObrubStandingAndWatching: ;
+			ObrubWalking: e^.SetupObrubWandering;
+			ObrubFiring: ;
+		end;
+	end;
+
+	procedure ObrubTimerProcess(timer: pTimer; const dt: float; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+	begin
+		Assert((timer = timer) and (dt = dt));
+		case e^.obrubState of
+			ObrubStandingAndWatching: e^.obrub^.RotateTo(e^.player^.HeartPos);
+		end;
+	end;
+
+	procedure ObrubTimerShot(reason: Timer.DoneReason; param: pointer);
+	var
+		e: pEp_Bar absolute param;
+		target: Vec2;
+	begin
+		if reason <> Timeout then exit;
+		case e^.obrubState of
+			ObrubStanding, ObrubStandingAndWatching:
+				begin
+					if e^.obrub^.HeartPos.x > 0.64 then
+						target := Vec2.Make(GlobalRNG.GetFloat(0.61, 0.63), GlobalRNG.GetFloat(0.64, 0.69))
+					else
+						target := Vec2.Make(GlobalRNG.GetFloat(0.66, 0.7), GlobalRNG.GetFloat(0.64, 0.69));
+					e^.obrubState := ObrubWalking;
+					e^.obrub^.rtMethod := NotRotating;
+					e^.obrub^.MoveTo(target, e^.WalkingVelocity, @ObrubMoved, e);
+				end;
+			ObrubWalking: ;
+			ObrubFiring: ;
+		end;
 	end;
 
 	procedure Ep_Bar.HandleUpdate(const dt: float);
 	begin
 		inherited HandleUpdate(dt);
-		{valera^.angle := NormalizeAngle(valera^.angle + 0.8*dt);
-		twinkle^.angle := NormalizeAngle(twinkle^.angle + 0.85*dt);
-		kazah^.angle := NormalizeAngle(twinkle^.angle + 0.9*dt);}
 		case state of
+			Setup:
+				begin
+					SetupObrubWandering;
+					state := Idle;
+				end;
 			MovingOutsideRequested: mgr^.Switch(new(pEp_Entry, Init(world)));
 		end;
+	end;
+
+	procedure Ep_Bar.SetupObrubWandering;
+	begin
+		Assert(obrubMood in [ObrubIndifferent, ObrubAnnoyed]);
+		if GlobalRNG.XInY(5, 6) then obrubState := ObrubStandingAndWatching else obrubState := ObrubStanding;
+		StopObrubWandering;
+		obrubTimer := new(pTimer, Init(GlobalRNG.GetFloat(5.0, 10.0), @ObrubTimerProcess, @ObrubTimerShot, @self))^.NewRef;
+		mgr^.AddTimer(obrubTimer, id);
+	end;
+
+	procedure Ep_Bar.StopObrubWandering;
+	begin
+		obrub^.StopMove;
+		if Assigned(obrubTimer) then obrubTimer^.Stop;
+		Release(obrubTimer);
 	end;
 
 	function CreateKolobok(const char: string): pActor;

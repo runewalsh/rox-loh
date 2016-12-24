@@ -128,11 +128,7 @@ implementation
 		door^.texRect := Rect.Make(0, 0, 0.5, 1);
 		location^.AddWall(door, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 
-		doorTrig := new(pTrigger, Init(Translate(0, -0.1) * door^.local, door^.size))^.NewRef;
-		doorTrig^.onTest := @DoorTest;
-		doorTrig^.onTrigger := @DoorTrigger;
-		doorTrig^.onActivate := @DoorActivate;
-		doorTrig^.param := @self;
+		doorTrig := new(pTrigger, Init(Translate(0, -0.1) * door^.local, door^.size))^.WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self)^.NewRef;
 		self.location^.Add(doorTrig);
 
 		d := new(pDecoration, Init(Environment('brick.png'), Translate(0, 0.02), Vec2.Make(1.5, 0.3)));

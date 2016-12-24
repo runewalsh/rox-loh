@@ -48,6 +48,7 @@ type
 
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
+		function WithCallbacks(onTest: TestProc; onTrigger: TriggerProc; onActivate: ActivateProc; param: pointer): pTrigger;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
 		procedure Dismiss;
@@ -76,7 +77,7 @@ type
 		walls: array of record
 			rect: Rect;
 			flags: WallFlags;
-			angle: float;
+			rot: Rotation2;
 		end;
 		obstacles: array of Circle;
 		triggers: array of pTrigger;
@@ -93,7 +94,8 @@ type
 		function Raycast(const origin, direction: Vec2; out r: RaycastResult; ignore: pNode): boolean;
 		procedure AddObstacle(const obj: Circle);
 
-		procedure AddWall(const w: Rect; const flags: WallFlags = []; const angle: float = 0);
+		procedure AddWall(const w: Rect; const flags: WallFlags = []);
+		procedure AddWall(const w: Rect; const rot: Rotation2; const flags: WallFlags = []);
 		procedure AddWall(n: pNode; const dA, dB: Vec2; const flags: WallFlags = []);
 
 		function ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
@@ -147,6 +149,15 @@ uses
 	begin
 		Dismiss;
 		inherited Done;
+	end;
+
+	function Trigger.WithCallbacks(onTest: TestProc; onTrigger: TriggerProc; onActivate: ActivateProc; param: pointer): pTrigger;
+	begin
+		self.onTest := onTest;
+		self.onTrigger := onTrigger;
+		self.onActivate := onActivate;
+		self.param := param;
+		result := @self;
 	end;
 
 	procedure Trigger.HandleDraw(const view: Transform2);
@@ -247,7 +258,8 @@ uses
 		i: sint;
 	begin
 		for i := High(nodes) downto 0 do
-			nodes[i]^.HandleUpdate(dt);
+			if i < length(nodes) then
+				nodes[i]^.HandleUpdate(dt);
 		for i := High(triggers) downto 0 do
 			if i < length(triggers) then
 				triggers[i]^.HandleUpdate(dt);
@@ -289,15 +301,15 @@ uses
 			result := CircleVsCircle(obj, obstacles[i], move) or result;
 
 		for i := 0 to High(walls) do
-			if walls[i].angle = 0 then
+			if walls[i].rot.IsIdentity then
 				result := CircleVsRect(obj, walls[i].rect, move) or result
 			else
 			begin
-				nm := Rotate(move, -walls[i].angle);
-				if CircleVsRect(Circle.Make(Rotate(obj.center - walls[i].rect.A, -walls[i].angle), obj.radius), Rect.Make(Vec2.Zero, walls[i].rect.Size), nm) then
+				nm := -walls[i].rot * move;
+				if CircleVsRect(Circle.Make(-walls[i].rot * (obj.center - walls[i].rect.A), obj.radius), Rect.Make(Vec2.Zero, walls[i].rect.Size), nm) then
 				begin
 					result := yes;
-					move := Rotate(nm, walls[i].angle);
+					move := walls[i].rot * nm;
 				end;
 			end;
 
@@ -322,29 +334,21 @@ uses
 		i: sint;
 		point: Vec2;
 	begin
-		{walls: array of record
-			rect: Rect;
-			angle: float;
-		end;
-		obstacles: array of Circle;
-		actors: array of pNode;
-		limits: Rect;}
-
 		r := nil;
 		for i := 0 to High(walls) do
 			if not (NotObstacleForBullets in walls[i].flags) then
-				if walls[i].angle = 0 then
+				if walls[i].rot.IsIdentity then
 				begin
 					if RayVsRect(origin, direction, walls[i].rect, @point) then
 						Push(nil, point);
 				end else
 				begin
-					if RayVsRect(Rotate(origin - walls[i].rect.A, -walls[i].angle), Rotate(direction, -walls[i].angle), Rect.Make(Vec2.Zero, walls[i].rect.Size), @point) then
-						Push(nil, walls[i].rect.A + Rotate(point, walls[i].angle));
+					if RayVsRect(-walls[i].rot * (origin - walls[i].rect.A), -walls[i].rot * direction, Rect.Make(Vec2.Zero, walls[i].rect.Size), @point) then
+						Push(nil, walls[i].rect.A + walls[i].rot * point);
 				end;
 
 		for i := 0 to High(actors) do
-			if (actors[i] <> ignore) and RayVsCircle(origin, direction, Circle.Make(actors[i]^.HeartPos, 0.4 * actors[i]^.size.x), nil, @point) then
+			if (actors[i] <> ignore) and RayVsCircle(origin, direction, pActor(actors[i])^.Collision, nil, @point) then
 				Push(actors[i], point);
 
 		if (length(r) = 0) and RayVsRect(origin, direction, limits, @point) then
@@ -359,18 +363,23 @@ uses
 		obstacles[High(obstacles)] := obj;
 	end;
 
-	procedure Location.AddWall(const w: Rect; const flags: WallFlags = []; const angle: float = 0);
+	procedure Location.AddWall(const w: Rect; const flags: WallFlags = []);
+	begin
+		AddWall(w, Rotation2.Identity, flags);
+	end;
+
+	procedure Location.AddWall(const w: Rect; const rot: Rotation2; const flags: WallFlags = []);
 	begin
 		SetLength(walls, length(walls) + 1);
 		walls[High(walls)].rect := w;
 		walls[High(walls)].flags := flags;
-		walls[High(walls)].angle := angle;
+		walls[High(walls)].rot := rot;
 	end;
 
 	procedure Location.AddWall(n: pNode; const dA, dB: Vec2; const flags: WallFlags = []);
 	begin
 		Add(n);
-		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB), flags, n^.local.rot);
+		AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB), n^.local.rot, flags);
 	end;
 
 	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
@@ -378,7 +387,7 @@ uses
 		i: sint;
 	begin
 		for i := 0 to High(triggers) do
-			if Assigned(triggers[i]^.onActivate) and
+			if (i < length(triggers)) and Assigned(triggers[i]^.onActivate) and
 				Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) and
 				triggers[i]^.HasInside(activator)
 			then
@@ -402,14 +411,14 @@ uses
 		result := no;
 	end;
 
-	function Location.ShouldHighlightTrigger(const pos: Vec2): boolean;
-	var
-		i: sint;
+	function ShouldHighlightThisOne(id: uint; param, param2: pointer): boolean;
 	begin
-		for i := 0 to High(triggers) do
-			if Rect.MakeSize(triggers[i]^.local.trans, triggers[i]^.size).Contains(pos) then
-				exit(yes);
-		result := no;
+		result := Rect.MakeSize(pLocation(param)^.triggers[id]^.local.trans, pLocation(param)^.triggers[id]^.size).Contains(pVec2(param2)^);
+	end;
+
+	function Location.ShouldHighlightTrigger(const pos: Vec2): boolean;
+	begin
+		result := Range.Open(length(triggers)).Any(@ShouldHighlightThisOne, @self, @pos);
 	end;
 
 	procedure Location.AddOrRemove(n: pNode; add: boolean);
@@ -419,15 +428,20 @@ uses
 		else
 			Assert(n^.location = @self);
 
-		if InheritsFrom(TypeOf(n^), TypeOf(Trigger)) then
-			AddOrRemove(n, NodesArray(triggers), add)
-		else
-			AddOrRemove(n, nodes, add);
+		MakeRef(n);
+		try
+			if InheritsFrom(TypeOf(n^), TypeOf(Trigger)) then
+				AddOrRemove(n, NodesArray(triggers), add)
+			else
+				AddOrRemove(n, nodes, add);
 
-		if InheritsFrom(TypeOf(n^), TypeOf(Actor)) then
-			AddOrRemove(n, NodesArray(actors), add);
+			if InheritsFrom(TypeOf(n^), TypeOf(Actor)) then
+				AddOrRemove(n, NodesArray(actors), add);
 
-		if add then n^.location := @self else n^.location := nil;
+			if add then n^.location := @self else n^.location := nil;
+		finally
+			Release(n);
+		end;
 	end;
 
 	procedure Location.AddOrRemove(n: pNode; var ary: NodesArray; add: boolean);

@@ -67,6 +67,7 @@ type
 
 		procedure MoveBy(const delta: Vec2; velocity: float);
 		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+		procedure StopMove;
 		function HeartPos: Vec2; virtual;
 		function AimOrigin: Vec2;
 
@@ -276,6 +277,16 @@ implementation
 		mvParam := param;
 	end;
 
+	procedure Actor.StopMove;
+	begin
+		if (mvMethod = MovingTo) and Assigned(mvCb) then
+		begin
+			mvCb(MovingCanceled, @self, mvParam);
+			mvCb := nil;
+		end;
+		mvMethod := NotMoving;
+	end;
+
 	function Actor.HeartPos: Vec2;
 	begin
 		result := Vec2.Make(local.trans.x + 0.5 * size.x, local.trans.y + 0.2 * size.y);
@@ -334,11 +345,7 @@ implementation
 
 	procedure Actor.SwitchMove(method: MoveTargeter);
 	begin
-		if (mvMethod = MovingTo) and Assigned(mvCb) then
-		begin
-			mvCb(MovingCanceled, @self, mvParam);
-			mvCb := nil;
-		end;
+		StopMove;
 		if wieldingWeapon then
 			if not TrySwitchToState('walk-wpn') then SwitchToState('idle-wpn') else
 		else
@@ -362,13 +369,13 @@ implementation
 
 	function Actor.RotateStep(const target: float; const by: float): boolean;
 	var
-		nt: float;
+		dAngle, na: float;
 	begin
 		Assert(AngleNormalized(target), ToString(target));
-		if abs(target - angle) <= Pi then nt := target else nt := target - FloatSign(target - angle, TwoPi);
-		result := abs(nt - angle) <= by;
-		if result then angle := nt else angle += FloatSign(nt - angle, by);
-		angle := NormalizeAngle(angle);
+		dAngle := AngleDiff(target, angle);
+		na := NormalizeAngle(angle + clamp(dAngle, -by, by));
+		result := (na = target) or (abs(AngleDiff(na, target)) >= abs(dAngle));
+		if result then angle := target else angle := na;
 	end;
 
 end.

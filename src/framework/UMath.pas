@@ -219,7 +219,6 @@ type
 {$ifdef unsigned} operator +(const v: vec; const d: int_vec): vec; {$endif}
 {$endif}} all_integer_vectors
 
-	function Rotate(const v: Vec2; const angle: float): Vec2;
 	function ArcTan2(const v: Vec2): float;
 	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
 
@@ -386,16 +385,35 @@ type
 	operator *(const t: Transform; const v: Vec3): Vec3;
 
 type
+	Rotation2 = object
+		function FromDirectionN(const d: Vec2): Rotation2; static;
+		function FromDirectionUN(const d: Vec2): Rotation2; static;
+		function IsIdentity: boolean;
+		function ToDirection: Vec2;
+		function ToAngle: float;
+	private
+		cosa, sina: float;
+	public const
+		Identity: Rotation2 = (cosa: 1; sina: 0);
+	end;
+	operator :=(const angle: float): Rotation2;
+	operator *(const r: Rotation2; const v: Vec2): Vec2;
+	operator *(const a, b: Rotation2): Rotation2;
+	operator -(const r: Rotation2): Rotation2;
+	operator =(const a, b: Rotation2): boolean;
+
+type
 	Transform2 = object
 		trans: Vec2;
-		rot, scale: float;
-		function Inversed: Transform2;
+		rot: Rotation2;
+		scale: float;
 	const
-		Identity: Transform2 = (trans: (data: (0, 0)); rot: 0; scale: 1);
+		Identity: Transform2 = (trans: (data: (0, 0)); rot: (cosa: 1; sina: 0); scale: 1);
 	end;
 	operator =(const a, b: Transform2): boolean;
 	operator *(const a, b: Transform2): Transform2;
 	operator *(const t: Transform2; const v: Vec2): Vec2;
+	operator -(const t: Transform2): Transform2;
 
 	function Translate(const trans: Vec2): Transform2;
 	function Translate(const x, y: float): Transform2;
@@ -451,7 +469,6 @@ type
 		function Distance(const pt: Vec3): float;
 		function Project(const p: Vec3): Vec3;
 		function AnyPoint: Vec3;
-		function Reversed: Plane;
 		function ToBasis(const o: Vec3; const basis: Matrix3): Plane;
 		function IntersectLine(const p, n: Vec3): Vec3;
 
@@ -754,8 +771,7 @@ end_unchecked
 
 	function AngleDiff(const a, b: float): float;
 	begin
-		result := modf(a - b, TwoPi);
-		if result > Pi then result -= TwoPi;
+		result := NormalizeAngle(a - b);
 	end;
 
 	function NormalizeAngle(const a: float): float;
@@ -1159,16 +1175,6 @@ end_unchecked
 {$endif}
 {$ifdef unsigned} operator +(const v: vec; const d: int_vec): vec; {$define op := base_type(base_type_signed(v.item) + d.item)} vec_compo_op {$endif}
 {$endif}} all_integer_vectors
-
-	function Rotate(const v: Vec2; const angle: float): Vec2;
-	var
-		cosa, sina: float;
-	begin
-		cosa := cos(angle);
-		sina := sin(angle);
-		result.x := v.x*cosa - v.y*sina;
-		result.y := v.x*sina + v.y*cosa;
-	end;
 
 	function ArcTan2(const v: Vec2): float;
 	begin
@@ -1877,15 +1883,61 @@ end_unchecked
 			result := t.tr + t.rot * v * t.scale;
 	end;
 
-	function Transform2.Inversed: Transform2;
+	function Rotation2.FromDirectionN(const d: Vec2): Rotation2;
 	begin
-		result.rot := -rot;
-		result.trans := Rotate(-trans, result.rot);
-		if scale = 1 then result.scale := 1 else
-		begin
-			result.scale := 1 / scale;
-			result.trans *= result.scale;
-		end;
+		Assert(d.IsIdentity, ToString(d));
+		result.cosa := d.x;
+		result.sina := d.y;
+	end;
+
+	function Rotation2.FromDirectionUN(const d: Vec2): Rotation2;
+	begin
+		result := FromDirectionN(d.Normalized);
+	end;
+
+	function Rotation2.IsIdentity: boolean;
+	begin
+		result := cosa = 1;
+	end;
+
+	function Rotation2.ToDirection: Vec2;
+	begin
+		result.x := cosa;
+		result.y := sina;
+	end;
+
+	function Rotation2.ToAngle: float;
+	begin
+		result := ArcTan2(sina, cosa);
+	end;
+
+	operator :=(const angle: float): Rotation2;
+	begin
+		result.cosa := cos(angle);
+		result.sina := sin(angle);
+	end;
+
+	operator *(const r: Rotation2; const v: Vec2): Vec2;
+	begin
+		result.x := v.x*r.cosa - v.y*r.sina;
+		result.y := v.x*r.sina + v.y*r.cosa;
+	end;
+
+	operator *(const a, b: Rotation2): Rotation2;
+	begin
+		result.cosa := a.cosa * b.cosa - a.sina * b.sina;
+		result.sina := a.sina * b.cosa + a.cosa * b.sina;
+	end;
+
+	operator -(const r: Rotation2): Rotation2;
+	begin
+		result.cosa := r.cosa;
+		result.sina := -r.sina;
+	end;
+
+	operator =(const a, b: Rotation2): boolean;
+	begin
+		result := (a.cosa = b.cosa) and (a.sina = b.sina);
 	end;
 
 	operator =(const a, b: Transform2): boolean;
@@ -1896,16 +1948,27 @@ end_unchecked
 	operator *(const a, b: Transform2): Transform2;
 	begin
 		result.trans := a * b.trans;
-		result.rot := a.rot + b.rot;
+		result.rot := a.rot * b.rot;
 		result.scale := a.scale * b.scale;
 	end;
 
 	operator *(const t: Transform2; const v: Vec2): Vec2;
 	begin
 		if t.scale = 1 then
-			result := t.trans + Rotate(v, t.rot)
+			result := t.trans + t.rot * v
 		else
-			result := t.trans + Rotate(v, t.rot) * t.scale;
+			result := t.trans + t.rot * v * t.scale;
+	end;
+
+	operator -(const t: Transform2): Transform2;
+	begin
+		result.rot := -t.rot;
+		result.trans := result.rot * -t.trans;
+		if t.scale = 1 then result.scale := 1 else
+		begin
+			result.scale := 1 / t.scale;
+			result.trans *= result.scale;
+		end;
 	end;
 
 	function Translate(const trans: Vec2): Transform2;
@@ -1940,8 +2003,8 @@ end_unchecked
 
 	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
 	begin
-		result.trans := UMath.Rotate(trans, rot);
 		result.rot := rot;
+		result.trans := result.rot * trans;
 		result.scale := 1;
 	end;
 
@@ -2046,11 +2109,6 @@ end_unchecked
 	function Plane.Distance(const pt: Vec3): float; begin result := abs(SignedDistance(pt)); end;
 	function Plane.Project(const p: Vec3): Vec3; begin result := p - v3 * SignedDistance(p); end;
 	function Plane.AnyPoint: Vec3; begin result := normal * -d; end;
-
-	function Plane.Reversed: Plane;
-	begin
-		result.v4 := -self.v4;
-	end;
 
 	function Plane.ToBasis(const o: Vec3; const basis: Matrix3): Plane;
 	begin

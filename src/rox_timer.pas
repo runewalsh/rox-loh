@@ -81,13 +81,13 @@ implementation
 	var
 		dn: DoneCallback;
 	begin
+		left := -1;
 		if Assigned(onDone) then
 		begin
 			dn := onDone;
 			onDone := nil;
 			dn(reason, param);
 		end;
-		left := -1;
 	end;
 
 end.
