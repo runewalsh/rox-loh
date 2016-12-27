@@ -27,7 +27,16 @@ type
 		end;
 
 		MoveCallbackReason = (MovingCanceled, TargetReached);
-		MoveCallback = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
+
+		MoveCallbackWoActor = procedure(reason: MoveCallbackReason; param: pointer);
+		MoveCallbackWithActor = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
+		MoveCallbackKind = (MoveCallbackNotSet, UseMoveCallbackWoActor, UseMoveCallbackWithActor);
+		MoveCallback = record
+		case kind: MoveCallbackKind of
+			UseMoveCallbackWoActor: (woa: MoveCallbackWoActor);
+			UseMoveCallbackWithActor: (wa: MoveCallbackWithActor);
+		end;
+
 		MoveTargeter = (NotMoving, MovingBy, MovingTo);
 	var
 		tex: pTexture;
@@ -66,7 +75,7 @@ type
 		procedure SwitchToState(id: uint);
 
 		procedure MoveBy(const delta: Vec2; velocity: float);
-		procedure MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+		procedure MoveTo(const target: Vec2; velocity: float; const cb: MoveCallback; param: pointer);
 		procedure StopMoving;
 		function HeartPos: Vec2; virtual;
 		function AimOrigin: Vec2;
@@ -82,7 +91,11 @@ type
 		procedure SwitchMove(method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
 		function RotateStep(const target: float; const by: float): boolean;
+		procedure ShotMoveCallback(reason: MoveCallbackReason);
 	end;
+	operator :=(null: pointer): Actor.MoveCallback;
+	operator :=(woa: Actor.MoveCallbackWoActor): Actor.MoveCallback;
+	operator :=(wa: Actor.MoveCallbackWithActor): Actor.MoveCallback;
 
 implementation
 
@@ -133,14 +146,16 @@ implementation
 					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
 						if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
 						begin
-							if Assigned(mvCb) then
+							if mvCb.kind <> MoveCallbackNotSet then
 							begin
 								MakeRef(@self);
-								mvCb(TargetReached, @self, mvParam);
-								detached := not Assigned(location);
-								ReleaseWeak(@self);
+								try
+									ShotMoveCallback(TargetReached);
+									detached := not Assigned(location);
+								finally
+									ReleaseWeak(@self);
+								end;
 								if detached then exit;
-								mvCb := nil;
 							end;
 							mvMethod := NotMoving;
 						end;
@@ -187,8 +202,8 @@ implementation
 			anStep := floor(state.angles * an * (1/TwoPi) + 0.5); if anStep = state.angles then anStep := 0;
 			Assert((anStep >= 0) and (anStep < state.angles), Format('{0}/{1}', [anStep, state.angles]));
 
-			frame := floor(state.frames * state.phase / max(0.1, state.len) + IfThen(state.next <> '', 0.5, 0));
-			if frame = state.frames then
+			frame := floor(state.frames * state.phase / max(0.1, state.len) {+ IfThen(state.next <> '', 0.5, 0)});
+			if frame >= state.frames then
 				if state.next = '' then frame := state.frames - 1 else frame := 0;
 			Assert((frame >= 0) and (frame < state.frames), Format('{0}/{1}', [frame, state.frames]));
 
@@ -273,7 +288,7 @@ implementation
 		mvVel := velocity;
 	end;
 
-	procedure Actor.MoveTo(const target: Vec2; velocity: float; cb: MoveCallback; param: pointer);
+	procedure Actor.MoveTo(const target: Vec2; velocity: float; const cb: MoveCallback; param: pointer);
 	begin
 		SwitchMove(MovingTo);
 		mvPointOrDelta := target;
@@ -284,11 +299,7 @@ implementation
 
 	procedure Actor.StopMoving;
 	begin
-		if (mvMethod = MovingTo) and Assigned(mvCb) then
-		begin
-			mvCb(MovingCanceled, @self, mvParam);
-			mvCb := nil;
-		end;
+		if mvMethod = MovingTo then ShotMoveCallback(MovingCanceled);
 		mvMethod := NotMoving;
 	end;
 
@@ -379,14 +390,26 @@ implementation
 
 	function Actor.RotateStep(const target: float; const by: float): boolean;
 	var
-		dAngle, na: float;
+		dAngle: float;
 	begin
 		Assert(AngleNormalized(target), ToString(target));
 		dAngle := AngleDiff(target, angle);
-		na := NormalizeAngle(angle + clamp(dAngle, -by, by));
-		result := (na = target) or (abs(AngleDiff(na, target)) >= abs(dAngle));
-		if result then angle := target else angle := na;
+		result := abs(dAngle) <= by;
+		if result then angle := target else angle := NormalizeAngle(angle + clamp(dAngle, -by, by));
 	end;
+
+	procedure Actor.ShotMoveCallback(reason: MoveCallbackReason);
+	begin
+		case mvCb.kind of
+			UseMoveCallbackWoActor: mvCb.woa(reason, mvParam);
+			UseMoveCallbackWithActor: mvCb.wa(reason, @self, mvParam);
+		end;
+		mvCb.kind := MoveCallbackNotSet;
+	end;
+
+	operator :=(null: pointer): Actor.MoveCallback; begin Assert(not Assigned(null)); result.kind := MoveCallbackNotSet; end;
+	operator :=(woa: Actor.MoveCallbackWoActor): Actor.MoveCallback;   begin result.kind := UseMoveCallbackWoActor; result.woa := woa; end;
+	operator :=(wa: Actor.MoveCallbackWithActor): Actor.MoveCallback; begin result.kind := UseMoveCallbackWithActor; result.wa := wa; end;
 
 end.
 

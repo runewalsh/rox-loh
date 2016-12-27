@@ -4,7 +4,7 @@ unit rox_ep_bar;
 interface
 
 uses
-	USystem, UMath, Utils, Random,
+	USystem, UMath, Utils, UClasses, Random,
 	rox_state_adventure, rox_actor, rox_location, rox_decoration, rox_paths, rox_world, rox_dialogue, rox_timer;
 
 type
@@ -19,6 +19,7 @@ type
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
+		procedure HandleDeactivation; virtual;
 	private
 		state: (Setup, Idle, MovingOutsideRequested);
 		procedure SetupObrubWandering;
@@ -50,8 +51,8 @@ uses
 	begin
 		Assert(n = n);
 		case reason of
-			Entered: e^.door^.texRect.A := Vec2.Make(0.5, 0);
-			Leaved: e^.door^.texRect.A := Vec2.Make(0, 0);
+			Entered: e^.door^.texRect := Rect.MakeSize(1/3, 0, 1/3, 1);
+			Leaved: e^.door^.texRect := Rect.MakeSize(0, 0, 1/3, 1);
 		end;
 	end;
 
@@ -133,7 +134,8 @@ uses
 
 		e^.valera^.idclip := yes;
 		e^.valera^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.37), @Dialogue_4_QuitScene, nil);
-		e^.mgr^.AddTimer(new(pTimer, Init(1, nil, @StartRolling, e)), e^.id);
+		// e^.mgr^.AddTimer(new(pTimer, Init(1, nil, @StartRolling, e)), e^.id);
+		StartRolling(Timeout, e);
 
 		e^.player^.RotateTo(e^.door^.HeartPos);
 
@@ -222,13 +224,20 @@ uses
 	procedure Obrub_Shot(reason: Timer.DoneReason; param: pointer);
 	var
 		e: pEp_Bar absolute param;
+		v: Vec2;
 	begin
 		if reason <> Timeout then exit;
 		e^.obrub^.Fire;
+
+		v := e^.player^.HeartPos - e^.obrub^.AimOrigin;
+		(new(pDecoration, Init(Environment('splat.png'),
+			Translate(e^.player^.HeartPos + 0.1 * v.Normalized) * Rotate(ArcTan2(v)) * Translate(0, -0.5 * 0.2),
+			Vec2.Make(Deduce, 0.2))))^.SetLayer(-1)^.AddTo(e^.location);
+
 		e^.player^.StopMoving;
 		e^.playerControlMode := PlayerControlDisabled;
 		e^.player^.SwitchToState('death');
-		// e^.mgr^.AddTimer(new(pTimer, Init(2, @Obrub_Aim, @Obrub_Shot, e)), e^.id);
+
 		e^.obrub^.UnwieldWeapon;
 		e^.SetupObrubWandering;
 	end;
@@ -255,7 +264,7 @@ uses
 		case e^.obrubMood of
 			ObrubIndifferent:
 				begin
-					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 224/800, letterTimeout = 0.1]: 0.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
+					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 240/800]: 0.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
 					e^.obrubMood := ObrubAnnoyed;
 				end;
 			ObrubAnnoyed, ObrubGettingAngry:
@@ -269,6 +278,7 @@ uses
 			ObrubAngry:
 				begin
 					t^.Detach;
+					e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
 					e^.dlg.Init(e, 'obrubens [face = mad.png, sizeX = 100/800, letterTimeout = 0.2, delay = 1]: 2.png')^.Callbacks(nil, @Dialogue_Obrub_2, e);
 					e^.dlg.skippable := no;
 				end;
@@ -278,30 +288,25 @@ uses
 	constructor Ep_Bar.Init(world: pWorld);
 	var
 		d: pDecoration;
-		t: pTrigger;
 	begin
 		inherited Init(StateID, world);
 		if not Assigned(world) then player^.angle := HalfPi;
 
 		location := new(pLocation, Init(@self))^.NewRef;
 		location^.limits := Rect.Make(-1.2, -0.7, 1.2, 0.7);
-		d := new(pDecoration, Init(Environment('parquet.png'), Translate(-1.2, -0.7), Vec2.Make(2.4, 1.4)));
-		d^.texRect := Rect.Make(Vec2.Zero, Vec2.Make(12, 7) * 0.5);
-		d^.layer := -2;
-		location^.Add(d);
+		(new(pDecoration, Init(Environment('parquet.png'), Translate(-1.2, -0.7), Vec2.Make(2.4, 1.4))))^.
+			SetTexRect(Rect.Make(Vec2.Zero, Vec2.Make(12, 7) * 0.5))^.SetLayer(-2)^.AddTo(location);
 
-		door := new(pDecoration, Init(Environment('bar_door.png'), Translate(0.3, -0.9), Vec2.Make(0.3, 0.3*1.3)))^.NewRef;
-		door^.texRect := Rect.Make(0, 0, 0.5, 1);
+		door := new(pDecoration, Init(Environment('bar_door.png'), Translate(0.3, -0.9), Vec2.Make(0.3, 0.3*1.3)))^.
+			SetTexRect(Rect.MakeSize(0, 0, 1/3, 1))^.NewRef;
 		location^.Add(door);
 
-		t := new(pTrigger, Init(door^.local, door^.size))^.WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self);
-		self.location^.Add(t);
+		(new(pTrigger, Init(door^.local, door^.size))^.WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self))^.AddTo(location);
 
-		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, 0.3*0.75)));
+		d := new(pDecoration, Init(Environment('bar_counter.png'), Translate(0.5, 0.5), Vec2.Make(0.3, Deduce)));
 		location^.AddWall(d, Vec2.Make(0.02, 0), Vec2.Make(0.02, 0), [NotObstacleForBullets]);
 
-		d := new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, 0.58*(1/3))));
-		location^.Add(d);
+		(new(pDecoration, Init(Environment('bottles.png'), Translate(0.36, 0.75), Vec2.Make(0.58, Deduce))))^.AddTo(location);
 
 		obrub := new(pActor, Init(Vec2.Make(0.14, 0.28), Character('obrubens', 'model.png'), Vec2.Make(1/9, 1/8)))^.NewRef;
 		obrub^.AddState('idle', Vec2.Make(0, 0), 4, 8, 0.0, 'idle', []);
@@ -317,13 +322,13 @@ uses
 		obrub^.local := Translate(0.64, 0.6);
 		location^.Add(obrub);
 
-		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.3, 0.3*(67/92))));
+		d := new(pDecoration, Init(Environment('table.png'), Translate(-1.0, 0.4), Vec2.Make(0.3, Deduce)));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.17));
 
-		d := new(pDecoration, Init(Environment('table2.png'), Translate(-0.8, -0.5), Vec2.Make(0.3, 0.3*(67/89))));
+		d := new(pDecoration, Init(Environment('table2.png'), Translate(-0.8, -0.5), Vec2.Make(0.3, Deduce)));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.17));
 
-		d := new(pDecoration, Init(Environment('table3.png'), Translate(0.75, -0.15), Vec2.Make(0.3, 0.3*(57/92))));
+		d := new(pDecoration, Init(Environment('table3.png'), Translate(0.75, -0.15), Vec2.Make(0.3, Deduce)));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.12));
 
 		if not self.world^.spaceshipArrived then
@@ -343,19 +348,17 @@ uses
 			kazah^.angle := 0;
 			location^.Add(kazah);
 
-			t := new(pTrigger, Init(Translate(-1.17, 0.37), Vec2.Make(0.65, 0.32)))^.WithCallbacks(nil, nil, @Dialogue_1, @self);
-			location^.Add(t);
+			(new(pTrigger, Init(Translate(-1.17, 0.37), Vec2.Make(0.65, 0.32)))^.WithCallbacks(nil, nil, @Dialogue_1, @self))^.AddTo(location);
 		end;
 
-		t := new(pTrigger, Init(Translate(0.45, 0.45), Vec2.Make(0.4, 0.4)))^.WithCallbacks(nil, nil, @Dialogue_Obrub_1, @self);
-		location^.Add(t);
+		(new(pTrigger, Init(Translate(0.45, 0.45), Vec2.Make(0.4, 0.4)))^.WithCallbacks(nil, nil, @Dialogue_Obrub_1, @self))^.AddTo(location);
 
 		player^.local.trans := Vec2.Make(door^.local.trans.x + 0.5 * (door^.size.x - player^.size.x), location^.limits.A.y);
 		location^.Add(player);
 
 		state := Setup;
 		obrubState := ObrubStandingAndWatching;
-		obrubMood := ObrubAngry;
+		obrubMood := {ObrubAngry}ObrubIndifferent;
 	end;
 
 	destructor Ep_Bar.Done;
@@ -430,6 +433,12 @@ uses
 		end;
 	end;
 
+	procedure Ep_Bar.HandleDeactivation;
+	begin
+		mgr^.bgm.Priority(id)^.RemoveModifier('mute', no);
+		inherited HandleDeactivation;
+	end;
+
 	procedure Ep_Bar.SetupObrubWandering;
 	begin
 		if abs(AngleDiff(obrub^.angle, ArcTan2(player^.HeartPos - obrub^.HeartPos))) < HalfPi then
@@ -437,7 +446,7 @@ uses
 		else
 			obrubState := ObrubStanding;
 		StopObrubWandering;
-		obrubTimer := new(pTimer, Init(GlobalRNG.GetFloat(5.0, 10.0), @ObrubTimerProcess, @ObrubTimerShot, @self))^.NewRef;
+		obrubTimer := new(pTimer, Init(GlobalRNG.GetFloat(4.0, 9.0), @ObrubTimerProcess, @ObrubTimerShot, @self))^.NewRef;
 		mgr^.AddTimer(obrubTimer, id);
 	end;
 

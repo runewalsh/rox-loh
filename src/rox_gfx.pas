@@ -4,7 +4,7 @@ unit rox_gfx;
 interface
 
 uses
-	USystem, UMath, UClasses, Utils, Streams, GLBase, GLUtils, U_GL, OpenGL_Impl,  {$ifdef Debug} ULog, {$endif} rox_gl;
+	USystem, UMath, UClasses, Utils, Streams, GLBase, GLUtils, U_GL, OpenGL_Impl, {$ifdef Debug} ULog, {$endif} rox_gl;
 
 const
 	GLResourceTag = 'GL';
@@ -14,12 +14,14 @@ type
 	Texture = object(&Object)
 	type
 		Special = (JustTexture, DynamicTextureForTextBox);
+		ClampMode = (RepeatTexture, ClampTexture, ClampXYRepeatZ);
 	var
 		handle: gl.uint;
 		size: UintVec2;
 		sizeZ: uint;
 		ap: AspectPair;
 		targetEnum: gl.enum;
+		fn: string;
 
 		function Load(const filename: string): pTexture; static;
 		function Dynamic(format: GLImageFormat; const size: UintVec2; special: Special): pTexture; static;
@@ -27,7 +29,7 @@ type
 		procedure Swizzle(r, g, b, a: U_GL.Swizzle);
 		procedure Sub(x, y, w, h: uint; format: GLImageFormat; data: pointer);
 	private
-		function Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture; static;
+		function Create(target: GLTextureTarget; const size: UintSize3; mips: boolean; clamp: ClampMode): pTexture; static;
 		function UnsupportedTargetMessage(target: GLTextureTarget): string; static;
 		function Load(s: pStream): pTexture; static;
 		function InternalFormat(fmt: GLImageFormat; special: Special = JustTexture): gl.enum; static;
@@ -151,7 +153,7 @@ var
 
 	function Texture.Dynamic(format: GLImageFormat; const size: UintVec2; special: Special): pTexture;
 	begin
-		result := Create(GLtexture_2D, size, no, no);
+		result := Create(GLtexture_2D, size, no, ClampTexture);
 		try
 			gl.TexImage2D(gl.TEXTURE_2D, 0, InternalFormat(format, special), size.x, size.y, 0, Components(format), GLFormats[format].ctype, nil);
 			result^.NewRef;
@@ -185,7 +187,7 @@ var
 		gl.TexSubImage2D(targetEnum, 0, x, y, w, h, Components(format), GLFormats[format].ctype, data);
 	end;
 
-	function Texture.Create(target: GLTextureTarget; const size: UintSize3; mips, clamp: boolean): pTexture;
+	function Texture.Create(target: GLTextureTarget; const size: UintSize3; mips: boolean; clamp: ClampMode): pTexture;
 	begin
 		result := new(pTexture, Init);
 		try
@@ -205,17 +207,21 @@ var
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR)
 			else
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-			if clamp then
+
+			if clamp in [ClampTexture, ClampXYRepeatZ] then
 			begin
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-				if target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
 			end else
 			begin
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_S, gl.&REPEAT);
 				gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_T, gl.&REPEAT);
-				if target = GLtexture_3D then gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.&REPEAT);
 			end;
+			if target = GLtexture_3D then
+				if clamp = ClampTexture then
+					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE)
+				else
+					gl.TexParameteri(result^.targetEnum, gl.TEXTURE_WRAP_R, gl.&REPEAT);
 		except
 			dispose(result, Done);
 			raise;
@@ -232,12 +238,16 @@ var
 		im: TextureImage;
 		lv: uint;
 		levelSize: UintVec3;
+		clamp: ClampMode;
 	begin
 		im.Init(s);
 		result := nil;
 		try
-			result := Create(im.target, im.size, texture_Mips in im.info.flags,
-				((GLImageFormatsInfo[im.format].nChannels = 4) or (Pos('[c]', s^.path) > 0)) and not (Pos('[tile]', s^.path) > 0));
+			if (GLImageFormatsInfo[im.format].nChannels = 4) or (Pos('[c]', s^.path) > 0) then clamp := ClampTexture;
+			if Pos('[tile]', s^.path) > 0 then clamp := RepeatTexture;
+			if Pos('[z-tile]', s^.path) > 0 then clamp := ClampXYRepeatZ;
+			result := Create(im.target, im.size, texture_Mips in im.info.flags, clamp);
+			result^.fn := s^.path;
 			try
 				for lv := 0 to im.nLevels - 1 do
 				begin

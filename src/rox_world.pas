@@ -31,6 +31,7 @@ implementation
 		player^.SetupAimOrigins([
 			Vec2.Make(49/50, 1-44/100), Vec2.Make(1-2/50, 1-27/100), Vec2.Make(23/50,1-11/100), Vec2.Make(2/50, 1-27/100),
 			Vec2.Make(1-49/50, 1-44/100), Vec2.Make(1-45/50, 1-58/100), Vec2.Make(25/50, 1-61/100), Vec2.Make(45/50, 1-58/100)]);
+		// spaceshipArrived := yes;
 	end;
 
 	destructor World.Done;

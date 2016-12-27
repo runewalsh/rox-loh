@@ -97,7 +97,7 @@ type
 		function Make(size: Vec2; rotated: boolean; const fix: float = 1.0): AspectPair; static;
 		function Aspect2(method: Aspect2Method; const mul: float): Vec2;
 		function Aspect2Item(method: Aspect2Method; dim: uint; const mul: float): float;
-		procedure Fix(const by: float);
+		function Fixed(const by: float): AspectPair;
 		function Combined(const ap: AspectPair): AspectPair;
 		function ReverseCombined(const ap: AspectPair): AspectPair;
 	const
@@ -756,10 +756,10 @@ uses
 			if dim = 0 then result := mul * aspect else result := mul;
 	end;
 
-	procedure AspectPair.Fix(const by: float);
+	function AspectPair.Fixed(const by: float): AspectPair;
 	begin
-		aspect *= by;
-		invAspect /= by;
+		result.aspect := aspect * by;
+		result.invAspect := invAspect / by;
 	end;
 
 	function AspectPair.Combined(const ap: AspectPair): AspectPair;

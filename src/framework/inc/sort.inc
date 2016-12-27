@@ -1,8 +1,8 @@
 {$ifndef procname} {$define procname := sort} {$endif}
 {$ifdef sort_less} {$error} {$endif}
 {$define sort_less :=
-	{$if defined(ref)} (ref < {$define _1 := _2} ref)
-	{$elseif defined(less)} (less)
+	{$if defined(less)} (less)
+	{$elseif defined(ref)} (ref < {$define _1 := _2} ref)
 	{$else} (_1 < _2)
 	{$endif} {$undef _1} {$undef _2}}
 {-$define generic_implementation}

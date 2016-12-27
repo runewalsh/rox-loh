@@ -20,6 +20,7 @@ type
 		destructor Done; virtual;
 
 		procedure HandleActivation; virtual;
+		procedure HandleDeactivation; virtual;
 
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
@@ -85,7 +86,7 @@ type
 implementation
 
 uses
-	rox_win;
+	rox_win, rox_state_mainmenu;
 
 	constructor State.Init(const id: string);
 	begin
@@ -103,6 +104,14 @@ uses
 	begin
 		priority := mgr^.bgm.Priority(id, no);
 		if Assigned(priority) then priority^.SetModifier('mgr', op_Add, +1, 0);
+	end;
+
+	procedure State.HandleDeactivation;
+	var
+		priority: pModifiableValue;
+	begin
+		priority := mgr^.bgm.Priority(id, no);
+		if Assigned(priority) then priority^.RemoveModifier('mgr');
 	end;
 
 	procedure State.HandleUpdate(const dt: float); begin Assert(@dt = @dt); end;
@@ -253,6 +262,7 @@ uses
 				case key of
 					key_NumPlus: if x.Handle then bgm.Rewind(+5);
 					key_NumMinus: if x.Handle then bgm.Rewind(-5);
+					key_Esc: if (state^.id <> MainMenu.StateID) and x.Handle then Switch(new(pMainMenu, Init));
 				end;
 		end;
 		state^.HandleKeyboard(action, key, x);
@@ -297,13 +307,11 @@ uses
 
 	procedure StateManager.ExternalSwitch(another: pState; pushing: boolean);
 	var
-		priority: pModifiableValue;
 		ok: boolean;
 	begin
 		try
 			CheckCanSwitch;
-			priority := bgm.Priority(state^.id, no);
-			if Assigned(priority) then priority^.RemoveModifier('mgr');
+			state^.HandleDeactivation;
 			ok := InternalTrySwitch(another, pushing);
 			switchedDuringLastUpdate := yes;
 		except

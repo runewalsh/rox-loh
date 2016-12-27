@@ -15,12 +15,16 @@ type
 		local: Transform2;
 		size: Vec2;
 		layer: sint;
+		parent: pNode;
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual; abstract;
 		function HeartPos: Vec2; virtual;
 		procedure Detach;
+		function SetLayer(layer: sint): pNode;
+		function SetParent(parent: pNode): pNode;
+		function AddTo(loc: pLocation): pNode;
 	end;
 
 	pNodesArray = ^NodesArray;
@@ -138,6 +142,24 @@ uses
 	begin
 		if not Assigned(location) then raise Error('Объект не в локации.');
 		location^.Remove(@self);
+	end;
+
+	function Node.SetLayer(layer: sint): pNode;
+	begin
+		self.layer := layer;
+		result := @self;
+	end;
+
+	function Node.SetParent(parent: pNode): pNode;
+	begin
+		self.parent := parent;
+		result := @self;
+	end;
+
+	function Node.AddTo(loc: pLocation): pNode;
+	begin
+		loc^.Add(@self);
+		result := @self;
 	end;
 
 	constructor Trigger.Init(const local: Transform2; const size: Vec2);
@@ -266,8 +288,17 @@ uses
 	end;
 
 	procedure Location.Draw(const view: Transform2);
+		function DrawBefore(a, b: pNode): boolean;
+		begin
+			if Assigned(b^.parent) then
+				if b^.parent = a then exit(yes) else b := b^.parent;
+			if Assigned(a^.parent) then
+				if a^.parent = b then exit(no) else a := a^.parent;
+			result := (a^.layer < b^.layer) or (a^.layer = b^.layer) and (a^.local.trans.y > b^.local.trans.y);
+		end;
+
 		{$define elem := pNode} {$define procname := SortByDrawOrder}
-		{$define less := (_1^.layer < _2^.layer) or (_1^.layer = _2^.layer) and (_1^.local.trans.y > _2^.local.trans.y)}
+		{$define less := DrawBefore(_1, _2)}
 		{$define openarray} {$include sort.inc}
 	var
 		sorted: array of pNode;

@@ -33,8 +33,10 @@ type
 		triggerHighlighted: boolean;
 		lastCursorPos: Vec2;
 		fxPhase, deathPhase: float;
+		display: boolean;
 		constructor Init(const id: string; world: pWorld);
 		destructor Done; virtual;
+		procedure HandleDeactivation; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
@@ -47,6 +49,8 @@ type
 		function DirectionKeyToDir4(k: KeyboardKey): Dir4;
 		procedure UpdateCursor(const pos: Vec2; force: boolean);
 		procedure UnwieldWeapon;
+		function PlayerDied: boolean;
+		procedure PostDeathClick;
 	end;
 
 implementation
@@ -89,6 +93,7 @@ uses
 		if Assigned(world) then self.world := world^.NewRef else self.world := new(pWorld, Init)^.NewRef;
 		player := self.world^.player^.NewRef;
 		if Assigned(player^.location) then player^.Detach;
+		display := yes;
 	end;
 
 	destructor Adventure.Done;
@@ -99,6 +104,12 @@ uses
 		Release(world);
 		dlg.Done;
 		inherited Done;
+	end;
+
+	procedure Adventure.HandleDeactivation;
+	begin
+		mgr^.bgm.Priority('over')^.RemoveModifier(id, no);
+		inherited HandleDeactivation;
 	end;
 
 	procedure Adventure.HandleUpdate(const dt: float);
@@ -134,10 +145,15 @@ uses
 		camera.Update(dt);
 		fxPhase := modf(fxPhase + dt, PrettyTimeCycle);
 
-		if player^.states[player^.state].name = 'death' then
+		if PlayerDied then
 		begin
+			if (deathPhase = 0) and (dt > 0) then
+			begin
+				mgr^.bgm.ResetTheme('over');
+				mgr^.bgm.Priority('over')^.SetModifier(id, op_Add, +1, 0);
+			end;
 			deathPhase += dt;
-			if deathPhase > 4 then mgr^.Switch(new(pMainMenu, Init));
+			if deathPhase > 3 then display := no;
 		end;
 	end;
 
@@ -150,7 +166,7 @@ uses
 		dist, angle: float;
 	begin
 		inherited HandleDraw;
-		if deathPhase < 2.25 then
+		if display then
 		begin
 			location^.Draw(camera.viewTransform);
 
@@ -176,10 +192,10 @@ uses
 			end;
 		end;
 
-		if player^.states[player^.state].name = 'death' then
+		if PlayerDied then
 		begin
 			q.fields := [q.Field.Color];
-			q.color := Vec4.Make(0.75 * smoothstep(3.75, 2.25, deathPhase), 0, 0, smoothstep(1, 2, deathPhase) * smoothstep(3.75, 2.25, deathPhase));
+			q.color := Vec4.Make(0.75 * smoothstep(5, 3, deathPhase), 0, 0, smoothstep(1, 3, deathPhase) * smoothstep(5, 3, deathPhase));
 			q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 		end;
 	end;
@@ -190,6 +206,7 @@ uses
 			MouseLClick:
 				begin
 					if dlg.Valid and not dlg.Finished and dlg.Skippable and extra.Handle then dlg.Skip;
+					if PlayerDied and extra.Handle then PostDeathClick;
 					if playerControlMode = PlayerControlEnabled then
 					begin
 						if player^.wieldingWeapon and extra.Handle then player^.Fire;
@@ -209,7 +226,9 @@ uses
 				begin
 					if extra.HandleSilent then UpdateCursor(pos, no);
 
-					if (playerControlMode = PlayerControlEnabled) and ((player^.mvMethod = NotMoving) or player^.wieldingWeapon) and extra.Handle then
+					if (playerControlMode = PlayerControlEnabled) and ((controls = []) and (player^.mvMethod = NotMoving) or player^.wieldingWeapon)
+						and extra.Handle
+					then
 						player^.RotateTo(camera.Unproject(pos));
 				end;
 		end;
@@ -223,19 +242,11 @@ uses
 				case key of
 					key_Up, key_Down, key_Left, key_Right: if extra.Handle then controls += [DirectionKeyToDir4(key).value];
 					key_LShift: if extra.Handle then shift := yes;
-					key_Esc:
-						if extra.Handle then
-						begin
-							mgr^.Switch(new(pMainMenu, Init));
-							exit;
-						end;
 					key_Z:
 						if extra.Handle then
-							if dlg.Valid and dlg.Skippable and not dlg.Finished then
-								dlg.Skip
-							else
-								if playerControlMode = PlayerControlEnabled then
-									location^.ActivateTriggerFor(player);
+							if dlg.Valid and dlg.Skippable and not dlg.Finished then dlg.Skip
+							else if PlayerDied then PostDeathClick
+							else if playerControlMode = PlayerControlEnabled then location^.ActivateTriggerFor(player);
 					key_1:
 						if playerControlMode = PlayerControlEnabled then
 							if player^.wieldingWeapon then UnwieldWeapon else
@@ -278,6 +289,16 @@ uses
 	procedure Adventure.UnwieldWeapon;
 	begin
 		player^.UnwieldWeapon;
+	end;
+
+	function Adventure.PlayerDied: boolean;
+	begin
+		result := player^.states[player^.state].name = 'death';
+	end;
+
+	procedure Adventure.PostDeathClick;
+	begin
+		if deathPhase > 4 then mgr^.Switch(new(pMainMenu, Init));
 	end;
 
 end.

@@ -161,13 +161,13 @@ type
 	{$pop}
 	end;
 
+	operator =(const a, b: vec): boolean; cinline
 	operator +(const a, b: vec): vec; cinline
 	operator -(const a, b: vec): vec; cinline
 {$ifdef signed} operator -(const v: vec): vec; cinline {$endif}
 	operator *(const a, b: vec): vec; cinline
 	operator *(const v: vec; const k: base_type): vec; cinline
 	operator *(const k: base_type; const v: vec): vec; cinline
-	operator =(const a, b: vec): boolean; cinline
 	function Min(const a, b: vec): vec; cinline
 	function Max(const a, b: vec): vec; cinline} all_vectors
 
@@ -421,6 +421,7 @@ type
 	function Scale2(const scale: float): Transform2;
 	function TranslateRotate(const trans: Vec2; const rot: float): Transform2;
 	function RotateTranslate(const rot: float; const trans: Vec2): Transform2;
+	function Mix(const a, b: Transform2; const x: float): Transform2;
 
 type
 	pLine2 = ^Line2;
@@ -655,7 +656,7 @@ const
 {$define numberf :=
 	function Min(const a, b: typ): typ;
 	begin
-		if (a <= b) or (b <> b) then result := a else result := b;
+		if (a <= b) {$ifdef float} or (b <> b) {$endif} then result := a else result := b;
 	end;
 
 	function Min(const a, b, c: typ): typ;
@@ -665,7 +666,7 @@ const
 
 	function Max(const a, b: typ): typ;
 	begin
-		if (a >= b) or (b <> b) then result := a else result := b;
+		if (a >= b) {$ifdef float} or (b <> b) {$endif} then result := a else result := b;
 	end;
 
 	function Max(const a, b, c: typ): typ;
@@ -1003,6 +1004,7 @@ end_unchecked
 	end;
 
 {$define vec_compo_op := begin {$define iterate := result.item := op;} foreach_component end; {$undef op}}
+
 {$define vecf :=
 	{$define sqrlen := {$define one := sqr(item)} reduce_vec}
 
@@ -1188,8 +1190,8 @@ end_unchecked
 		if not aspect.Positive then exit(UintVec2.Zero);
 		rx := size.x * aspect.y;
 		ry := size.y * aspect.x;
-		if rx > ry then result := UintVec2.Make(ry div aspect.y, size.y) else
-			if rx < ry then result := UintVec2.Make(size.x, rx div aspect.x) else
+		if rx > ry then result := UintVec2.Make((ry + aspect.y div 2) div aspect.y, size.y) else
+			if rx < ry then result := UintVec2.Make(size.x, (rx + aspect.x div 2) div aspect.x) else
 				result := size;
 	end;
 
@@ -2006,6 +2008,16 @@ end_unchecked
 		result.rot := rot;
 		result.trans := result.rot * trans;
 		result.scale := 1;
+	end;
+
+	function Mix(const a, b: Transform2; const x: float): Transform2;
+	var
+		aAn: float;
+	begin
+		result.trans := lerp(a.trans, b.trans, x);
+		aAn := a.rot.ToAngle;
+		result.rot := Rotation2(aAn + AngleDiff(b.rot.ToAngle, aAn) * x); // TODO
+		result.scale := lerp(a.scale, b.scale, x);
 	end;
 
 	function Line2.FromPoints(const a, b: Vec2): Line2;

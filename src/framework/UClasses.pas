@@ -290,7 +290,7 @@ type
 		procedure DeserializeInplace(stream: pStream);
 
 		procedure SetModifier(const name: PoolString; op: OpEnum; const x: float; priority: sint);
-		procedure RemoveModifier(const name: PoolString);
+		procedure RemoveModifier(const name: PoolString; expectExisting: boolean = yes);
 		procedure SetChangeCallback(proc: OnChangeProc; param: pointer);
 		function Empty: boolean;
 
@@ -2300,16 +2300,17 @@ var
 	leave_call
 	end;
 
-	procedure ModifiableValue.RemoveModifier(const name: PoolString);
+	procedure ModifiableValue.RemoveModifier(const name: PoolString; expectExisting: boolean = yes);
 	var
 		i, id: sint;
 	begin
 		id := FindModifier(name);
-		if id = -1 then
+		if id < 0 then
 		begin
-		{$ifdef Debug} Log('Модификатор "' + name + '" не найден', logWarning); {$endif}
+			if not expectExisting then {$ifdef Debug} Log('Модификатор "' + name + '" не найден', logWarning) {$endif};
 			exit;
 		end;
+
 		for i := id to High(modifiers) - 1 do
 			modifiers[i] := modifiers[i + 1];
 		SetLength(modifiers, length(modifiers) - 1);

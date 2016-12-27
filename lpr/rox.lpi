@@ -36,7 +36,7 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);..\src\framework\inc"/>
-            <OtherUnitFiles Value="..\src;..\src\*;..\src\framework\*"/>
+            <OtherUnitFiles Value="..\src;..\src\framework;..\src\framework\*"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -68,7 +68,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="19">
+    <Units Count="20">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -145,6 +145,10 @@
         <Filename Value="..\src\rox_particles.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit18>
+      <Unit19>
+        <Filename Value="..\src\rox_mv_flight.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit19>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -155,7 +159,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\src\framework\inc"/>
-      <OtherUnitFiles Value="..\src;..\src\*;..\src\framework\*"/>
+      <OtherUnitFiles Value="..\src;..\src\framework;..\src\framework\*"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
