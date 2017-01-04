@@ -89,7 +89,7 @@ implementation
 			result := CircleVsCircle(obj, Circle.Make(obstacle.B.x, obstacle.A.y, 0), move) or result;
 
 		if (obj.center.x > obstacle.A.x) and (obj.center.y > obstacle.A.y) and ((move.x < 0) or (move.y < 0)) then
-			result := CircleVsCircle(obj, Circle.Make(obstacle.B.x, obstacle.B.y, 0), move) or result;
+			result := CircleVsCircle(obj, Circle.Make(obstacle.B, 0), move) or result;
 	end;
 
 	function RayVsCircle(const origin, direction: Vec2; const obj: Circle; k: pFloat; point: pVec2): boolean;

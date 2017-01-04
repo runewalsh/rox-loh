@@ -396,8 +396,6 @@ type
 		begin
 			Audio.Config.window := 0;
 			rox_gfx.DoneGL;
-			gl.Unload;
-			oglLoaded := no;
 		end;
 
 		if rc <> 0 then
@@ -410,6 +408,12 @@ type
 			if not wglDeleteContext(rc) then WindowsWarning('уничтожить GL-контекст');
 			rc := 0;
 			rcThread := 0;
+		end;
+
+		if oglLoaded then
+		begin
+			gl.Unload;
+			oglLoaded := no;
 		end;
 
 		if dc <> 0 then

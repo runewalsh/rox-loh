@@ -66,6 +66,7 @@ type
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
 		function Collision: Circle;
+		procedure Cleanup;
 
 		function AddState(const name: string; const base: Vec2; frames, angles: uint; const len: float; const next: string; flags: StateFlags): pStateDesc;
 		function TryFindState(const name: string): sint;
@@ -220,6 +221,13 @@ implementation
 	function Actor.Collision: Circle;
 	begin
 		result := Circle.Make(HeartPos, 0.4 * size.x);
+	end;
+
+	procedure Actor.Cleanup;
+	begin
+		mvCb.kind := MoveCallbackNotSet;
+		idclip := no;
+		if Assigned(location) then Detach;
 	end;
 
 	function Actor.AddState(const name: string; const base: Vec2; frames, angles: uint; const len: float; const next: string; flags: StateFlags): pStateDesc;

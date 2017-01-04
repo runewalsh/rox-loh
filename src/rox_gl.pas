@@ -4,7 +4,7 @@ unit rox_gl;
 interface
 
 uses
-	Windows, USystem, Utils, DynamicLoader;
+	Windows, USystem, Utils, DynamicLoader, U_GL;
 
 type
 	gl = class
@@ -146,6 +146,8 @@ type
 			ColorPointer: procedure(size: int; &type: enum; stride: sizei; data: pointer); stdcall;
 			TexEnvi: procedure(target, pname: enum; param: int); stdcall;
 			Color4f: procedure(r, g, b, a: float); stdcall;
+			LoadMatrixf: procedure(constref m: Mat4f); stdcall;
+			LoadIdentity: procedure; stdcall;
 		end;
 
 		DXT = class
@@ -241,7 +243,9 @@ implementation
 		.Func(@gl.L.TexCoordPointer, 'TexCoordPointer')^
 		.Func(@gl.L.ColorPointer, 'ColorPointer')^
 		.Func(@gl.L.TexEnvi, 'TexEnvi')^
-		.Func(@gl.L.Color4f, 'Color4f');
+		.Func(@gl.L.Color4f, 'Color4f')^
+		.Func(@gl.L.LoadMatrixf, 'LoadMatrixf')^
+		.Func(@gl.L.LoadIdentity, 'LoadIdentity');
 	end;
 
 	procedure Init;

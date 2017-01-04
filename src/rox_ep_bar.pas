@@ -292,7 +292,6 @@ uses
 		inherited Init(StateID, world);
 		if not Assigned(world) then player^.angle := HalfPi;
 
-		location := new(pLocation, Init(@self))^.NewRef;
 		location^.limits := Rect.Make(-1.2, -0.7, 1.2, 0.7);
 		(new(pDecoration, Init(Environment('parquet.png'), Translate(-1.2, -0.7), Vec2.Make(2.4, 1.4))))^.
 			SetTexRect(Rect.Make(Vec2.Zero, Vec2.Make(12, 7) * 0.5))^.SetLayer(-2)^.AddTo(location);

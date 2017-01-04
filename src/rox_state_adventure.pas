@@ -92,8 +92,9 @@ uses
 		camera.Init;
 		if Assigned(world) then self.world := world^.NewRef else self.world := new(pWorld, Init)^.NewRef;
 		player := self.world^.player^.NewRef;
-		if Assigned(player^.location) then player^.Detach;
+		player^.Cleanup;
 		display := yes;
+		location := new(pLocation, Init(@self))^.NewRef;
 	end;
 
 	destructor Adventure.Done;
@@ -182,8 +183,8 @@ uses
 					// красная линия прицела
 					q.fields := [q.Field.Transform, q.Field.ColorAB];
 					q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
-					q.colorA := Vec4.Make(1, 0, 0, 0.2 + 0.15 * 2.0 * abs(0.5 - frac(10*fxPhase)) * min(1.0, 0.5*dist));
-					q.colorB := Vec4.Make(1, 0, 0, 0.08);
+					q.colorA := Vec4.Make(1, 0, 0, 0.2 * clamp((1.5 - dist) / 1.5, 0, 1));
+					q.colorB := Vec4.Make(1, 0, 0, 0.2);
 					q.Draw(nil, Vec2.Make(-0.005, 0), Vec2.Make(0.01, dist), Vec2.Zero, Vec2.Ones);
 					gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
 					q.Draw(nil, Vec2.Make(-0.002, 0), Vec2.Make(0.004, dist), Vec2.Zero, Vec2.Ones);

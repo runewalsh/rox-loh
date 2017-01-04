@@ -269,7 +269,6 @@ type
 		function OK: boolean;
 		procedure Start(const nameOf: string; out thrd: Thread; const proc: Body; param: pointer); static;
 		procedure Close;
-		function Running: boolean;
 		procedure Join;
 		procedure Sleep(const ms: uint); static;
 		procedure Sleep(const time: Ticks); static;
@@ -3572,17 +3571,6 @@ var
 			thrd.Close;
 			raise;
 		end;
-	end;
-
-	function Thread.Running: boolean;
-	var
-		code: dword;
-	begin
-		if handle = 0 then exit(no);
-	{$ifdef Windows}
-		code := 0;
-		result := GetExitCodeThread(handle, code) and (code = Win.STILL_ALIVE);
-	{$else} {$error Thread.Running unimplemented} {$endif}
 	end;
 
 	procedure Thread.Join;

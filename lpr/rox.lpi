@@ -68,7 +68,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="20">
+    <Units Count="22">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -149,6 +149,14 @@
         <Filename Value="..\src\rox_mv_flight.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit19>
+      <Unit20>
+        <Filename Value="..\src\rox_ep_ship.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="..\src\rox_ep_mars.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit21>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

@@ -16,7 +16,7 @@ type
 		texRect: Rect;
 		animFrames: uint;
 		phase, animLen: float;
-		oneshot, deducedX, deducedY, additive: boolean;
+		oneshot, mirroredLoop, deducedX, deducedY, additive: boolean;
 		alpha: float;
 		constructor Init(const tex: string; const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
@@ -24,6 +24,7 @@ type
 		procedure HandleDraw(const view: Transform2); virtual;
 		function SetTexRect(const rect: Rect): pDecoration;
 		function SetAnim(const base: Rect; const frames: uint; const len: float; oneshot: boolean): pDecoration;
+		function CurrentFrame: float;
 	private
 		procedure ReDeduce;
 	end;
@@ -60,7 +61,6 @@ implementation
 	procedure Decoration.HandleDraw(const view: Transform2);
 	var
 		q: Quad;
-		shift, frame: float;
 	begin
 		q.fields := [q.Field.Transform];
 		if Assigned(parent) then q.transform := view * parent^.local * local else q.transform := view * local;
@@ -69,13 +69,7 @@ implementation
 		if animFrames = 0 then
 			q.Draw(tex, Vec2.Zero, size, texRect.A, texRect.Size)
 		else
-		begin
-			frame := floor(phase / max(animLen, 0.1) * animFrames);
-			if frame >= animFrames then
-				if oneshot then frame := animFrames - 1 else frame := 0;
-			shift := texRect.Size.X * frame;
-			q.Draw(tex, Vec2.Zero, size, texRect.A + Vec2.Make(shift, 0), texRect.Size);
-		end;
+			q.Draw(tex, Vec2.Zero, size, texRect.A + Vec2.Make(texRect.Size.X * CurrentFrame, 0), texRect.Size);
 		if additive then gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 	end;
 
@@ -96,10 +90,29 @@ implementation
 		result := @self;
 	end;
 
+	function Decoration.CurrentFrame: float;
+	var
+		df: uint;
+	begin
+		Assert(animFrames > 0);
+		if mirroredLoop then
+		begin
+			df := 2 * animFrames;
+			result := floor(phase / max(animLen, 0.1) * (df - 2));
+			if result >= df - 2 then result := 0;
+			if result >= animFrames then result := animFrames - 2 - (result - animFrames);
+		end else
+		begin
+			result := floor(phase / max(animLen, 0.1) * animFrames);
+			if result >= animFrames then
+				if oneshot then result := animFrames - 1 else result := 0;
+		end;
+	end;
+
 	procedure Decoration.ReDeduce;
 	begin
-		if deducedX then self.size.x := self.tex^.ap.Fixed(texRect.Aspect).Aspect2Item(asp2_y1, 0, size.y);
-		if deducedY then self.size.y := self.tex^.ap.Fixed(texRect.Aspect).Aspect2Item(asp2_x1, 1, size.x);
+		if deducedX then self.size.x := self.tex^.ap.Fixed(texRect.Aspect).Aspect2Item(asp2_y1, 0, abs(size.y));
+		if deducedY then self.size.y := self.tex^.ap.Fixed(texRect.Aspect).Aspect2Item(asp2_x1, 1, abs(size.x));
 	end;
 
 end.

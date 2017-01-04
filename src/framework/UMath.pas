@@ -407,6 +407,7 @@ type
 		trans: Vec2;
 		rot: Rotation2;
 		scale: float;
+		function To3: Transform;
 	const
 		Identity: Transform2 = (trans: (data: (0, 0)); rot: (cosa: 1; sina: 0); scale: 1);
 	end;
@@ -1940,6 +1941,13 @@ end_unchecked
 	operator =(const a, b: Rotation2): boolean;
 	begin
 		result := (a.cosa = b.cosa) and (a.sina = b.sina);
+	end;
+
+	function Transform2.To3: Transform;
+	begin
+		result.tr := Vec3.Make(trans.x, trans.y, 0);
+		result.rot := Quaternion.Rotation(rot.ToAngle, Vec3.PositiveZ);
+		result.scale := scale;
 	end;
 
 	operator =(const a, b: Transform2): boolean;

@@ -6,7 +6,7 @@ uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl, rox_paths, rox_world,
 	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure,
-	rox_ep_entry, rox_ep_bar, rox_mv_flight;
+	rox_ep_entry, rox_ep_bar, rox_mv_flight, rox_ep_mars, rox_ep_ship;
 
 	procedure LoadBGM(var window: Window);
 	begin
@@ -15,6 +15,8 @@ uses
 		window.state.bgm.AddTheme(Ep_Bar.StateID).AddItem(Music('pressure5.mid'));
 		window.state.bgm.AddTheme(Ep_Entry.DepartStateID).AddItem(Music('machinecenter4.mid'));
 		window.state.bgm.AddTheme('over').AddItem(Music('over.mid'));
+		window.state.bgm.AddTheme(Ep_Mars.StateID).AddItem(Music('silentzone1.mid'));
+		window.state.bgm.AddTheme(Ep_Ship.StateID).AddItem(Music('stepup1.mid'));
 	end;
 
 var
@@ -92,7 +94,7 @@ begin
 			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 			gl.ClearColor(0.01, 0.06, 0.015, 1);
 
-			window.state.Switch(new(pMv_Flight{pEp_Entry}, Init(new(pWorld, Init))));
+			window.state.Switch(new(pEp_Mars{pEp_Entry}{pMainMenu}{pMv_Flight}, Init(new(pWorld, Init))));
 			ResetCumTime;
 			lastDt := 0.0;
 			repeat

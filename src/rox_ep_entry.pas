@@ -132,7 +132,6 @@ implementation
 		end;
 		inherited Init(stateId, world);
 
-		location := new(pLocation, Init(@self))^.NewRef;
 		door := new(pDecoration, Init(Environment('bar_door.png'), Translate(1, 0), Vec2.Make(0.3, 0.3*1.3)))^.SetTexRect(Rect.MakeSize(0, 0, 1/3, 1))^.NewRef;
 		location^.AddWall(door, Vec2.Zero, Vec2.Make(0, 0.2/1*1.3));
 

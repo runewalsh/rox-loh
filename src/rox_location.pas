@@ -13,14 +13,14 @@ type
 	Node = object(&Object)
 		location: pLocation;
 		local: Transform2;
-		size: Vec2;
+		size, relHeart: Vec2;
 		layer: sint;
 		parent: pNode;
 		constructor Init(const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual; abstract;
-		function HeartPos: Vec2; virtual;
+		function HeartPos: Vec2;
 		procedure Detach;
 		function SetLayer(layer: sint): pNode;
 		function SetParent(parent: pNode): pNode;
@@ -121,6 +121,7 @@ uses
 		inherited Init;
 		self.local := local;
 		self.size := size;
+		relHeart := Vec2.Make(0.5);
 	end;
 
 	destructor Node.Done;
@@ -135,7 +136,7 @@ uses
 
 	function Node.HeartPos: Vec2;
 	begin
-		result := local.trans + 0.5 * size;
+		result := local.trans + relHeart * size;
 	end;
 
 	procedure Node.Detach;
@@ -322,31 +323,35 @@ uses
 
 	function Location.Collide(const obj: Circle; var move: Vec2; ignore: pNode): boolean;
 	var
-		i: sint;
+		i, iter: sint;
 		nm: Vec2;
 	begin
 		result := no;
 		result := CircleVsEnclosingRect(obj, limits, move) or result;
 
-		for i := 0 to High(obstacles) do
-			result := CircleVsCircle(obj, obstacles[i], move) or result;
+		// В общем, это против багов, когда две стены стоят рядом и одна может вытолкнуть в другую, которые мне лень исправлять.
+		for iter := 0 to 1 do
+		begin
+			for i := 0 to High(obstacles) do
+				result := CircleVsCircle(obj, obstacles[i], move) or result;
 
-		for i := 0 to High(walls) do
-			if walls[i].rot.IsIdentity then
-				result := CircleVsRect(obj, walls[i].rect, move) or result
-			else
-			begin
-				nm := -walls[i].rot * move;
-				if CircleVsRect(Circle.Make(-walls[i].rot * (obj.center - walls[i].rect.A), obj.radius), Rect.Make(Vec2.Zero, walls[i].rect.Size), nm) then
+			for i := 0 to High(walls) do
+				if walls[i].rot.IsIdentity then
+					result := CircleVsRect(obj, walls[i].rect, move) or result
+				else
 				begin
-					result := yes;
-					move := walls[i].rot * nm;
+					nm := -walls[i].rot * move;
+					if CircleVsRect(Circle.Make(-walls[i].rot * (obj.center - walls[i].rect.A), obj.radius), Rect.Make(Vec2.Zero, walls[i].rect.Size), nm) then
+					begin
+						result := yes;
+						move := walls[i].rot * nm;
+					end;
 				end;
-			end;
 
-		for i := 0 to High(actors) do
-			if (actors[i] <> ignore) and not pActor(actors[i])^.idclip then
-				result := CircleVsCircle(obj, pActor(actors[i])^.Collision, move) or result;
+			for i := 0 to High(actors) do
+				if (actors[i] <> ignore) and not pActor(actors[i])^.idclip then
+					result := CircleVsCircle(obj, pActor(actors[i])^.Collision, move) or result;
+		end;
 	end;
 
 	function Location.Raycast(const origin, direction: Vec2; out r: RaycastResult; ignore: pNode): boolean;

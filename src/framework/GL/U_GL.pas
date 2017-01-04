@@ -722,33 +722,33 @@ const
 		(sizeof: sizeof(Vec3f); baseDim: 3; baseType: GLType.Float;  flags: []), // GLType.Vec3
 		(sizeof: sizeof(Vec4f); baseDim: 4; baseType: GLType.Float;  flags: []), // GLType.Vec4
 		(sizeof: sizeof(Mat4f); baseDim: 4; baseType: GLType.Vec4;  flags: [GLTypeFlag.Matrix]), // GLType.Mat4
-		(sizeof: sizeof(uint32);  baseDim: 1; baseType: GLType.Uint32; flags: [GLTypeFlag.Int]), // GLType.Uint32
-		(sizeof: sizeof(byte);    baseDim: 1; baseType: GLType.Ubyte;  flags: [GLTypeFlag.Int]), // GLType.Ubyte
-		(sizeof: sizeof(uint16);  baseDim: 1; baseType: GLType.Uint16; flags: [GLTypeFlag.Int]), // GLType.Uint16
-		(sizeof: 0; baseDim: 0; baseType: GLType.Sampler; flags: []), // GLType.Sampler
-		(sizeof: sizeof(sint16);     baseDim: 1; baseType: GLType.Ni16; flags: [GLTypeFlag.AdvFloat]), // GLType.Ni16
+		(sizeof: sizeof(uint32); baseDim: 1; baseType: GLType.Uint32; flags: [GLTypeFlag.Int]), // GLType.Uint32
+		(sizeof: sizeof(byte);   baseDim: 1; baseType: GLType.Ubyte;  flags: [GLTypeFlag.Int]), // GLType.Ubyte
+		(sizeof: sizeof(uint16); baseDim: 1; baseType: GLType.Uint16; flags: [GLTypeFlag.Int]), // GLType.Uint16
+		(sizeof: 0; baseDim: 0;  baseType: GLType.Sampler; flags: []), // GLType.Sampler
+		(sizeof: sizeof(sint16);  baseDim: 1; baseType: GLType.Ni16; flags: [GLTypeFlag.AdvFloat]), // GLType.Ni16
 		(sizeof: sizeof(Vec2s16); baseDim: 2; baseType: GLType.Ni16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec2Ni16
 		(sizeof: sizeof(Vec3s16); baseDim: 3; baseType: GLType.Ni16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec3Ni16
 		(sizeof: sizeof(Vec4s16); baseDim: 4; baseType: GLType.Ni16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec4Ni16
-		(sizeof: sizeof(sbyte);      baseDim: 1; baseType: GLType.Ni8; flags: [GLTypeFlag.AdvFloat]), // GLType.Ni8
+		(sizeof: sizeof(sbyte);   baseDim: 1; baseType: GLType.Ni8; flags: [GLTypeFlag.AdvFloat]), // GLType.Ni8
 		(sizeof: sizeof(Vec2s8);  baseDim: 2; baseType: GLType.Ni8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec2Ni8
 		(sizeof: sizeof(Vec3s8);  baseDim: 3; baseType: GLType.Ni8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec3Ni8
 		(sizeof: sizeof(Vec4s8);  baseDim: 4; baseType: GLType.Ni8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec4Ni8
-		(sizeof: sizeof(half);      baseDim: 1; baseType: GLType.Half; flags: [GLTypeFlag.AdvFloat]), // GLType.Half
+		(sizeof: sizeof(half);  baseDim: 1; baseType: GLType.Half; flags: [GLTypeFlag.AdvFloat]), // GLType.Half
 		(sizeof: sizeof(Vec2h); baseDim: 2; baseType: GLType.Half; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec2Half
 		(sizeof: sizeof(Vec3h); baseDim: 3; baseType: GLType.Half; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec3Half
 		(sizeof: sizeof(Vec4h); baseDim: 4; baseType: GLType.Half; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec4Half
-		(sizeof: sizeof(uint16);      baseDim: 1; baseType: GLType.Nui16; flags: [GLTypeFlag.AdvFloat]), // GLType.Nui16
+		(sizeof: sizeof(uint16);  baseDim: 1; baseType: GLType.Nui16; flags: [GLTypeFlag.AdvFloat]), // GLType.Nui16
 		(sizeof: sizeof(Vec2u16); baseDim: 2; baseType: GLType.Nui16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec2Nui16
 		(sizeof: sizeof(Vec3u16); baseDim: 3; baseType: GLType.Nui16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec3Nui16
 		(sizeof: sizeof(Vec4u16); baseDim: 4; baseType: GLType.Nui16; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec4Nui16
-		(sizeof: sizeof(byte);       baseDim: 1; baseType: GLType.Nui8; flags: [GLTypeFlag.AdvFloat]), // GLType.Nui8
+		(sizeof: sizeof(byte);   baseDim: 1; baseType: GLType.Nui8; flags: [GLTypeFlag.AdvFloat]), // GLType.Nui8
 		(sizeof: sizeof(Vec2u8); baseDim: 2; baseType: GLType.Nui8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec2Nui8
 		(sizeof: sizeof(Vec3u8); baseDim: 3; baseType: GLType.Nui8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec3Nui8
 		(sizeof: sizeof(Vec4u8); baseDim: 4; baseType: GLType.Nui8; flags: [GLTypeFlag.AdvFloat]), // GLType.Vec4Nui8
-		(sizeof: sizeof(sint32);      baseDim: 1; baseType: GLType.Int32; flags: [GLTypeFlag.Int]), // GLType.Int32
-		(sizeof: sizeof(sint16);      baseDim: 1; baseType: GLType.Int16; flags: [GLTypeFlag.Int]), // GLType.Int16
-		(sizeof: sizeof(sint8);       baseDim: 1; baseType: GLType.Int8; flags: [GLTypeFlag.Int]),  // GLType.Int8
+		(sizeof: sizeof(sint32); baseDim: 1; baseType: GLType.Int32; flags: [GLTypeFlag.Int]), // GLType.Int32
+		(sizeof: sizeof(sint16); baseDim: 1; baseType: GLType.Int16; flags: [GLTypeFlag.Int]), // GLType.Int16
+		(sizeof: sizeof(sint8);  baseDim: 1; baseType: GLType.Int8; flags: [GLTypeFlag.Int]),  // GLType.Int8
 		(sizeof: sizeof(Vec2u8);  baseDim: 2; baseType: GLType.Ubyte; flags: []), // GLType.Vec2ui8
 		(sizeof: sizeof(Vec3u8);  baseDim: 3; baseType: GLType.Ubyte; flags: []), // GLType.Vec3ui8
 		(sizeof: sizeof(Vec4u8);  baseDim: 4; baseType: GLType.Ubyte; flags: []), // GLType.Vec4ui8
@@ -1026,7 +1026,7 @@ const
 
 	procedure tGL.KillCmdThread;
 	begin
-		if cmdThread.Running then
+		if cmdThread.OK then
 		begin
 		{$ifdef Debug} LogR('Остановка рендера... '); {$endif}
 			LockPut(Opcode.Terminate, sizeof(Command.Terminate));
@@ -1582,7 +1582,7 @@ const
 		if _ctxInited then
 			GLClasses_Done;
 
-		if cmdThread.Running then
+		if cmdThread.OK then
 		begin
 			UnlockPutImmediate(LockPut(Opcode.CtxDone, sizeof(Command.CtxDone)));
 		end else
