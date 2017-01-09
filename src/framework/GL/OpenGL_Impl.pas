@@ -1215,7 +1215,7 @@ type
 	var
 		lc: string;
 	begin
-		lc := LowerCase(s);
+		lc := Lowercase(s);
 		result := (Pos('warn', lc) > 0) or (Pos('err', lc) > 0) or (Pos('fail', lc) > 0) or (Pos('note', lc) > 0);
 	end;
 {$endif}

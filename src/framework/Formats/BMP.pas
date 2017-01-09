@@ -74,8 +74,8 @@ type
 
 		try
 			row := bgr + im.Size.Y * rawBgrRowSize;
-         repeat
-         	row -= rawBgrRowSize;
+			repeat
+				row -= rawBgrRowSize;
 				stream^.Write(row, rawBgrRowSize);
 				if alignedBgrRowSize > rawBgrRowSize then stream^.Write(@Pad, alignedBgrRowSize - rawBgrRowSize);
 			until row = bgr;

@@ -47,10 +47,10 @@ type
 		1: (alphas: uint16;
 			alphaIndices: DXT5AlphaIndices;
 
-   	case uint of
-   		0: (color0, color1: uint16);
-   		1: (colors: uint32;
-   			bits: uint32));
+		case uint of
+			0: (color0, color1: uint16);
+			1: (colors: uint32;
+				bits: uint32));
 	end; {$if sizeof(DXT5Block) <> 16} {$error wrong DXT5 block size, should be 16 bytes} {$endif}
 
 	// 16 смещений пикселей относительно выходного указателя

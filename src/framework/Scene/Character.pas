@@ -624,7 +624,7 @@ const
 		vp: pVitalParameter absolute param;
 		i: sint;
 	begin
-		i := Index(binding, IndicatorGroup.ppBinding(vp^.bindings), length(vp^.bindings));
+		i := Index(binding, pPointer(vp^.bindings), length(vp^.bindings));
 		Assert(i >= 0);
 		Release(vp^.bindings[i]);
 		vp^.bindings[i] := vp^.bindings[High(vp^.bindings)];

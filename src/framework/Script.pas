@@ -4997,8 +4997,7 @@ type
 		begin
 			if nopp > 0 then result += EOL;
 			inc(nopp);
-			result += 'Структура #' + Utils.ToString(nopp) + ': '
-			          + structs.GetKey(it)^.Dump(@self);
+			result += Format('Структура #{0}: {1}', [nopp, structs.GetKey(it)^.Dump(@self)]);
 		end;
 	end;
 {$endif}

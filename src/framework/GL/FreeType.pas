@@ -783,7 +783,7 @@ const
 		sglyphbm := nil;
 
 	{$ifdef Debug} LogR('Загрузка символа {0}{1}{2} (U+{3}) из {4}... ',
-	                    Quote(sym), UTF8.CodepointToString(sym), Quote(sym), ToString(sym, IntFormat.Hex), StreamPath.Log(_fn)); {$endif}
+		                 Quote(sym), UTF8.CodepointToString(sym), Quote(sym), ToString(sym, IntFormat.Hex), StreamPath.Log(_fn)); {$endif}
 		glyphId := FT_Get_Char_Index(face, sym);
 		if glyphId = 0 then
 		begin

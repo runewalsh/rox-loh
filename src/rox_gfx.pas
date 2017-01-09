@@ -21,7 +21,6 @@ type
 		sizeZ: uint;
 		ap: AspectPair;
 		targetEnum: gl.enum;
-		fn: string;
 
 		function Load(const filename: string): pTexture; static;
 		function Dynamic(format: GLImageFormat; const size: UintVec2; special: Special): pTexture; static;
@@ -103,6 +102,8 @@ type
 	procedure GLGraveyard.Add(kind: ItemKind; handle: gl.uint);
 	begin
 		Assert(Assigned(window), 'Ресурс, зависимый от GL-контекста, пережил уничтожение окна.');
+		if not Assigned(window) then exit; // если всё же что-то пошло не так, лучше ничего не делать
+		                                   // (тем более ресурс уничтожится вместе с контекстом), чем упасть
 
 		if (handle = 0) or (Thread.Current = window^.GLContextOwner) then
 			DisposeOf(kind, handle)
@@ -247,7 +248,6 @@ var
 			if Pos('[tile]', s^.path) > 0 then clamp := RepeatTexture;
 			if Pos('[z-tile]', s^.path) > 0 then clamp := ClampXYRepeatZ;
 			result := Create(im.target, im.size, texture_Mips in im.info.flags, clamp);
-			result^.fn := s^.path;
 			try
 				for lv := 0 to im.nLevels - 1 do
 				begin

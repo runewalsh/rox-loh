@@ -190,15 +190,15 @@ type
 			function OnProcess: pMultiDelegate;
 			function OnClose: pMultiDelegate;
 		private
-         it: pointer; // pItemDesc
+			it: pointer; // pItemDesc
 		end;
 
 		ThemeProxy = object
 			function AddItem(const stream: string): ItemProxy;
 			function AddItem(const name, stream: string): ItemProxy;
-			procedure FadeoutTime(const ft: float);
+			function FadeoutTime(const ft: float): ThemeProxy;
 		private
-         th: pointer; // pThemeDesc
+			th: pointer; // pThemeDesc
 		end;
 
 		procedure Init;
@@ -465,8 +465,8 @@ type
 		stillRequired := no;
 		trash.Init;
 		w^.Lock(no);
-      try
-      	if w^.stopTimer then exit;
+		try
+			if w^.stopTimer then exit;
 			boost := no;
 			for i := High(w^.playing) downto 0 do
 			begin
@@ -843,7 +843,7 @@ type
 		if h = h2d then h2d := 0;
 		if h = h3d then h3d := 0;
 
-	{$ifdef Debug} comment := WrapNonempty(sampleKind, ' (', ')'); {$endif}
+	{$ifdef Debug} comment := WrapNonempty(sampleKind, ' (/)'); {$endif}
 		if Bass.SampleFree(h) then
 			{$ifdef Debug} Log('Сэмпл {0}{1} уничтожен', StreamPath.Log(stream), comment, logDebug) {$endif}
 		else
@@ -1337,7 +1337,11 @@ const
 		result.it := pThemeDesc(th)^.AddItem(name, stream);
 	end;
 
-	procedure MusicPlayer.ThemeProxy.FadeoutTime(const ft: float); begin pThemeDesc(th)^.fadeoutTime := RangeCheck(ft, 0, 10, 'fadeout'); end;
+	function MusicPlayer.ThemeProxy.FadeoutTime(const ft: float): ThemeProxy;
+	begin
+		pThemeDesc(th)^.fadeoutTime := RangeCheck(ft, 0, 10, 'fadeout');
+		result := self;
+	end;
 
 	procedure MusicPlayer.Init;
 	begin
@@ -1509,7 +1513,6 @@ const
 		ritem, rtheme, item, theme, targetPos: sint;
 		bits: uint;
 	begin
-		unused_args stream end_list
 		Lock(yes);
 	{$ifdef Debug} Log('Состояние плеера перед загрузкой:' + EOL + Dump, logDebug); {$endif}
 		InternalSwitch(-1, nil, no);
@@ -1675,7 +1678,7 @@ const
 
 	function MusicPlayer.ThemeDesc.FindItem(const name: string): sint;
 	begin
-		result := IndexIndirect(name, pPointer(items), length(items), fieldoffset ItemDesc _ name _);
+		result := IndexIndirect(name, pPointer(items), length(items), @ItemDesc(nil^).name);
 	end;
 
 	function MusicPlayer.ThemeDesc.FetchItem(remember: boolean): sint;
@@ -1973,7 +1976,7 @@ const
 
 	function MusicPlayer.FindTheme(const name: PoolString; throw: boolean): sint;
 	begin
-		result := USystem.Index(name.ToIndex, pointer(pThemeDesc(themes)) + fieldoffset ThemeDesc _ name _, length(themes), sizeof(ThemeDesc));
+		result := USystem.Index(name.ToIndex, first_field themes _ name _, length(themes), sizeof(themes[0]));
 		if (result < 0) and throw then raise Error('Тема "{0}" не найдена.', name);
 	end;
 
@@ -2296,9 +2299,9 @@ const
 	{$endif}
 
 		Sound.LoadMIDIFonts;
-      Bass.Set3DFactors(0.5, 1.0, 1.0);
-      if Sound.HasPrevViewer then Sound.SetViewer(Sound.PrevPos, Sound.PrevFront, Sound.PrevTop, yes) else Sound.ResetViewer(yes);
-      // ↑ вызовут Apply3D
+		Bass.Set3DFactors(0.5, 1.0, 1.0);
+		if Sound.HasPrevViewer then Sound.SetViewer(Sound.PrevPos, Sound.PrevFront, Sound.PrevTop, yes) else Sound.ResetViewer(yes);
+		// ↑ вызовут Apply3D
 	end;
 
 	procedure BeforeUnload;

@@ -1579,7 +1579,7 @@ var
 
 	function Batch.GetVAId(const vaName: PoolString): sint;
 	begin
-		result := Index(vaName.ToIndex, pointer(va) + fieldoffset NativeGLValue _ _namae _, length(va), sizeof(NativeGLValue));
+		result := Index(vaName.ToIndex, first_field va _ _namae _, length(va), sizeof(va[0]));
 	end;
 
 	function Batch.FindVA(const vaName: PoolString): pNativeGLValue;
@@ -1872,7 +1872,7 @@ var
 
 	function Mesh.GetBatchID(const batchName: PoolString): sint;
 	begin
-		result := Index(batchName.ToIndex, pointer(batches) + fieldoffset Batch _ name _, length(batches), sizeof(Batch));
+		result := Index(batchName.ToIndex, first_field batches _ name _, length(batches), sizeof(batches[0]));
 	end;
 
 	function Mesh.FindBatch(const batchName: PoolString): pBatch;

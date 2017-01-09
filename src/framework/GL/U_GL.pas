@@ -1011,8 +1011,8 @@ const
 	{$ifdef Debug}
 		if cmds.stats.allocations > 0 then
 			Log('Аллокаций в очереди GL-команд: {0}, макс. блоков: {1}, макс. элементов: {2}, макс. длина: {3}, макс. выделено: {4}.',
-			    ToString(cmds.stats.allocations), ToString(cmds.stats.maxBlocks), ToString(cmds.stats.maxItems),
-				 ToStringSuff_b(cmds.stats.maxSumSize), ToStringSuff_b(cmds.stats.maxSumAlloc), logDebug);
+				ToString(cmds.stats.allocations), ToString(cmds.stats.maxBlocks), ToString(cmds.stats.maxItems),
+				ToStringSuff_b(cmds.stats.maxSumSize), ToStringSuff_b(cmds.stats.maxSumAlloc), logDebug);
 		if (allocatedInPlace > 0) or (allocatedDynamically > 0) then
 			Log('Суммарно выделено буферов {0}.', SeparatedList.Join(2, @DescribeSummaryAllocated, @self, ', '), logDebug);
 		if maxGraveyardSize > 0 then Log('Максимальный размер GL-«кладбища»: {0}.', [maxGraveyardSize], logDebug);

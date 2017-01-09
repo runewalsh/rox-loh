@@ -181,12 +181,8 @@ implementation
 	end;
 
 	function TestSuite.&Case(const input: array of string; const expected: string): TestSuite;
-		function FirstOrEmpty: string;
-		begin
-			if length(input) >= 1 then result := input[0] else result := '';
-		end;
 	begin
-		result := &Case(FirstOrEmpty, input, expected);
+		result := &Case(SafeIndex(input, 0), input, expected);
 	end;
 
 	procedure TestSuite.Done;

@@ -1961,7 +1961,7 @@ uses
 
 			if not Assigned(state) then raise USystem.Error('Ошибка инициализации LZHAM.');
 		except
-      	lzham.loader.Unload;
+			lzham.loader.Unload;
 			instant_reraise_from_constructor;
 		end;
 		inherited Init(newMode);

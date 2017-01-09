@@ -622,8 +622,8 @@ type
 	SavePreviewTask = object
 		instance: Task;
 		mm: pMultimediaSystem;
-      f: pStream;
-      procedure Run;
+		f: pStream;
+		procedure Run;
 	end;
 
 	procedure SavePreviewTask.Run;
@@ -678,7 +678,7 @@ type
 				f^.AppendFrom(tmp, FilePos.Zero, tmp^.Size);
 			finally
 				if Assigned(se) then dispose(se, Done);
-            Release(f);
+				Release(f);
 				Release(tmp);
 			end;
 		except

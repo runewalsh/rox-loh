@@ -159,8 +159,8 @@ const
 	begin
 		Add('Лог начат, ' + ToString(DateTime.GetLocal) + EOL);
 		Add('☣ ', logOK);
-		Add('Компилятор: FPC, версия ' + {$INCLUDE %FPCVersion%} + ', целевой CPU - ' + {$INCLUDE %FPCTargetCPU%} + ', целевая ОС - ' + {$INCLUDE %FPCTargetOS%} + EOL);
-		Add('Билд v' + GetExecVersion + ', собран ' + {$include %date%} + ' ' + {$include %time%} + EOL);
+		Add('Компилятор: FPC, версия ' + {$INCLUDE %FPCVersion%} + ', целевой CPU - ' + {$INCLUDE %FPCTargetCPU%} + ', целевая ОС - ' + {$INCLUDE %FPCTargetOS%} +
+			', ' + Continued('билд', ' v', GetExecVersion) + ' собран ' + {$include %date%} + ' ' + {$include %time%} + EOL);
 		Add(Format('SizeOf(pointer / size_t / sint / float / hp_float) = {0}/{1}/{2}/{3}/{4}' + EOL,
 			[sizeof(pointer), sizeof(size_t), sizeof(sint), sizeof(float), sizeof(hp_float)]), logDebug);
 		Add(Format('SizeOf(vec2 / vec3 / vec4) = {0}/{1}/{2}' + EOL, [sizeof(Vec2), sizeof(Vec3), sizeof(Vec4)]), logDebug);
@@ -711,7 +711,7 @@ const
 			id := ExtractID(f.name);
 			if id = '' then continue;
 
-			i := Index(id, pointer(logs) + fieldoffset SessionLogs _ dateid _, length(logs), sizeof(SessionLogs));
+			i := Index(id, first_field logs _ dateid _, length(logs), sizeof(logs[0]));
 			if i < 0 then
 			begin
 				i := length(logs);

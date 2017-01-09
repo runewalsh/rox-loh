@@ -23,8 +23,7 @@
 {$endif}
 {$ifopt C+} {$define assert} {$else} {$ifdef assert} {$error assert defined} {$endif} {$endif}
 {$define unchecked := {$push} {$rangechecks off} {$overflowchecks off} {$define end_unchecked := {$pop} {$undef end_unchecked}}}
-{$define fieldoffset := (pointer(@ {$define _ := (nil^). {$define _ := ) - nil) {$undef _}}}}
-
+{$define first_field := {$push} {$rangechecks off} pointer(@ {$define _ := [0]. {$define _ := ) {$pop} {$undef _}}}}
 {$define instant_reraise_from_constructor := begin self.ReplaceVMT(TypeOf(BaseObject)); raise; end}
 // Из-за WPO ReplaceVMT может не сработать сразу.
 {$define instantly_reraised_from_constructor := self.VMTWasReplacedWith(TypeOf(BaseObject))}

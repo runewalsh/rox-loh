@@ -94,7 +94,7 @@ const
 
 type
 	FloatIs = class
-	  	class function NaN(const x: float32): boolean;
+		class function NaN(const x: float32): boolean;
 		class function Finite(const x: float32): boolean;
 		class function NaN(const x: float64): boolean;
 		class function Finite(const x: float64): boolean;
@@ -390,13 +390,11 @@ type
 	private
 		ptr: pointer;
 	{$ifdef NotifySpuriousWakeups}
-	type
-		SpuriousRec = record
+	var
+		spurious: array of record
 			thrd: Thread.ID;
 			really: uint;
 		end;
-	var
-		spurious: array of SpuriousRec;
 		spuriLock: ThreadLock;
 		procedure NotifySpuriousWakeups;
 		function SpuriousIndex(thrd: Thread.ID): sint;
@@ -720,7 +718,7 @@ type
 		function EraseTree(const folder: string): boolean; static;
 		function Scan(const folder: string; const mask: string; filter: WhatToSearch = Anything): Enumerator; static;
 		function Scan(const folder: string; filter: WhatToSearch = Anything): Enumerator; static;
-		function Create(const folder: string; firstCreated: pString = nil): boolean; static;
+		function Create(const folder: string; firstCreated: pString = nil; throw: boolean = no): boolean; static;
 		function AppendSeparator(const folder: string): string; static;
 		function RemoveSeparator(const folder: string): string; static;
 		function Path(const fn: string; stripSeparator: boolean): string; static;
@@ -945,25 +943,26 @@ type
 	procedure memcpy(source: pointer; dest: pointer; count: size_t); external name 'FPC_MOVE';
 	function memfind(needle: pointer; nNeedle: size_t; haystack: pointer; nHaystack: size_t): pointer;
 {$define index_overloads :=
-	function func(const x: typ; buf: pointer; len: size_t): rettype; {$if defined(straight) and not defined(nonpod)} cinline {$endif}
-	function func(const x: typ; buf: pointer; len: size_t; stride: size_t): rettype;
+	function func(const x: typ; buf: pTyp; len: size_t): rettype; {$if defined(straight) and not defined(nonpod)} cinline {$endif}
+	function func(const x: typ; buf: pTyp; len: size_t; stride: size_t): rettype;
 	{$undef func} {$undef rettype} {$undef straight} // typ и nonpod хэндлятся в index_header}
 {$define index_header :=
 	{$define func := Index}     {$define rettype := SizeInt} {$define straight} index_overloads
 	{$define func := IndexRev}  {$define rettype := SizeInt} index_overloads
 	{$define func := Index1}    {$define rettype := size_t}  index_overloads
 	{$define func := Index1Rev} {$define rettype := size_t}  index_overloads
-	{$undef typ} {$undef nonpod}}
 
-	// TODO: для всех, как выше
-	function IndexIndirect(const x: string; buf: pPointer; len: size_t; offset: size_t): sint;
+	function IndexIndirect(const x: typ; buf: pPointer; len: size_t; field: pointer): SizeInt;
+	function IndexIndirect(const x: typ; buf: pPointer; len: size_t; field: pointer; stride: size_t): SizeInt;
+	{$undef typ} {$undef pTyp} {$undef nonpod}}
 
-	{$define typ := char} index_header
-	{$define typ := uint32} index_header {$define typ := sint32} index_header
-	{$define typ := uint64} index_header {$define typ := sint64} index_header
-	{$define typ := pointer} index_header
-	{$define typ := string} {$define nonpod} index_header
+	{$define typ := char} {$define pTyp := pChar} index_header
+	{$define typ := uint32} {$define pTyp := pUint32} index_header {$define typ := sint32} {$define pTyp := pSint32} index_header
+	{$define typ := uint64} {$define pTyp := pUint64} index_header {$define typ := sint64} {$define pTyp := pSint64} index_header
+	{$define typ := pointer} {$define pTyp := pPointer} index_header
+	{$define typ := string} {$define pTyp := pString} {$define nonpod} index_header
 {$undef index_header} {$undef index_overloads}
+
 	procedure memxor(a, b, target: pointer; size: size_t);
 	procedure SwapMem(a, b: pointer; size: size_t);
 	procedure Swap(var a, b: pointer);
@@ -1238,7 +1237,9 @@ type
 	end;
 
 	Exception = class
-	public
+	type
+		ExceptionClass = class of Exception;
+	var
 		constructor Create(xc: pExceptionRef);
 		constructor Create(const newMessage: string);
 		constructor Create(const newMessage: string; newInner: pExceptionRef);
@@ -1263,6 +1264,7 @@ type
 	private
 		ref: pExceptionRef;
 		class function ExtractInnerExceptionRef: pExceptionRef;
+		class function BuildExpanded(ref: pExceptionRef): string;
 
 {$ifdef Debug}
 	public type
@@ -1484,8 +1486,8 @@ type
 		class function OperationFailed(const what: string; code: dword = 0): Exception;
 		class function OperationFailedMessage(const what: string; code: dword = 0): string;
 		class function FileLoadError(const fn: string; code: dword): Exception;
-		class function LowerCase(const s: string): string;
-		class function LowerCaseFirst(const s: string): string;
+		class function Lowercase(const s: string): string;
+		class function LowercaseFirst(const s: string): string;
 		class function ToWideFileName(const fn: string): widestring;
 		class function FromWideFileName(const fn: widestring): string;
 		// cb получает длину буфера С нулевым символом, возвращает количество символов без нулевого (< nBuf), если буфера хватает, или
@@ -2253,20 +2255,18 @@ var
 
 {$define one_index_impl :=
 {$ifdef onebased} {$define rettype := size_t} {$else} {$define rettype := SizeInt} {$endif}
-	function func_direct(const x: typ; buf: pointer; len: size_t): rettype;
+	function func_direct(const x: typ; buf: pTyp; len: size_t): rettype;
 	{$ifdef nonpod}
-		type
-			ptyp = ^typ;
 		var
 			i: size_t;
 		begin
 			i := 0;
 			while i < len do
 			begin
-				if ptyp(buf)[i] = x then exit(i {$ifdef onebased} + 1 {$endif});
-				inc(i); if (i < len) and (ptyp(buf)[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
-				inc(i); if (i < len) and (ptyp(buf)[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
-				inc(i); if (i < len) and (ptyp(buf)[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
+				if buf[i] = x then exit(i {$ifdef onebased} + 1 {$endif});
+				inc(i); if (i < len) and (buf[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
+				inc(i); if (i < len) and (buf[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
+				inc(i); if (i < len) and (buf[i] = x) then exit(i {$ifdef onebased} + 1 {$endif});
 				inc(i);
 			end;
 			result := {$ifdef onebased} 0 {$else} -1 {$endif};
@@ -2283,9 +2283,21 @@ var
 		end;
 	{$endif}
 
-	function func_rev(const x: typ; buf: pointer; len: size_t): rettype;
-	type
-		ptyp = ^typ;
+	function func_direct(const x: typ; buf: pTyp; len: size_t; stride: size_t): rettype;
+	var
+		i: size_t;
+	begin
+		i := len;
+		while i > 0 do
+		begin
+			if buf^ = x then exit(len - i {$ifdef onebased} + 1 {$endif});
+			dec(i);
+			pointer(buf) += stride;
+		end;
+		result := {$ifdef onebased} 0 {$else} -1 {$endif};
+	end;
+
+	function func_rev(const x: typ; buf: pTyp; len: size_t): rettype;
 	var
 		i: size_t;
 	begin
@@ -2293,74 +2305,83 @@ var
 		while i > 0 do
 		begin
 			dec(i);
-			if ptyp(buf)[i] = x then exit(i {$ifdef onebased} + 1 {$endif});
+			if buf[i] = x then exit(i {$ifdef onebased} + 1 {$endif});
 		end;
 		result := {$ifdef onebased} 0 {$else} -1 {$endif}
 	end;
 
-	function func_direct(const x: typ; buf: pointer; len: size_t; stride: size_t): rettype;
+	function func_rev(const x: typ; buf: pTyp; len: size_t; stride: size_t): rettype;
 	var
 		i: size_t;
 	begin
 		i := len;
+		pointer(buf) += len * stride;
 		while i > 0 do
 		begin
-			if typ(buf^) = x then exit(len - i {$ifdef onebased} + 1 {$endif});
+			pointer(buf) -= stride;
 			dec(i);
-			buf += stride;
+			if buf^ = x then exit(i {$ifdef onebased} + 1 {$endif});
 		end;
 		result := {$ifdef onebased} 0 {$else} -1 {$endif};
 	end;
 
-	function func_rev(const x: typ; buf: pointer; len: size_t; stride: size_t): rettype;
+{$ifdef func_indirect}
+{$ifdef onebased} {$error indirect+onebased not implemented} {$endif}
+	function func_indirect(const x: typ; buf: pPointer; len: size_t; field: pointer): rettype;
 	var
-		i: size_t;
-	begin
-		i := len;
-		buf += len * stride;
-		while i > 0 do
-		begin
-			buf -= stride;
-			dec(i);
-			if typ(buf^) = x then exit(i {$ifdef onebased} + 1 {$endif});
-		end;
-		result := {$ifdef onebased} 0 {$else} -1 {$endif};
-	end;
-
-{$ifdef pair}
-	function func_direct(const x: pair; buf: pointer; len: size_t): rettype;                 begin result := func_direct(typ(x), buf, len); end;
-	function func_rev(const x: pair; buf: pointer; len: size_t): rettype;                    begin result := func_rev(typ(x), buf, len); end;
-	function func_direct(const x: pair; buf: pointer; len: size_t; stride: size_t): rettype; begin result := func_direct(typ(x), buf, len, stride); end;
-	function func_rev(const x: pair; buf: pointer; len: size_t; stride: size_t): rettype;    begin result := func_rev(typ(x), buf, len, stride); end;
-{$endif}
-	{$undef func_direct} {$undef func_rev} {$undef onebased} {$undef rettype}
-	// pair и nonpod хэндлятся в index_impl}
-
-{$define index_impl :=
-	{$define func_direct := Index} {$define func_rev := IndexRev} one_index_impl
-	{$define func_direct := Index1} {$define func_rev := Index1Rev} {$define onebased} one_index_impl
-	{$undef typ} {$undef conv} {$undef pair} {$undef nonpod}}
-
-	{$define typ := char} {$define conv := uint8(x)} index_impl
-	{$define typ := uint32} {$define pair := sint32} index_impl
-	{$define typ := uint64} {$define pair := sint64} index_impl
-	{$define typ := pointer} {$define conv := pPtrUint(@x)^} index_impl
-	{$define typ := string} {$define nonpod} index_impl
-{$undef index_impl}
-{$undef one_index_impl}
-
-	function IndexIndirect(const x: string; buf: pPointer; len: size_t; offset: size_t): sint;
-	var
+		fieldOffset: PtrUint absolute field;
 		i: size_t;
 	begin
 		i := 0;
 		while i < len do
 		begin
-			if x = pString(buf[i] + offset)^ then exit(i);
+			if x = typ((buf[i] + fieldOffset)^) then exit(i);
 			inc(i);
 		end;
 		result := -1;
 	end;
+
+	function func_indirect(const x: typ; buf: pPointer; len: size_t; field: pointer; stride: size_t): rettype;
+	var
+		fieldOffset: PtrUint absolute field;
+		i: size_t;
+	begin
+		i := 0;
+		while i < len do
+		begin
+			if x = typ((buf^ + fieldOffset)^) then exit(i);
+			inc(i);
+			pointer(buf) += stride;
+		end;
+		result := -1;
+	end;
+{$endif}
+
+{$ifdef pair}
+	function func_direct(const x: pair; buf: pPair; len: size_t): rettype;                 begin result := func_direct(typ(x), pTyp(buf), len); end;
+	function func_direct(const x: pair; buf: pPair; len: size_t; stride: size_t): rettype; begin result := func_direct(typ(x), pTyp(buf), len, stride); end;
+	function func_rev(const x: pair; buf: pPair; len: size_t): rettype;                    begin result := func_rev(typ(x), pTyp(buf), len); end;
+	function func_rev(const x: pair; buf: pPair; len: size_t; stride: size_t): rettype;    begin result := func_rev(typ(x), pTyp(buf), len, stride); end;
+{$ifdef func_indirect}
+	function func_indirect(const x: pair; buf: pPointer; len: size_t; field: pointer): rettype; begin result := func_indirect(typ(x), buf, len, field); end;
+	function func_indirect(const x: pair; buf: pPointer; len: size_t; field: pointer; stride: size_t): rettype; begin result := func_indirect(typ(x), buf, len, field, stride); end;
+{$endif}
+{$endif}
+	{$undef func_direct} {$undef func_rev} {$undef func_indirect} {$undef onebased} {$undef rettype}
+	// pair, pPair и nonpod хэндлятся в index_impl}
+
+{$define index_impl :=
+	{$define func_direct := Index} {$define func_rev := IndexRev} {$define func_indirect := IndexIndirect} one_index_impl
+	{$define func_direct := Index1} {$define func_rev := Index1Rev} {$define onebased} one_index_impl
+	{$undef typ} {$undef pTyp} {$undef conv} {$undef pair} {$undef pPair} {$undef nonpod}}
+
+	{$define typ := char} {$define pTyp := pChar} {$define conv := uint8(x)} index_impl
+	{$define typ := uint32} {$define pTyp := pUint32} {$define pair := sint32} {$define pPair := pSint32} index_impl
+	{$define typ := uint64} {$define pTyp := pUint64} {$define pair := sint64} {$define pPair := pSint64} index_impl
+	{$define typ := pointer} {$define pTyp := pPointer} {$define conv := pPtrUint(@x)^} index_impl
+	{$define typ := string} {$define pTyp := pString} {$define nonpod} index_impl
+{$undef index_impl}
+{$undef one_index_impl}
 
 	procedure memxor(a, b, target: pointer; size: size_t);
 	{$define op := R := _1 xor _2} {$include over_memory.inc}
@@ -3004,16 +3025,8 @@ var
 	end;
 
 	function Exception.Human: string;
-	var
-		t: pExceptionRef;
 	begin
-		result := ref^.message;
-		t := ref^.inner;
-		while Assigned(t) do
-		begin
-			result += EOL + t^.message;
-			t := t^.inner;
-		end;
+		result := Continued(ref^.message, EOL, BuildExpanded(ref^.inner));
 	end;
 
 	class function Exception.Current: System.TObject;
@@ -3042,7 +3055,13 @@ var
 	end;
 
 	class procedure Exception.Show;                     begin Show(Current); end;
-	class procedure Exception.Show(E: System.TObject);  begin Error.Show(Message(E)); end;
+	class procedure Exception.Show(E: System.TObject);
+	begin
+		if (E is Exception) and Assigned(Exception(E).ref^.inner) then
+			Error.Expanded(BuildExpanded(Exception(E).ref^.inner)).Show(Exception(E).RawMessage)
+		else
+			Error.Show(Message(E));
+	end;
 	class procedure Exception.Fatal;                    begin Fatal(Current); end;
 	class procedure Exception.Fatal(E: System.TObject); begin USystem.Fatal(Message(E)); end;
 
@@ -3081,6 +3100,16 @@ var
 				result := ExceptionRef.Create(Message(raised), nil);
 		end else
 			result := nil;
+	end;
+
+	class function Exception.BuildExpanded(ref: pExceptionRef): string;
+	begin
+		result := '';
+		while Assigned(ref) do
+		begin
+			ContinueString(result, '↑ ' + ref^.message, EOL);
+			ref := ref^.inner;
+		end;
 	end;
 
 {$ifdef Debug}
@@ -3158,7 +3187,7 @@ var
 					if text <> '' then begin text += EOL; if i = 0 then text += EOL; end;
 					if length(buttons) = length(int^.variants) then
 					begin
-						text += buttons[i] + ' — ' + Win.LowerCaseFirst(int^.variants[i]);
+						text += buttons[i] + ' — ' + Win.LowercaseFirst(int^.variants[i]);
 						if Index(EOL, pChar(int^.variants[i]), length(int^.variants[i])) >= 0 then text += EOL;
 					end else
 						text += buttons[i];
@@ -4058,7 +4087,7 @@ var
 
 	function ThreadCV.SpuriousIndex(thrd: Thread.ID): sint;
 	begin
-		result := Index(thrd, pointer(spurious) + fieldoffset SpuriousRec _ thrd _, length(spurious), sizeof(SpuriousRec));
+		result := Index(thrd, first_field spurious _ thrd _, length(spurious), sizeof(spurious[0]));
 	end;
 {$endif}
 
@@ -4131,7 +4160,7 @@ var
 		try2
 			case t^.proc.kind of
 				ThreadTimer.CallbackKind.Unparametrized: t^.proc.unparametrized();
-            ThreadTimer.CallbackKind.Simple:         t^.proc.simple(t^.param);
+				ThreadTimer.CallbackKind.Simple:         t^.proc.simple(t^.param);
 				ThreadTimer.CallbackKind.Advanced, ThreadTimer.CallbackKind.UnparametrizedAdvanced:
 					begin
 						instance.timer := t;
@@ -4167,7 +4196,7 @@ var
 	begin
 		unused_args Timer end_list
 		if t^.HardWork in t^.flags then Win.VistaTP.CallbackMayRunLong(Instance);
-      RunTimerProc(t);
+		RunTimerProc(t);
 	end;
 
 	procedure CreateXPTimer(var timer: ThreadTimer; out handle: Windows.HANDLE; due, period: uint);
@@ -4181,7 +4210,7 @@ var
 		if not Win.XPTp.CreateTimerQueueTimer(handle, timer.tp^.xpTimerQueue, @TimerQueueTimerProc, @timer, due,
 			Win.XPTimerPeriod(period), wflags)
 		then
-         raise Win.FunctionFailed('CreateTimerQueueTimer');
+			raise Win.FunctionFailed('CreateTimerQueueTimer');
 	end;
 
 	procedure SetVistaThreadpoolTimer(var timer: ThreadTimer; due, period: uint);
@@ -4585,8 +4614,8 @@ var
 			prevOh  := mulOverhead;
 
 			mulOverhead := Get.value;
-         for i := 2 to mul do Get;
-         mulOverhead := Ticks(mulOverhead).Elapsed.value;
+			for i := 2 to mul do Get;
+			mulOverhead := Ticks(mulOverhead).Elapsed.value;
 			if (mulOverhead + SmallTicksAllowance >= prevOh) and (mulOverhead <= (5 * prevOh) div 2 + SmallTicksAllowance) then
 			begin
 				if (mul > High(mul) div 2) or (mulOverhead >= EnoughTicks) then break;
@@ -5603,20 +5632,21 @@ type
 		result.mask   := mask;
 		result.filter := filter;
 	end;
-   function Folder.Scan(const folder: string; filter: WhatToSearch = Anything): Enumerator; begin result := Scan(folder, '', filter); end;
+	function Folder.Scan(const folder: string; filter: WhatToSearch = Anything): Enumerator; begin result := Scan(folder, '', filter); end;
 
-	function Folder.Create(const folder: string; firstCreated: pString = nil): boolean;
+	function Folder.Create(const folder: string; firstCreated: pString = nil; throw: boolean = no): boolean;
 	{$ifdef Windows}
-		function CreateDirectory(const dir: string; out reallyCreated: boolean): boolean;
+		procedure CreateDirectory(const dir: string; out reallyCreated: boolean);
 		begin
 			if (length(dir) > 0) and (dir[length(dir)] = ':') then // E:
 			begin
 				reallyCreated := no;
-				exit(yes);
+				exit;
 			end;
 
 			reallyCreated := CreateDirectoryW(pWideChar(Win.ToWideFileName(dir)), nil);
-			result := reallyCreated or (GetLastError = ERROR_ALREADY_EXISTS);
+			if not (reallyCreated or (GetLastError = ERROR_ALREADY_EXISTS)) then
+				raise Win.OperationFailed('создать папку ' + ToSystemFileName(dir));
 		end;
 	{$else} {$error CreateDirectory unimplemented} {$endif}
 	var
@@ -5627,20 +5657,19 @@ type
 		first := '';
 		if Assigned(firstCreated) then firstCreated^ := '';
 
-		for p := 1 to length(folder) do
-		begin
-			if p = length(folder) then cur := folder else
-				if folder[p] = FileSeparator then cur := Copy(folder, 1, p - 1) else
-					continue;
+		try
+			for p := 1 to length(folder) do
+			begin
+				if p = length(folder) then cur := folder else
+					if folder[p] = FileSeparator then cur := Copy(folder, 1, p - 1) else
+						continue;
 
-			if CreateDirectory(cur, reallyCreated) then
-			begin
+				CreateDirectory(cur, reallyCreated);
 				if reallyCreated and (first = '') then first := cur;
-			end else
-			begin
-				if first <> '' then EraseTree(first);
-				exit(no);
 			end;
+		except
+			if first <> '' then EraseTree(first);
+			if throw then raise else exit(no);
 		end;
 
 		if Assigned(firstCreated) then firstCreated^ := first;
@@ -5667,7 +5696,7 @@ type
 	var
 		p: size_t;
 	begin
-		p := Index1Rev(FileSeparator, pointer(fn), length(fn) * sizeof(char));
+		p := Index1Rev(FileSeparator, pointer(fn), length(fn));
 		if p > 0 then result := Copy(fn, 1, p - size_t(stripSeparator)) else result := '';
 	end;
 	function Folder.Path(const fn: string): string; begin result := Path(fn, no); end;
@@ -5677,7 +5706,7 @@ type
 	var
 		p: size_t;
 	begin
-		p := Index1Rev(FileSeparator, pointer(fn), length(fn) * sizeof(char));
+		p := Index1Rev(FileSeparator, pointer(fn), length(fn));
 		if p > 0 then result := Copy(fn, p + 1, length(fn) - p) else result := fn;
 	end;
 
@@ -5697,8 +5726,8 @@ type
 	var
 		p, e: size_t;
 	begin
-		p := Index1Rev(FileSeparator, pointer(fn), length(fn) * sizeof(char));
-		e := p + Index1Rev(ExtensionSeparator, pointer(fn) + p, (length(fn) - p) * sizeof(char));
+		p := Index1Rev(FileSeparator, pointer(fn), length(fn));
+		e := p + Index1Rev(ExtensionSeparator, pointer(fn) + p, length(fn) - p);
 		if e = p then e := length(fn) else dec(e);
 		if (p = 0) and (e = size_t(length(fn))) then result := fn else result := Copy(fn, p+1, e-p);
 	end;
@@ -6098,7 +6127,7 @@ const
 		wfn := Win.ToWideFileName(fileName);
 		result := UTF8Encode(Win.QueryString(@QueryShortPathName, pWideChar(wfn), 'короткого имени файла'));
 	{$else}
-		{$note Dummy ToShortSystemFileName}
+		{$note Dummy ToShortFileName}
 		result := ToSystemFileName(fileName);
 	{$endif}
 	end;
@@ -7268,7 +7297,7 @@ end_unchecked
 		result := USystem.Error(Continued(msgBase, ' ', DescribeError(code)));
 	end;
 
-   class function Win.FunctionFailed(const fn: string; code: dword = 0): Exception;
+	class function Win.FunctionFailed(const fn: string; code: dword = 0): Exception;
 	begin
 		if code = 0 then code := GetLastError;
 		result := Error('Ошибка ' + fn + '.', code);
@@ -7283,10 +7312,10 @@ end_unchecked
 
 	class function Win.FileLoadError(const fn: string; code: dword): Exception;
 	begin
-		result := USystem.Error(ToSystemFileName(fn) + ': ' + LowerCaseFirst(DescribeError(code)));
+		result := USystem.Error(ToSystemFileName(fn) + ': ' + LowercaseFirst(DescribeError(code)));
 	end;
 
-	class function Win.LowerCase(const s: string): string;
+	class function Win.Lowercase(const s: string): string;
 	var
 		ws: widestring;
 	begin
@@ -7295,12 +7324,12 @@ end_unchecked
 		result := UTF8Encode(ws);
 	end;
 
-	class function Win.LowerCaseFirst(const s: string): string;
+	class function Win.LowercaseFirst(const s: string): string;
 	var
 		p: sint;
 	begin
 		p := 1;
-		if UTF8.Next(s, p) <> UTFInvalid then result := LowerCase(Copy(s, 1, p - 1)) + Copy(s, p, length(s) - p + 1) else result := s;
+		if UTF8.Next(s, p) <> UTFInvalid then result := Lowercase(Copy(s, 1, p - 1)) + Copy(s, p, length(s) - p + 1) else result := s;
 	end;
 
 	class function Win.ToWideFileName(const fn: string): widestring;   begin result := UTF8Decode(ToSystemFileName(fn)); end;
@@ -7647,6 +7676,7 @@ type
 		procedure TestIndexStringAsPointer(var warn: string); static;
 		procedure TestAnsiRecHack(var warn: string); static;
 		procedure TestVMTHack(var warn: string); static;
+		procedure TestFirstFieldAndEmptyIndex(var warn: string); static;
 		procedure Run; static;
 	private
 		procedure Expect(value, expected: PtrInt; const what: string; var warn: string); static;
@@ -7717,9 +7747,9 @@ type
 		strings[3] := strings[0] + strings[0];
 		strings[4] := strings[2];
 
-		Expect(Index(pointer(strings[4]), pString(strings), length(strings)), 2, 'Index(p(4) = p(2))', warn);
-		Expect(Index(pointer(strings[3]), pString(strings), length(strings)), 3, 'Index(3 = 1 <> p(1))', warn);
-		Expect(Index(pointer(strings[0] + strings[0]), pString(strings), length(strings)), -1, 'Index(X = 2 <> p(2))', warn);
+		Expect(Index(pointer(strings[4]), pPointer(pString(strings)), length(strings)), 2, 'Index(p(4) = p(2))', warn);
+		Expect(Index(pointer(strings[3]), pPointer(pString(strings)), length(strings)), 3, 'Index(3 = 1 <> p(1))', warn);
+		Expect(Index(pointer(strings[0] + strings[0]), pPointer(pString(strings)), length(strings)), -1, 'Index(X = 2 <> p(2))', warn);
 	end;
 
 	procedure CrucialSelfTests.TestAnsiRecHack(var warn: string);
@@ -7749,6 +7779,29 @@ type
 		if v^.parent <> expectedPtr then warn += EOL + 'Parent = ' + HexStr(v^.parent) + ', ожидается ' + HexStr(expectedPtr);
 	end;
 
+	procedure CrucialSelfTests.TestFirstFieldAndEmptyIndex(var warn: string);
+	type
+		pStruct = ^Struct;
+		Struct = record
+			x: sint;
+			y: string;
+		end;
+
+		procedure Check(ofs, expected, srcPtr: pointer; const whatAry: string);
+		begin
+			if ofs <> expected then
+				warn += EOL + 'Из ' + whatAry + ' массива по адресу ' + HexStr(srcPtr) + ' получен адрес поля ' + HexStr(ofs) + ' (ожидался ' + HexStr(expected) + ')';
+		end;
+	var
+		dynamic: array of Struct;
+	begin
+		SetLength(dynamic, 2);
+		Check(first_field dynamic _ y _, @dynamic[0].y, pStruct(dynamic), 'динамического');
+		SetLength(dynamic, 0);
+		Check(first_field dynamic _ y _, @Struct(nil^).y, pStruct(dynamic), 'пустого динамического');
+		Index('', first_field dynamic _ y _, length(dynamic), sizeof(dynamic[0]));
+	end;
+
 	procedure CrucialSelfTests.Run;
 	var
 		warn: string;
@@ -7759,6 +7812,7 @@ type
 		Start; TestIndexStringAsPointer(warn); Finish('Index(PChar) не работает как задумано. Пул строк сломается.');
 		Start; TestAnsiRecHack(warn);          Finish('Hacks.AnsiRec не соответствует структуре строки.');
 		Start; TestVMTHack(warn);              Finish('Hacks.VMT не соответствует структуре VMT.');
+		Start; TestFirstFieldAndEmptyIndex(warn); Finish('first_field не работает как задумано.');
 	end;
 
 	procedure CrucialSelfTests.Expect(value, expected: PtrInt; const what: string; var warn: string);
@@ -7770,35 +7824,54 @@ type
 	Platform = {$ifdef Windows} Win {$endif};
 
 {$ifdef Debug}
-	procedure CreateStderr(var f: text);
-		function TrySystemOpen(var f: text; const fn: string): boolean;
+	function CreateStderr(var f: text): boolean;
+		procedure Open(var f: text; const fn: string);
+		var
+			iores: word;
 		begin
-			assign(f, fn); rewrite(f);
-			result := IOResult = 0;
+			Folder.Create(Folder.Path(fn));
+			assign(f, ToSystemFileName(fn)); rewrite(f);
+			iores := IOResult;
+			if iores <> 0 then raise Error('IOResult = ' + ToString(iores) + '.');
 		end;
 	var
 		fn, t: string;
 		extStart: sint;
 	begin
 		t := Folder.Filename(ExecFileName);
-		extStart := Index1Rev(ExtensionSeparator, pointer(t), length(t) * sizeof(char));
+		extStart := Index1Rev(ExtensionSeparator, pointer(t), length(t));
 		if extStart = 0 then extStart := length(t) + 1;
 
 		fn := Paths.Logs + Copy(t, 1, extStart - 1) + '-' + DateTime.Start.ToCode + '.stderr';
-		if not (Folder.Create(Folder.Path(fn)) and TrySystemOpen(f, fn)) then
-		begin
-			if Warning.Text('Не удалось создать ' + ToSystemFileName(fn) + '.')
-				.Variant('Использовать stderr в рабочей папке (' + Folder.RemoveSeparator(Folder.Working) + ')')
-				.Variant('Не вести stderr').Show = TaskV1
-			then
-				fn := 'stderr'
-			else
-				fn := Platform.NullDevice;
-			TrySystemOpen(f, fn);
+		try
+			Open(f, fn);
+		except
+			case Warning.Text('Не удалось создать ' + ToSystemFileName(fn) + '. ' + Exception.Message)
+				.Variant('Использовать stderr в рабочей папке (' + ToSystemFileName(Folder.Working) + ')')
+				.Variant('Не вести stderr').Show of
+				TaskV1: fn := 'stderr';
+				else fn := Platform.NullDevice;
+			end;
+
+			try
+				Open(f, fn);
+			except
+				if fn <> Platform.NullDevice then
+				begin
+					Exception.Show;
+					try
+						Open(f, Platform.NullDevice);
+					except
+						// Ну и ладно.
+					end;
+				end;
+				exit(no);
+			end;
 		end;
 
 		write(f, UTF8.BOM);
 		writeln(f, 'Started.'); Flush(f);
+		result := yes;
 	end;
 
 var
@@ -7806,11 +7879,14 @@ var
 
 	procedure ToStderr(const s: string; linebreak: boolean = yes);
 	begin
-		SingletonLock.Enter;
-		try
-			if linebreak then writeln(main_stderr^, s) else write(main_stderr^, s);
-		finally
-			SingletonLock.Leave;
+		if Assigned(main_stderr) then
+		begin
+			SingletonLock.Enter;
+			try
+				if linebreak then writeln(main_stderr^, s) else write(main_stderr^, s);
+			finally
+				SingletonLock.Leave;
+			end;
 		end;
 	end;
 {$endif}
@@ -7890,10 +7966,7 @@ initialization
 {$ifdef alter_cd} Platform.AlterCD; {$endif}
 	SingletonLock.Init;
 
-{$ifdef Debug}
-	main_stderr := @system.stderr;
-	CreateStderr(main_stderr^);
-{$endif}
+{$ifdef Debug} if CreateStderr(system.stderr) then main_stderr := @system.stderr; {$endif}
 
 {$ifdef Debug} stat.Init; {$endif}
 	if IsConsole <> {$ifdef use_console} yes {$else} no {$endif} then
@@ -7902,7 +7975,7 @@ initialization
 	asio.Init;
 	Work.Init;
 	CrucialSelfTests.Run;
-   units.Init;
+	units.Init;
 
 finalization
 {$ifdef Debug}
@@ -7919,7 +7992,7 @@ finalization
 	SingletonLock.Done;
 	try
 		Platform.Finalize;
-	{$ifdef Debug} writeln(main_stderr^, 'Terminated normally.'); Flush(main_stderr^); {$endif}
+	{$ifdef Debug} if Assigned(main_stderr) then begin writeln(main_stderr^, 'Terminated normally.'); Flush(main_stderr^); end; {$endif}
 	except
 	{$ifdef Debug} Exception.Fatal; {$endif}
 	end;

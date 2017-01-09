@@ -138,6 +138,7 @@ const
 	function PrintableString(const s: string; allowNewline: boolean = no): string;
 	function ToString(const v: System.TVarRec): string; overload;
 	function MaskToString(const mask: uint; const flags: array of string; const values: array of uint): string;
+	function MaskToString(mask: pointer; bits: size_t; const flags: array of string): string;
 
 const
 	RPOS_START = Low(sint);
@@ -230,7 +231,7 @@ type
 	function SplitIntoViews(const s: string; const seps: charset_t): StringViews;
 	function SafeIndex(const s: array of string; index: sint): string;
 	function SafeIndex(const s: array of StringView; index: sint): StringView;
-	function WrapNonempty(const s: string; const prefix, postfix: string): string;
+	function WrapNonempty(const s: string; const wrap: string): string; // wrap = prefix/postfix: WrapNonempty('0', '(/)') => '(0)'
 
 	function Format(s: pChar; ns: size_t; nArgs: uint; getArg: GetIndexedStringView; param: pointer): string;
 	function Format(s: pChar; ns: size_t; nArgs: uint; getArg: GetIndexedString; param: pointer): string;
@@ -960,7 +961,7 @@ type
 		m := mask;
 		result := '';
 		for i := 0 to High(flags) do
-			if values[i] and m <> 0 then
+			if values[i] and m = values[i] then
 			begin
 				m := m and not values[i];
 				ContinueString(result, flags[i], ', ');
@@ -968,6 +969,27 @@ type
 
 		if (result = '') or (m <> 0) then
 			ContinueString(result, ToString(m, IntFormat.Hex), ' + ');
+	end;
+
+	function MaskToString(mask: pointer; bits: size_t; const flags: array of string): string;
+	var
+		bit: uint;
+		extra: string;
+	begin
+		bit := 0;
+		result := '';
+		extra := '';
+		while bit < bits do
+		begin
+			if pByte(mask)[bit div bitsizeof(byte)] and (1 shl (bit mod bitsizeof(byte))) <> 0 then
+				if bit < uint(length(flags)) then
+					ContinueString(result, flags[bit], ', ')
+				else
+					ContinueString(extra, ToString(bit), ', ');
+			inc(bit);
+		end;
+		if (result = '') and (extra = '') then extra := '0';
+		ContinueString(result, WrapNonempty(extra, '(/)'), ' + ');
 	end;
 
 	function Pos(const substr, s: string; offset: sint; default: sint = 0): sint;
@@ -1357,7 +1379,7 @@ type
 		else
 			for isym := 1 to length(s[0]) do
 			begin
-	   		ref := s[0, length(s[0]) - isym + 1];
+				ref := s[0, length(s[0]) - isym + 1];
 				for istr := 1 to count - 1 do
 					if (length(s[istr]) < isym) or (s[istr, length(s[istr]) - isym + 1] <> ref) then
 						exit(Copy(s[0], length(s[0]) - isym + 2, isym - 1));
@@ -1600,9 +1622,13 @@ type
 	function SafeIndex(const s: array of string; index: sint): string; begin if (index >= 0) and (index < length(s)) then result := s[index] else result := ''; end;
 	function SafeIndex(const s: array of StringView; index: sint): StringView; begin if (index >= 0) and (index <= length(s)) then result := s[index] else result := StringView.Empty; end;
 
-	function WrapNonempty(const s: string; const prefix, postfix: string): string;
+	function WrapNonempty(const s: string; const wrap: string): string;
+	var
+		p: sint;
 	begin
-		if s = '' then result := '' else result := prefix + s + postfix;
+		if s = '' then exit('');
+		p := Pos('/', wrap); Assert(p > 0);
+		result := Copy(wrap, 1, p - 1) + s + Copy(wrap, p + 1, length(wrap) - p);
 	end;
 
 	function Format(s: pChar; ns: size_t; nArgs: uint; getArg: GetIndexedStringView; param: pointer): string;
@@ -1912,17 +1938,17 @@ type
 		f := FloatFormat;
 		v := Vec3.Zero;
 		i := 0;
-      while i < length(input) do
-      	if (i + 1 < length(input)) and FindStr(id, input[i], ['signif', 'vecfmt']) then
-      	begin
-      		case id of
-      			0: f := f.Significant(StrToInt(input[i + 1]));
-      			else f := f.Pattern(input[i + 1]);
-      		end;
-      		i += 2;
-      	end else
-      	begin
-      		t := input[i];
+		while i < length(input) do
+			if (i + 1 < length(input)) and FindStr(id, input[i], ['signif', 'vecfmt']) then
+			begin
+				case id of
+					0: f := f.Significant(StrToInt(input[i + 1]));
+					else f := f.Pattern(input[i + 1]);
+				end;
+				i += 2;
+			end else
+			begin
+				t := input[i];
 				try
 					t.Expect('(');
 					for c := 0 to High(v.data) do
@@ -1935,8 +1961,25 @@ type
 					t.Done;
 				end;				
 				inc(i);
-      	end;
+			end;
 		result := f.Apply(v);
+	end;
+
+	function MaskToStringCase(const input: array of string): string;
+	var
+		mask: set of byte;
+		small: set of 0 .. 31; {$if sizeof(small) >= sizeof(mask)} {$error sizeof(set of 0 .. 31) >= sizeof(set of byte)} {$endif}
+		i, bit: sint;
+	begin
+		mask := [];
+		small := [];
+		for i := 0 to High(input) do
+		begin
+			bit := StrToInt(input[i]);
+			mask += [bit];
+			if bit < 32 then small += [bit];
+		end;
+		result := MaskToString(@mask, bitsizeof(mask), ['', 'one', 'two']) + ' / ' + MaskToString(@small, bitsizeof(small), ['', 'one', 'two']);
 	end;
 
 	procedure Test;
@@ -1975,6 +2018,9 @@ type
 		.&Case(['(1.234, 5.678, 9.123)', 'signif', '3', 'vecfmt', 'X\=x; Y=y; Z\\\=z'], 'X=1.23; Y=5.68; Z\=9.12')
 		.&Case(['(1.2, 3.4, 5.6)', 'signif', '1', 'vecfmt', '\/\x=x \y=y \z=z \w=w\/'], '/x=1 y=3 z=6 w=w/')
 		.&Case(['(1.1, 2.2, 3.3)', 'signif', '2', 'vecfmt', 'X=x; /; y; /; z'], 'X=x; 1.1; y; 2.2; y; 3.3; z')
+
+		.Feature('MaskToString', @MaskToStringCase)
+		.&Case(['1', '2', '5', '200'], 'one, two + (5, 200) / one, two + (5)')
 		.Done;
 	end;
 {$endif}

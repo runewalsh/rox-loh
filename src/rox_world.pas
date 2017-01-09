@@ -10,7 +10,8 @@ type
 	pWorld = ^World;
 	World = object(&Object)
 		player: pActor;
-		spaceshipArrived: boolean;
+		spaceshipBrought, spaceshipArrivedOnMars, firstAmmoProceed: boolean;
+		nextTwinkleShotReaction: (TwinkleShotReaction1, TwinkleShotReaction2);
 		constructor Init;
 		destructor Done; virtual;
 	end;
@@ -31,7 +32,7 @@ implementation
 		player^.SetupAimOrigins([
 			Vec2.Make(49/50, 1-44/100), Vec2.Make(1-2/50, 1-27/100), Vec2.Make(23/50,1-11/100), Vec2.Make(2/50, 1-27/100),
 			Vec2.Make(1-49/50, 1-44/100), Vec2.Make(1-45/50, 1-58/100), Vec2.Make(25/50, 1-61/100), Vec2.Make(45/50, 1-58/100)]);
-		// spaceshipArrived := yes;
+		// spaceshipBrought := yes;
 	end;
 
 	destructor World.Done;

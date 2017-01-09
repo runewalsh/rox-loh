@@ -96,7 +96,7 @@
 			if count <= nFree then toExisting := count else toExisting := nFree;
 
 			System.Initialize(pItem(n^.items)[n^.used], toExisting);
-      	for i := 1 to toExisting do
+			for i := 1 to toExisting do
 			begin
 				pItem(n^.items)[n^.used + (i - 1)] := items^;
 			{$define node := n} {$define index := n^.used + (i - 1)} store_extra_wrap;
@@ -130,7 +130,7 @@
 	begin
 		Assert(n <= nItems);
 
-      while (n > 0) and (n >= last^.used) do
+		while (n > 0) and (n >= last^.used) do
 		begin
 			System.Finalize(pItem(last^.items)[0], last^.used);
 			nItems -= last^.used;

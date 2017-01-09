@@ -640,6 +640,7 @@ type
 	function BSpline(const p0, p1, p2, p3: float; const t: float): float;
 {$define vecf :=
 	function lerp(const a, b: vec; const t: float): vec;
+	function lerp(const a, b, t: vec): vec;
 	function CatmullRomSpline(const p0, p1, p2, p3: vec; const t: float): vec;
 	function BSpline(const p0, p1, p2, p3: vec; const t: float): vec;} all_floating_vectors
 
@@ -2759,6 +2760,7 @@ end_unchecked
 
 {$define vecf :=
 	function lerp(const a, b: vec; const t: float): vec; {$define op := lerp(a.item, b.item, t)} vec_compo_op
+	function lerp(const a, b, t: vec): vec; {$define op := lerp(a.item, b.item, t.item)} vec_compo_op
 	function CatmullRomSpline(const p0, p1, p2, p3: vec; const t: float): vec; {$define op := CatmullRomSpline(p0.item, p1.item, p2.item, p3.item, t)} vec_compo_op
 	function BSpline(const p0, p1, p2, p3: vec; const t: float): vec; {$define op := BSpline(p0.item, p1.item, p2.item, p3.item, t)} vec_compo_op}
 	all_floating_vectors

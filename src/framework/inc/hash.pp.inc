@@ -340,7 +340,7 @@
 		{$ifdef Debug} stat.Note(max_open_hash_chain_length, 1 + probe); {$endif}
 		{$endif}
 
-      {$if defined(delayed_key) and defined(store_iter)}
+		{$if defined(delayed_key) and defined(store_iter)}
 			{$ifdef chaining} newIt.hid := id; newIt.chainid := _h[id].nChain - 1; {$endif}
 			{$ifdef open_addressing} newIt.hid := id; {$endif}
 		{$endif}

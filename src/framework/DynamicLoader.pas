@@ -15,7 +15,7 @@ type
 		UnparaLoadHook = procedure;
 		scoped_enum_ LoadHookKind = (NotSet, Parametrized, Unparametrized); _end
 		LoadHook = record
-      case kind: LoadHookKind of
+		case kind: LoadHookKind of
 			LoadHookKind.Parametrized:   (para: ParaLoadHook);
 			LoadHookKind.Unparametrized: (unpara: UnparaLoadHook);
 		end;
@@ -126,27 +126,27 @@ uses
 	begin
 		h^.afterLoad := fn;
 		result := self;
-   end;
+	end;
 
 	function DLLoader.HookRef.BeforeUnload(const fn: LoadHook): HookRef;
 	begin
 		h^.beforeUnload := fn;
 		result := self;
-   end;
+	end;
 
 	function DLLoader.HookRef.AfterUnload(const fn: LoadHook): HookRef;
 	begin
 		h^.afterUnload := fn;
 		result := self;
-   end;
+	end;
 
-   procedure DLLoader.Init(const namex: string; getf: GetFunctions);
-   var
-   	noFindf: FindFunction;
-   begin
-   	noFindf.kind := FindFunctionInterface.NotSet;
-   	Init(namex, getf, noFindf);
-   end;
+	procedure DLLoader.Init(const namex: string; getf: GetFunctions);
+	var
+		noFindf: FindFunction;
+	begin
+		noFindf.kind := FindFunctionInterface.NotSet;
+		Init(namex, getf, noFindf);
+	end;
 
 	procedure DLLoader.Init(const namex: string; getf: GetFunctions; const findf: FindFunction);
 	begin
@@ -448,7 +448,7 @@ type
 		end;
 
 		ctx.self   := @self;
-      ctx.ok     := yes;
+		ctx.ok     := yes;
 	{$ifdef Debug}
 		ctx.nOk    := 0;
 		ctx.nTotal := 0;
@@ -477,8 +477,8 @@ type
 					LoadHookKind.Parametrized: hooks[i].afterLoad.para(@self);
 					LoadHookKind.Unparametrized: hooks[i].afterLoad.unpara();
 				end;
-	         hooks[i].afterLoadSucceed := yes;
-	      end;
+				hooks[i].afterLoadSucceed := yes;
+			end;
 		except
 			DoUnload(yes);
 			raise;

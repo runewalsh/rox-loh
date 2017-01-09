@@ -485,8 +485,8 @@ end_unchecked
 	{$define end_funcs := {$undef rol_func} {$undef ror_func} {$undef end_funcs}}}
 
 {$define intf :=
-	function Rol(const x: typ;  by: uint): typ;  begin result := define_funcs_from_x rol_func(x, by) end_funcs; end;
-	function Ror(const x: typ;  by: uint): typ;  begin result := define_funcs_from_x ror_func(x, by) end_funcs; end;}
+	function Rol(const x: typ;  by: uint): typ; begin result := define_funcs_from_x rol_func(x, by) end_funcs; end;
+	function Ror(const x: typ;  by: uint): typ; begin result := define_funcs_from_x ror_func(x, by) end_funcs; end;}
 	all_uint_sizes
 {$undef define_funcs_from_x}
 

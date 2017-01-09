@@ -13,7 +13,7 @@ uses
 implementation
 
 const
-	HEADER_MAGIC     = $20534444; // 'DDS '
+	HEADER_MAGIC     = 'DDS ';
 
 	// DDS_HEADER dwFlags
 	DDSD_CAPS         = $1; // Required in every .dds file.
@@ -167,7 +167,7 @@ const
 				DDSCAPS2_CUBEMAP_POSITIVEY or DDSCAPS2_CUBEMAP_NEGATIVEY or DDSCAPS2_CUBEMAP_POSITIVEZ or DDSCAPS2_CUBEMAP_NEGATIVEZ;
 		end;
 
-		s^.Write('DDS ');
+		s^.Write(HEADER_MAGIC);
 		s^.Write(@h, sizeof(h));
 		for i := 0 to im.nLevels - 1 do
 		begin
@@ -222,17 +222,17 @@ const
 
 	procedure ScanHeader(s: pStream; out hdr: DDS_HEADER);
 	var
-		magic: uint32;
+		magic: array[0 .. 3] of char; {$if sizeof(magic) <> 4} {$error sizeof(array[0 .. 3] of char) <> 4} {$endif}
 	begin
-		magic := Deserialize_ui32(s);
+		s^.Read(@magic, sizeof(magic));
 		if magic <> HEADER_MAGIC then raise Error('Неверная сигнатура DDS.');
 		s^.Read(@hdr, sizeof(hdr));
 	end;
 
 	function DumpPixelFormatItem(id: uint; param: pointer): string;
 	var
-      f: ^DDS_PIXELFORMAT absolute param;
-      recog: GLImageFormat;
+		f: ^DDS_PIXELFORMAT absolute param;
+		recog: GLImageFormat;
 	begin
 		result := '';
 		case id of
@@ -267,7 +267,7 @@ const
 	function DumpHeaderItem(id: uint; param: pointer): string;
 		procedure Unused(value: uint32; const name: string);
 		begin
-			 if value <> 0 then result := name + ' = $' + ToString(value, IntFormat.Hex);
+			if value <> 0 then result := name + ' = $' + ToString(value, IntFormat.Hex);
 		end;
 	var
 		h: ^DDS_HEADER absolute param;

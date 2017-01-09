@@ -52,7 +52,6 @@ type
 		function Join: string;
 
 	private type
-		pNoteDesc = ^NoteDesc;
 		NoteDesc = record
 			uid: uint;
 			text: string;
@@ -343,7 +342,7 @@ uses
 
 	function WindowCaption.FindNote(uid: uint; throw: boolean): sint;
 	begin
-		result := Index(uid, pointer(pNoteDesc(notes)) + fieldoffset NoteDesc _ uid _, length(notes), sizeof(NoteDesc));
+		result := Index(uid, first_field notes _ uid _, length(notes), sizeof(notes[0]));
 		if (result < 0) and throw then raise Error('Часть заголовка окна не найдена.');
 	end;
 
@@ -2011,9 +2010,9 @@ type
 		pPointer(@_wglCreateContextAttribsARB)^ := wglGetProcAddress('wglCreateContextAttribsARB');
 	{$ifdef Debug}
 		if Assigned(_wglChoosePixelFormatARB) then LogR('wglChoosePixelFormatARB — OK; ', logOK)
-		                                     else LogR('wglChoosePixelFormatARB нету; ' , logWarning);
+		                                      else LogR('wglChoosePixelFormatARB нету; ' , logWarning);
 		if Assigned(_wglCreateContextAttribsARB) then LogR('wglCreateContextAttribsARB — OK; ', logOK)
-		                                     else LogR('wglCreateContextAttribsARB нету; ', logWarning);
+		                                         else LogR('wglCreateContextAttribsARB нету; ', logWarning);
 	{$endif}
 
 		if msaaSamples > 1 then

@@ -163,7 +163,7 @@ uses
 
 		val(USystem.ToString(s, n), result, valCode);
 		if (valCode > 0) or (n = 0) then raise ExpectedError(0, n + 1, 'ожидается вещественное число');
-      s += n; rest -= n;
+		s += n; rest -= n;
 	end;
 
 	function StringTokenizer.Maybe(const what: string): boolean;

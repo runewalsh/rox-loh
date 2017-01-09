@@ -38,12 +38,13 @@ type
 		end;
 
 		MoveTargeter = (NotMoving, MovingBy, MovingTo);
+		ReceiveHitCallback = procedure(ac: pActor; shooter: pNode; param: pointer);
 	var
 		tex: pTexture;
 		texSize: Vec2;
 		states: array of StateDesc;
-		forceState: sint;
-		forceStateTimeout: float;
+		forcedState: sint;
+		forcedStateTimeout: float;
 
 		state: uint;
 		angle: float;
@@ -60,6 +61,9 @@ type
 
 		wieldingWeapon: boolean;
 		aimOrigins: array of Vec2;
+		bullets: uint;
+		onReceiveHit: ReceiveHitCallback;
+		receiveHitParam: pointer;
 
 		constructor Init(const size: Vec2; const tex: string; const texSize: Vec2);
 		destructor Done; virtual;
@@ -74,11 +78,12 @@ type
 		function TrySwitchToState(const name: string): boolean;
 		procedure SwitchToState(const name: string);
 		procedure SwitchToState(id: uint);
+		procedure ForceState(const name: string; const timeout: float = -1);
 
 		procedure MoveBy(const delta: Vec2; velocity: float);
 		procedure MoveTo(const target: Vec2; velocity: float; const cb: MoveCallback; param: pointer);
 		procedure StopMoving;
-		function HeartPos: Vec2; virtual;
+		function HeartPos: Vec2;
 		function AimOrigin: Vec2;
 
 		procedure RotateTo(const point: Vec2);
@@ -88,6 +93,8 @@ type
 		procedure UnwieldWeapon;
 		procedure SetupAimOrigins(const orig: array of Vec2);
 		procedure Fire;
+		procedure OnHit(proc: ReceiveHitCallback; param: pointer);
+		procedure ReceiveHit(shooter: pNode);
 	private
 		procedure SwitchMove(method: MoveTargeter);
 		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
@@ -106,7 +113,7 @@ implementation
 		self.tex := Texture.Load(tex);
 		self.texSize := texSize;
 		angle := -HalfPi;
-		forceState := -1;
+		forcedState := -1;
 	end;
 
 	destructor Actor.Done;
@@ -122,10 +129,10 @@ implementation
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
 		realMovementVel := 0;
-		if forceState >= 0 then
+		if forcedState >= 0 then
 		begin
-			forceStateTimeout -= dt;
-			if forceStateTimeout <= 0 then forceState := -1;
+			forcedStateTimeout -= dt;
+			if forcedStateTimeout <= 0 then forcedState := -1;
 		end;
 
 		case mvMethod of
@@ -215,7 +222,7 @@ implementation
 
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
-		if forceState >= 0 then Draw(states[forceState]) else Draw(states[state]);
+		if forcedState >= 0 then Draw(states[forcedState]) else Draw(states[state]);
 	end;
 
 	function Actor.Collision: Circle;
@@ -225,7 +232,7 @@ implementation
 
 	procedure Actor.Cleanup;
 	begin
-		mvCb.kind := MoveCallbackNotSet;
+		mvMethod := NotMoving;
 		idclip := no;
 		if Assigned(location) then Detach;
 	end;
@@ -287,6 +294,12 @@ implementation
 			if not (MovingState in states[state].flags) then
 				states[state].phase := 0;
 		end;
+	end;
+
+	procedure Actor.ForceState(const name: string; const timeout: float = -1);
+	begin
+		forcedState := FindState(name);
+		if timeout < 0 then forcedStateTimeout := states[forcedState].len else forcedStateTimeout := timeout;
 	end;
 
 	procedure Actor.MoveBy(const delta: Vec2; velocity: float);
@@ -368,8 +381,18 @@ implementation
 
 	procedure Actor.Fire;
 	begin
-		forceState := FindState('firing');
-		forceStateTimeout := states[forceState].len;
+		ForceState('firing');
+	end;
+
+	procedure Actor.OnHit(proc: ReceiveHitCallback; param: pointer);
+	begin
+		onReceiveHit := proc;
+		receiveHitParam := param;
+	end;
+
+	procedure Actor.ReceiveHit(shooter: pNode);
+	begin
+		if Assigned(onReceiveHit) then onReceiveHit(@self, shooter, receiveHitParam);
 	end;
 
 	procedure Actor.SwitchMove(method: MoveTargeter);

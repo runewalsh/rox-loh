@@ -71,7 +71,7 @@ uses
 	begin
 		if reason = Timeout then
 		begin
-			e^.world^.spaceshipArrived := yes;
+			e^.world^.spaceshipBrought := yes;
 			if e^.obrubMood = ObrubGettingAngry then e^.obrubMood := ObrubAngry;
 			e^.playerControlMode := PlayerControlEnabled;
 			e^.player^.idclip := no;
@@ -270,7 +270,7 @@ uses
 			ObrubAnnoyed, ObrubGettingAngry:
 				begin
 					e^.dlg.Init(e, 'obrubens [face = annoyed.png, sizeX = 58/800, letterTimeout = 0.3]: 1.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
-					if e^.world^.spaceshipArrived then
+					if e^.world^.spaceshipBrought then
 						e^.obrubMood := ObrubAngry
 					else
 						e^.obrubMood := ObrubGettingAngry;
@@ -330,7 +330,7 @@ uses
 		d := new(pDecoration, Init(Environment('table3.png'), Translate(0.75, -0.15), Vec2.Make(0.3, Deduce)));
 		location^.AddWall(d, Vec2.Make(0.02, 0.0), Vec2.Make(0.0, 0.12));
 
-		if not self.world^.spaceshipArrived then
+		if not self.world^.spaceshipBrought then
 		begin
 			valera := CreateKolobok('valera');
 			valera^.local := Translate(-0.93, 0.54);
@@ -458,9 +458,10 @@ uses
 
 	function CreateKolobok(const char: string): pActor;
 	begin
-		result := new(pActor, Init(Vec2.Make(0.14, 0.14), Character(char, 'model.png'), Vec2.Make(1/2, 1/8)))^.NewRef;
+		result := new(pActor, Init(Vec2.Make(0.14, 0.14), Character(char, 'model.png'), Vec2.Make(1/2, 1/9)))^.NewRef;
 		result^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
 		result^.AddState('walk', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', [MovingState]);
+		result^.AddState('hit', Vec2.Make(0, 8/9), 1, 1, 0.3, 'idle', []);
 	end;
 
 	procedure RotateActors(const actors: array of pActor; const target: Vec2);

@@ -266,16 +266,14 @@ type
 	type
 		OpEnum = (op_Set, op_Add, op_Sub, op_Mul);
 		OnChangeProc = procedure(var v: ModifiableValue; param: pointer);
-	private type
-		ModifierRec = record
+	private
+		base, v: float;
+		modifiers: array of record
 			name: PoolString;
 			op: OpEnum;
 			x: float;
 			priority: sint;
 		end;
-	var
-		base, v: float;
-		modifiers: array of ModifierRec;
 		onChange: OnChangeProc;
 		onChangeParam: pointer;
 		function FindModifier(const name: PoolString): sint;
@@ -715,7 +713,7 @@ type
 		scoped_enum_ SaveInterface = (None, Plain, StringOpts); _end
 		SaveProc = record
 		case typ: SaveInterface of
-      	SaveInterface.None: (funcPtr: CodePointer);
+			SaveInterface.None: (funcPtr: CodePointer);
 			SaveInterface.Plain: (plain: PlainSave);
 			SaveInterface.StringOpts: (stringOpts: StringOptsSave);
 		end;
@@ -909,7 +907,7 @@ type
 			it^.stsIt          := stsIt;
 
 		{$ifdef Debug}
-	  	{$ifdef DebugStrPool} Log('Interned ++ "{0}", теперь {1}.', s, ToString(list.ItemsCount), logDebug); {$endif}
+		{$ifdef DebugStrPool} Log('Interned ++ "{0}", теперь {1}.', s, ToString(list.ItemsCount), logDebug); {$endif}
 			stat.Note(max_strpool_len, list.Count);
 		{$endif}
 		end;
@@ -2170,7 +2168,7 @@ var
 
 	function ModifiableValue.FindModifier(const name: PoolString): sint;
 	begin
-		result := Index(name.ToIndex, pointer(modifiers) + fieldoffset ModifierRec _ name _, length(modifiers), sizeof(ModifierRec));
+		result := Index(name.ToIndex, first_field modifiers _ name _, length(modifiers), sizeof(modifiers[0]));
 	end;
 
 	procedure ModifiableValue.Recalculate;
@@ -2216,8 +2214,8 @@ var
 		i: sint;
 	begin
 		Serialize_ui8(stream,
-			   uint(base <> 0)              shl HAS_BASE_BITN or
-			   uint(length(modifiers) <> 0) shl HAS_MODIFIERS_BITN);
+			uint(base <> 0)              shl HAS_BASE_BITN or
+			uint(length(modifiers) <> 0) shl HAS_MODIFIERS_BITN);
 
 		if base <> 0.0 then Serialize_f16(stream, base);
 		if length(modifiers) <> 0 then
@@ -3073,7 +3071,7 @@ var
 	function ResourcePool.TagIndex(const tag: string; allowCreate: boolean): sint;
 	begin
 		if (tag = '') and allowCreate then exit(-1);
-		result := Index(tag, pointer(tags) + fieldoffset TagDesc _ name _, length(tags), sizeof(TagDesc));
+		result := Index(tag, first_field tags _ name _, length(tags), sizeof(tags[0]));
 		if result >= 0 then exit;
 		if not allowCreate then raise Error('Тег {0} не найден.', tag);
 
@@ -3520,7 +3518,7 @@ var
 
 	function FilesystemCache.Node.TagIndex(const tag: PoolString): sint;
 	begin
-		result := Index(tag.ToIndex, pPoolString(tags), length(tags));
+		result := Index(tag.ToIndex, pPointer(pPoolString(tags)), length(tags));
 	end;
 
 	procedure FilesystemCache.Init;
@@ -3846,7 +3844,7 @@ var
 	var
 		index: sint;
 	begin
-		index := USystem.Index(ext, pointer(pLoaderDesc(loaders)) + fieldoffset LoaderDesc _ ext _, length(loaders), sizeof(LoaderDesc));
+		index := USystem.Index(ext, first_field loaders _ ext _, length(loaders), sizeof(loaders[0]));
 		if index >= 0 then result := @loaders[index] else result := nil;
 	end;
 

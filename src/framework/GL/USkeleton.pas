@@ -15,31 +15,30 @@ const
 type
 	pBone = ^tBone;
 	tBone = object
-	public
 		name: PoolString;
 		offset: Vec3;
 		rotation: Quaternion;
 		invBind: Transform;
 		attachedBones: array of pBone;
 		parent: pBone;
-		constructor Init(const newName: PoolString);
-		destructor Done;
+		procedure Init(const newName: PoolString);
+		procedure Done;
 		procedure AttachBone(newBone: pBone);
 		procedure BuildInverseBind;
 	end;
 
-	tBoneAnimationFlag = (boneanim_Looped, boneanim_HasRot, boneanim_HasOfs);
-	tBoneAnimationFlags = set of tBoneAnimationFlag;
+	BoneAnimationFlag = (boneanim_Looped, boneanim_HasRot, boneanim_HasOfs);
+	BoneAnimationFlags = set of BoneAnimationFlag;
 
-	pBoneAnimation = ^tBoneAnimation;
-	tBoneAnimation = object
+	pBoneAnimation = ^BoneAnimation;
+	BoneAnimation = object
 	private
-		_flags: tBoneAnimationFlags;
+		_flags: BoneAnimationFlags;
 		_nKeys: sint;
 		procedure _SetNKeyframes(n: sint);
-		function _GetFlag(f: tBoneAnimationFlag): boolean;
-		procedure _SetFlag(f: tBoneAnimationFlag; value: boolean);
-		procedure _SetFlags(newFlags: tBoneAnimationFlags);
+		function _GetFlag(f: BoneAnimationFlag): boolean;
+		procedure _SetFlag(f: BoneAnimationFlag; value: boolean);
+		procedure _SetFlags(newFlags: BoneAnimationFlags);
 	public
 		bone: pBone;
 		weight: float;
@@ -47,15 +46,15 @@ type
 		kfPhase: pFloat;
 		kfRot: pQuaternion;
 		kfOfs: pVec3;
-		constructor Init(newBone: pBone);
-		destructor Done;
+		procedure Init(newBone: pBone);
+		procedure Done; {$define pSelf := pBoneAnimation} {$define constructor_args := newBone: pBone} {$include dyn_obj.h.inc}
 		procedure AddKeyframe(const phase: float; const boneRot: Quaternion; const boneOfs: Vec3);
 		function RemoveKeyframe(id: sint): boolean;
 		procedure GetBoneState(const phase: float; out boneRot: Quaternion; out boneOfs: Vec3);
 
 		property nKeyframes: sint read _nKeys write _SetNKeyframes;
-		property Flags: tBoneAnimationFlags read _flags write _SetFlags;
-		property Flag[f: tBoneAnimationFlag]: boolean read _GetFlag write _SetFlag;
+		property Flags: BoneAnimationFlags read _flags write _SetFlags;
+		property Flag[f: BoneAnimationFlag]: boolean read _GetFlag write _SetFlag;
 		property Looped: boolean index boneanim_Looped read _GetFlag write _SetFlag;
 		property HasRot: boolean index boneanim_HasRot read _GetFlag write _SetFlag;
 		property HasOfs: boolean index boneanim_HasOfs read _GetFlag write _SetFlag;
@@ -68,7 +67,7 @@ type
 	);
 
 const
-	BoneAnimationFlagIds: array[tBoneAnimationFlag] of string = ('loop', 'rot', 'ofs');
+	BoneAnimationFlagIds: array[BoneAnimationFlag] of string = ('loop', 'rot', 'ofs');
 	SkeletonAnimationKindIds: array[SkeletonAnimationKind] of string = ('single', 'loop');
 
 type
@@ -95,8 +94,8 @@ type
 		transitions: array of record
 			a2, trans: sint;
 		end;
-		constructor Init(const newName: PoolString; newSkeleton: pSkeletonSource);
-		destructor Done;
+		procedure Init(const newName: PoolString; newSkeleton: pSkeletonSource);
+		procedure Done;
 		procedure Deserialize(s: pStream; const offsetsAABB: AABB {$ifdef Debug}; out d: DeserializationDebug {$endif});
 		function BoneAnim(id: sint): pBoneAnimation;
 		function RemoveBone(id: sint): boolean;
@@ -254,7 +253,7 @@ uses
 	Profile;
 {$endif}
 
-	constructor tBone.Init(const newName: PoolString);
+	procedure tBone.Init(const newName: PoolString);
 	begin
 		parent := nil;
 		attachedBones := nil;
@@ -263,7 +262,7 @@ uses
 		name := newName;
 	end;
 
-	destructor tBone.Done;
+	procedure tBone.Done;
 	begin
 	end;
 
@@ -288,7 +287,7 @@ uses
 			attachedBones[i]^.BuildInverseBind;
 	end;
 
-	procedure tBoneAnimation._SetNKeyframes(n: sint);
+	procedure BoneAnimation._SetNKeyframes(n: sint);
 	begin
 		if n <> _nKeys then
 		begin
@@ -299,12 +298,12 @@ uses
 		end;
 	end;
 
-	function tBoneAnimation._GetFlag(f: tBoneAnimationFlag): boolean;
+	function BoneAnimation._GetFlag(f: BoneAnimationFlag): boolean;
 	begin
 		result := f in _flags;
 	end;
 
-	procedure tBoneAnimation._SetFlag(f: tBoneAnimationFlag; value: boolean);
+	procedure BoneAnimation._SetFlag(f: BoneAnimationFlag; value: boolean);
 	var
 		i: sint;
 	begin
@@ -333,15 +332,15 @@ uses
 		end;
 	end;
 
-	procedure tBoneAnimation._SetFlags(newFlags: tBoneAnimationFlags);
+	procedure BoneAnimation._SetFlags(newFlags: BoneAnimationFlags);
 	var
-		f: tBoneAnimationFlag;
+		f: BoneAnimationFlag;
 	begin
-		for f in tBoneAnimationFlags do
+		for f in BoneAnimationFlags do
 			Flag[f] := f in newFlags;
 	end;
 
-	constructor tBoneAnimation.Init(newBone: pBone);
+	procedure BoneAnimation.Init(newBone: pBone);
 	begin
 		maxPhase := 0.0;
 		weight := 1.0;
@@ -353,14 +352,17 @@ uses
 		_flags := [];
 	end;
 
-	destructor tBoneAnimation.Done;
+	procedure BoneAnimation.Done;
 	begin
 		FreeMem(kfOfs);
 		FreeMem(kfRot);
 		FreeMem(kfPhase);
 	end;
+{$define classname := BoneAnimation} {$define pSelf := pBoneAnimation}
+{$define constructor_args := newBone: pBone} {$define pass_constructor_args := newBone}
+{$include dyn_obj.pp.inc}
 
-	procedure tBoneAnimation.AddKeyframe(const phase: float; const boneRot: Quaternion; const boneOfs: Vec3);
+	procedure BoneAnimation.AddKeyframe(const phase: float; const boneRot: Quaternion; const boneOfs: Vec3);
 	begin
 		if boneRot <> bone^.rotation then HasRot := yes;
 		if boneOfs <> bone^.offset then HasOfs := yes;
@@ -371,7 +373,7 @@ uses
 		if boneanim_HasOfs in _flags then kfOfs[_nKeys - 1] := boneOfs;
 	end;
 
-	function tBoneAnimation.RemoveKeyframe(id: sint): boolean;
+	function BoneAnimation.RemoveKeyframe(id: sint): boolean;
 	var
 		i: sint;
 	begin
@@ -387,13 +389,13 @@ uses
 		nKeyframes := nKeyframes - 1;
 	end;
 
-	procedure tBoneAnimation.GetBoneState(const phase: float; out boneRot: Quaternion; out boneOfs: Vec3);
+	procedure BoneAnimation.GetBoneState(const phase: float; out boneRot: Quaternion; out boneOfs: Vec3);
 	var
 		i0, i1, i2, i3: sint;
 		i, b: sint;
 		w, phaseDiff: float;
 	begin
-	trace_call('tBoneAnimation.GetBoneState');
+	trace_call('BoneAnimation.GetBoneState');
 		if nKeyframes = 0 then
 		begin
 			boneRot := bone^.rotation;
@@ -522,7 +524,7 @@ uses
 		end;
 	end;
 
-	constructor SkeletonAnimation.Init(const newName: PoolString; newSkeleton: pSkeletonSource);
+	procedure SkeletonAnimation.Init(const newName: PoolString; newSkeleton: pSkeletonSource);
 	var
 		i: sint;
 	begin
@@ -538,20 +540,19 @@ uses
 		transitions := nil;
 	end;
 
-	destructor SkeletonAnimation.Done;
+	procedure SkeletonAnimation.Done;
 	var
 		i: sint;
 	begin
 		for i := 0 to High(bones) do
-			if Assigned(bones[i]) then
-				dispose(bones[i], Done);
+			BoneAnimation.Free(bones[i]);
 	end;
 
 	function SkeletonAnimation.BoneAnim(id: sint): pBoneAnimation;
 	begin
 		if id <> -1 then
 		begin
-			if not Assigned(bones[id]) then bones[id] := new(pBoneAnimation, Init(@skel^.bones[id]));
+			if not Assigned(bones[id]) then bones[id] := BoneAnimation.Create(@skel^.bones[id]);
 			result := bones[id];
 			result^.maxPhase := Len;
 		end else
@@ -561,11 +562,7 @@ uses
 	function SkeletonAnimation.RemoveBone(id: sint): boolean;
 	begin
 		result := (id >= 0) and (id < length(bones)) and Assigned(bones[id]);
-		if result then
-		begin
-			dispose(bones[id], DOnE);
-			bones[id] := nil;
-		end;
+		if result then BoneAnimation.Free(bones[id]);
 	end;
 
 	constructor SkeletonSource.Init;
@@ -607,7 +604,7 @@ uses
 
 	function SkeletonSource.GetBoneID(const name: PoolString): sint;
 	begin
-		result := Index(name.ToIndex, pointer(bones) + fieldoffset tBone _ name _, length(bones), sizeof(tBone));
+		result := Index(name.ToIndex, first_field bones _ name _, length(bones), sizeof(bones[0]));
 	end;
 
 	function SkeletonSource.GetBoneID(var bone: tBone): sint;
@@ -755,7 +752,7 @@ uses
 
 	function SkeletonSource.GetAnimationID(const name: PoolString): sint;
 	begin
-		result := Index(name.ToIndex, pointer(anims) + fieldoffset SkeletonAnimation _ name _, length(anims), sizeof(SkeletonAnimation));
+		result := Index(name.ToIndex, first_field anims _ name _, length(anims), sizeof(anims[0]));
 	end;
 
 	procedure SkeletonNode.tAnimation.Initialize(newInSkel: pSkeletonAnimation);
@@ -1032,7 +1029,7 @@ uses
 
 	function SkeletonNode.IndexBoneChild(node: pSceneNode): sint;
 	begin
-		result := Index(node, pointer(boneChilds) + fieldoffset BoneChild _ node _, length(boneChilds), sizeof(BoneChild));
+		result := Index(node, first_field boneChilds _ node _, length(boneChilds), sizeof(boneChilds[0]));
 	end;
 
 	procedure SkeletonNode._OnUpdate(const dt: float);

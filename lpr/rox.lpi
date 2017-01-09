@@ -35,8 +35,7 @@
             <Filename Value="..\bin\rox"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\src\framework\inc"/>
-            <OtherUnitFiles Value="..\src;..\src\framework;..\src\framework\*"/>
+            <IncludeFiles Value="$(ProjOutDir)"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -166,8 +165,7 @@
       <Filename Value="..\bin\rox"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\src\framework\inc"/>
-      <OtherUnitFiles Value="..\src;..\src\framework;..\src\framework\*"/>
+      <IncludeFiles Value="$(ProjOutDir)"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>

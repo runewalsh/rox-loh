@@ -65,9 +65,9 @@ type
 		function IsDiacritic(const sym: UTFchar): boolean; static; cinline
 		function IsIdentifier(sym: char): boolean; static; cinline
 		function Capitalize(const sym: UTFchar): UTFchar; static;
-		function LowerCase(const sym: UTFchar): UTFchar; static;
-		function IsLowerCase(const sym: UTFchar): boolean; static;
-		function IsUpperCase(const sym: UTFchar): boolean; static;
+		function Lowercase(const sym: UTFchar): UTFchar; static;
+		function IsLowercase(const sym: UTFchar): boolean; static;
+		function IsUppercase(const sym: UTFchar): boolean; static;
 	const
 		TAB                 = ord(TabSym);
 		UNIX_EOL            = $a;
@@ -457,22 +457,33 @@ type
 		result := no;
 	end;
 
+	function ShouldFixCapitalization(const text: string; firstLen: size_t): boolean;
+	var
+		next: UTFchar;
+	begin
+		next := UTF8.Peek(text, 1 + firstLen);
+		result := ([Letter, Whitespace, Punctuation] * Symbol.Classify(next) <> []) and not Symbol.IsUppercase(next);
+	end;
+
 	function CapitalizeFirst(const text: string): string;
 	var
 		sym, csym: UTFchar;
 		len: size_t;
 	begin
 		csym := Symbol.Capitalize(UTF8.Peek(text, 1, len, sym));
-		if sym <> csym then result := StrStuff(text, 1, len, UTF8.CodepointToString(csym)) else result := text;
+		if (sym <> csym) and ShouldFixCapitalization(text, len) then
+			result := StrStuff(text, 1, len, UTF8.CodepointToString(csym))
+		else
+			result := text;
 	end;
 
-	function LowerCaseFirst(const text: string): string;
+	function LowercaseFirst(const text: string): string;
 	var
 		sym, lsym: UTFchar;
 		len: size_t;
 	begin
-		lsym := Symbol.LowerCase(UTF8.Peek(text, 1, len, sym));
-		if (sym <> lsym) and Symbol.IsLowerCase(UTF8.Peek(text, 1 + len)) then
+		lsym := Symbol.Lowercase(UTF8.Peek(text, 1, len, sym));
+		if (sym <> lsym) and ShouldFixCapitalization(text, len) then
 			result := StrStuff(text, 1, len, UTF8.CodepointToString(lsym))
 		else
 			result := text;
@@ -481,20 +492,12 @@ type
 	function FixupSentence(const text: string): string;
 	var
 		pos: sint;
-		sym: UTFchar;
 	begin
-		result := text;
+		result := CapitalizeFirst(text);
 		if length(result) > 0 then
 		begin
-			pos := 1;
-			sym := UTF8.Next(result, pos);
-			if Symbol.IsLowerCase(sym) and ([Letter, Whitespace, Punctuation] * Symbol.Classify(UTF8.Peek(result, pos)) <> []) then
-				result := StrStuff(result, 1, pos - 1, UTF8.CodepointToString(Symbol.Capitalize(sym)));
-
 			pos := length(result) + 1;
-			sym := UTF8.Prev(result, pos);
-			if not (Punctuation in Symbol.Classify(sym)) then
-				result += '.';
+			if not (Punctuation in Symbol.Classify(UTF8.Prev(result, pos))) and (length(result) > 0) then result += '.';
 		end;
 	end;
 
@@ -542,7 +545,7 @@ type
 		end;
 	end;
 
-	function Symbol.LowerCase(const sym: UTFchar): UTFchar;
+	function Symbol.Lowercase(const sym: UTFchar): UTFchar;
 	begin
 		case sym of
 			ord('A') .. ord('Z'): result := sym + (ord('a') - ord('A'));
@@ -552,7 +555,7 @@ type
 		end;
 	end;
 
-	function Symbol.IsLowerCase(const sym: UTFchar): boolean;
+	function Symbol.IsLowercase(const sym: UTFchar): boolean;
 	begin
 		case sym of
 			ord('a') .. ord('z'), Cyrillics.A .. Cyrillics.YA, Cyrillics.IO: result := yes;
@@ -560,7 +563,7 @@ type
 		end;
 	end;
 
-	function Symbol.IsUpperCase(const sym: UTFchar): boolean;
+	function Symbol.IsUppercase(const sym: UTFchar): boolean;
 	begin
 		case sym of
 			ord('A') .. ord('Z'), Cyrillics.CAP_A .. Cyrillics.CAP_YA, Cyrillics.CAP_IO: result := yes;

@@ -27,8 +27,8 @@
 	begin
 		p := hq.Put(sizeof(ItemType) * length(items));
 		System.Initialize(p^, length(items));
-      for i := 0 to High(items) do p[i] := items[i];
-      nItems += length(items);
+		for i := 0 to High(items) do p[i] := items[i];
+		nItems += length(items);
 	end;
 
 	function classname.Get(out item: ItemType): boolean;
@@ -54,10 +54,10 @@
 		if not result then exit;
 
 		p := hq.LockGet;
-      for i := 0 to High(items) do items[i]^ := p[i];
-      System.Finalize(p^, length(items));
-      hq.UnlockGet(sizeof(ItemType) * length(items));
-      nItems -= length(items);
+		for i := 0 to High(items) do items[i]^ := p[i];
+		System.Finalize(p^, length(items));
+		hq.UnlockGet(sizeof(ItemType) * length(items));
+		nItems -= length(items);
 	end;
 
 {$undef classname}

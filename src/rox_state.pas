@@ -33,13 +33,6 @@ type
 	end;
 
 	StateManager = object
-	type
-		TimerDesc = record
-			t: pTimer;
-			id: string;
-		end;
-		pTimerDesc = ^TimerDesc;
-	var
 		win: pointer {pWindow};
 		state: pState;
 		switching: record
@@ -52,7 +45,10 @@ type
 		ui: UserInterface;
 		nvp, invp: Vec2;
 		viewportAp: AspectPair;
-		timers: array of TimerDesc;
+		timers: array of record
+			t: pTimer;
+			id: string;
+		end;
 		switchedDuringLastUpdate: boolean;
 
 		procedure Invalidate;
@@ -190,7 +186,7 @@ uses
 
 	procedure StateManager.AddTimer(timer: pTimer; const id: string);
 	begin
-		if Index(timer, pointer(pTimerDesc(timers)) + fieldoffset TimerDesc _ t _, length(timers), sizeof(TimerDesc)) >= 0 then
+		if Index(timer, first_field timers _ t _, length(timers), sizeof(timers[0])) >= 0 then
 			raise Error('Таймер добавлен дважды.');
 		SetLength(timers, length(timers) + 1);
 		timers[High(timers)].t := timer^.NewRef;

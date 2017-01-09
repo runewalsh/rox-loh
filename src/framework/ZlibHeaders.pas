@@ -1041,7 +1041,7 @@ uses
 	procedure DescribeZlibFunctions(var fns: DLLoader.FunctionsList);
 	begin
 		fns
-   	.Func(@z.deflateInit2, 'deflateInit2_')^
+		.Func(@z.deflateInit2, 'deflateInit2_')^
 		.Func(@z.deflate,      'deflate')^
 		.Func(@z.deflateEnd,   'deflateEnd')^
 		.Func(@z.deflateBound, 'deflateBound')^

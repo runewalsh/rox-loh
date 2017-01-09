@@ -44,7 +44,7 @@ type
 		PicSize = 0.3;
 		NameHeight = 0.1;
 		FirstLetterTimeoutK = 3;
-		DefaultLetterTimeout = 0.06;
+		DefaultLetterTimeout = 0.05;
 	end;
 
 	pDialogue = ^Dialogue;
@@ -81,6 +81,7 @@ type
 		procedure Parse(const s: string);
 	const
 		Border = 0.03;
+		DefaultSentenceDelay = 2.0;
 	end;
 
 implementation
@@ -134,7 +135,7 @@ implementation
 
 	procedure TextBox.Update(const dt: float);
 	begin
-		nextLetterTimeout -= dt * (1 + 9*ord(skip));
+		nextLetterTimeout -= dt * (1 + 7*ord(skip));
 		while (nextSym < length(syms)) and (nextLetterTimeout < 0) do
 		begin
 			// if skip then begin skip := no; nextLetterTimeout := letterTimeout; end;
@@ -448,12 +449,11 @@ type
 		try
 			repeat
 				// персонаж: реплика
-				// персонаж [эмоция]: реплика
-				// персонаж [sizeX = размер по X]
+				// персонаж [face = эмоция, sizeX = размер по X, delay = пауза после реплики]: реплика
 				if not t.MaybeTokenEndingWith(ni.char, ['[', ':']) then begin t.ExpectEnd; break; end;
 				ni.pic := 'indifferent.png';
 				ni.size := 1.0;
-				ni.delay := 2.0;
+				ni.delay := DefaultSentenceDelay;
 				ni.letterTimeout := 0;
 				if t.Maybe('[') then
 				begin

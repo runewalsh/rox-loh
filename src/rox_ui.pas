@@ -79,15 +79,12 @@ type
 	end;
 
 	UserInterface = object
-	type
-		ControlRec = record
+		mouseHandled: boolean;
+		_mgr: pointer {pStateManager};
+		controls: array of record
 			ctl: pControl;
 			group: string;
 		end;
-	var
-		mouseHandled: boolean;
-		_mgr: pointer {pStateManager};
-		controls: array of ControlRec;
 		procedure Init(mgr: pointer);
 		procedure Done;
 		procedure Update(const dt: float);
@@ -260,7 +257,7 @@ uses
 
 	function Control.FindState(const name: string): sint;
 	begin
-		result := Index(name, pointer(pControlState(states)) + fieldoffset ControlState _ name _, length(states), sizeof(ControlState));
+		result := Index(name, first_field states _ name _, length(states), sizeof(states[0]));
 	end;
 
 	procedure Button.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
@@ -332,7 +329,7 @@ uses
 	begin
 		try
 			if Assigned(ctl^.ui) then raise Error('Контрол уже в UI.');
-			Assert(Index(ctl, pointer(controls) + fieldoffset ControlRec _ ctl _, length(controls), sizeof(ControlRec)) < 0);
+			Assert(Index(ctl, first_field controls _ ctl _, length(controls), sizeof(controls[0])) < 0);
 			SetLength(controls, length(controls) + 1);
 			controls[High(controls)].ctl := ctl;
 			controls[High(controls)].group := group;
@@ -347,7 +344,7 @@ uses
 	var
 		id: sint;
 	begin
-		id := Index(ctl, pointer(controls) + fieldoffset ControlRec _ ctl _, length(controls), sizeof(ControlRec));
+		id := Index(ctl, first_field controls _ ctl _, length(controls), sizeof(controls[0]));
 		if id < 0 then raise Error('Контрол не в UI.');
 		InternalRemove(id);
 	end;

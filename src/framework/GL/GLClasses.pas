@@ -267,18 +267,16 @@ type
 	pGLMaterial = ^GLMaterial;
 	pGLMaterialLevel = ^GLMaterialLevel;
 	GLMaterialLevel = object
-	type
-		ProgForPass = record
-			pass: pRenderPass;
-			prog: pShaderProgram;
-		end;
 	private
 		procedure _SetProg(pass: pRenderPass; prog: pShaderProgram);
 		function _GetProg(pass: pRenderPass): pShaderProgram;
 	public
 		base: pGLMaterial;
 		minLod: float;
-		pp: array of ProgForPass;
+		pp: array of record
+			pass: pRenderPass;
+			prog: pShaderProgram;
+		end;
 		cull: boolean;
 		blend: GLBlendMode;
 		gl: GLEntityParams;
@@ -951,13 +949,10 @@ const
 
 type
 	BinaryShaderVersionInfo = object
-	type
-		OneVersion = record
+		vers: array of record
 			ver: PoolString;
 			sh: set of ShaderType;
 		end;
-	var
-		vers: array of OneVersion;
 		procedure Init;
 		procedure Add(nst: ShaderType; const ver: PoolString);
 		function ToString: string;
@@ -972,7 +967,7 @@ type
 	var
 		id: sint;
 	begin
-		id := Index(ver.ToIndex, pointer(vers) + fieldoffset OneVersion _ ver _, length(vers), sizeof(OneVersion));
+		id := Index(ver.ToIndex, first_field vers _ ver _, length(vers), sizeof(vers[0]));
 		if id >= 0 then Include(vers[id].sh, nst) else
 		begin
 			SetLength(vers, length(vers) + 1);
@@ -1728,7 +1723,7 @@ type
 
 	function GLMaterialLevel.GetProgID(pass: pRenderPass): sint;
 	begin
-		result := Index(pass, pointer(pp) + fieldoffset ProgForPass _ pass _, length(pp), sizeof(ProgForPass));
+		result := Index(pass, first_field pp _ pass _, length(pp), sizeof(pp[0]));
 	end;
 
 	function GLMaterial.Merge(m: pGLMaterial): pGLMaterial;
@@ -3122,7 +3117,7 @@ type
 
 	function Postprocess._GetRTIdByName(const name: PoolString {$ifdef Debug}; warn: boolean = no {$endif}): sint;
 	begin
-		result := Index(name.ToIndex, pRTRec(_rts) + fieldoffset RTRec _ name _, length(_rts), sizeof(RTRec));
+		result := Index(name.ToIndex, first_field _rts _ name _, length(_rts), sizeof(_rts[0]));
 	{$ifdef Debug} if (result < 0) and warn then Log('Рендертаргет "' + name + '" не найден.', logError); {$endif}
 	end;
 

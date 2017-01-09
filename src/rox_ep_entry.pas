@@ -15,8 +15,6 @@ type
 		wall, door, ship, shipFire: pDecoration;
 		doorTrig: pTrigger;
 
-		hint: pControl;
-		hintTimer: pTimer;
 		smoke: array of record
 			d: pDecoration;
 			v: Vec2;
@@ -45,28 +43,6 @@ type
 
 implementation
 
-	procedure OpenHint(e: pEp_Entry; const src: string);
-	begin
-		if Assigned(e^.hintTimer) then begin e^.hintTimer^.Stop; Release(e^.hintTimer); end;
-		if Assigned(e^.hint) then begin e^.hint^.Detach; Release(e^.hint); end;
-		e^.hint := new(pControl, Init(Texture.Load(UI(src)), []))^.NewRef;
-		e^.hint^.size := 0.5;
-		e^.hint^.local := Translate(-e^.mgr^.nvp.x, e^.mgr^.nvp.y - e^.hint^.CalculateRawSize.y);
-		e^.mgr^.ui.Add(e^.hint^.NewRef, e^.id);
-	end;
-
-	procedure CloseHintTimer(reason: Timer.DoneReason; param: pointer);
-	var
-		e: pEp_Entry absolute param;
-	begin
-		if reason in [Timeout, Stopped] then
-		begin
-			Release(e^.hintTimer);
-			e^.hint^.Detach;
-			Release(e^.hint);
-		end;
-	end;
-
 	function DoorTest(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
 	var
 		e: pEp_Entry absolute param;
@@ -93,12 +69,7 @@ implementation
 			Entered:
 				begin
 					e^.door^.texRect := Rect.MakeSize(1/3, 0, 1/3, 1);
-					if e^.hints then
-					begin
-						OpenHint(e, 'hint-act.png');
-						e^.hintTimer := new(pTimer, Init(20, @ProcessDoorHint, @CloseHintTimer, e))^.NewRef;
-						e^.mgr^.AddTimer(e^.hintTimer, e^.id);
-					end;
+					if e^.hints then e^.OpenHint('hint-act.png', 20, @ProcessDoorHint);
 				end;
 			Leaved: e^.door^.texRect := Rect.MakeSize(0, 0, 1/3, 1);
 		end;
@@ -119,7 +90,7 @@ implementation
 	begin
 		stateId := EntryStateID;
 		if Assigned(world) then
-			if world^.spaceshipArrived then
+			if world^.spaceshipBrought then
 			begin
 				state := SetupDepart;
 				stateId := DepartStateID;
@@ -147,7 +118,6 @@ implementation
 
 	destructor Ep_Entry.Done;
 	begin
-		Release(hintTimer); Release(hint);
 		Release(doorTrig); Release(door);
 		Release(wall);
 		Release(shipFire); Release(ship);
@@ -185,10 +155,7 @@ implementation
 		e^.cameraMode := LookAfterPlayer;
 		e^.playerControlMode := PlayerControlEnabled;
 		e^.player^.idclip := no;
-
-		OpenHint(e, 'hint-move.png');
-		e^.hintTimer := new(pTimer, Init(8.0, @ProcessMovementHint, @CloseHintTimer, e))^.NewRef;
-		e^.mgr^.AddTimer(e^.hintTimer, e^.id);
+		e^.OpenHint('hint-move.png', 8, @ProcessMovementHint);
 	end;
 
 	procedure PlayerWalkedIn(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);

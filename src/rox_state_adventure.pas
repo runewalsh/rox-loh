@@ -5,7 +5,7 @@ interface
 
 uses
 	USystem, Errors, UMath, UClasses, Utils, GLUtils,
-	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win, rox_world, rox_gfx;
+	rox_state, rox_gl, rox_ui, rox_actor, rox_location, rox_dialogue, rox_win, rox_world, rox_gfx, rox_paths, rox_timer;
 
 type
 	pCamera = ^Camera;
@@ -34,6 +34,9 @@ type
 		lastCursorPos: Vec2;
 		fxPhase, deathPhase: float;
 		display: boolean;
+		bullet: pTexture;
+		hint: pControl;
+		hintTimer: pTimer;
 		constructor Init(const id: string; world: pWorld);
 		destructor Done; virtual;
 		procedure HandleDeactivation; virtual;
@@ -41,10 +44,12 @@ type
 		procedure HandleDraw; virtual;
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
+		procedure OpenHint(const src: string; const timeout: float; process: Timer.ProcessCallback; const size: float = 0; const y: float = 0);
 
 	const
 		RunningVelocity = 0.8;
 		WalkingVelocity = 0.3;
+		ShotDistance = 1.5;
 	private
 		function DirectionKeyToDir4(k: KeyboardKey): Dir4;
 		procedure UpdateCursor(const pos: Vec2; force: boolean);
@@ -103,6 +108,8 @@ uses
 		Release(player);
 		Release(location);
 		Release(world);
+		Release(bullet);
+		Release(hintTimer); Release(hint);
 		dlg.Done;
 		inherited Done;
 	end;
@@ -116,9 +123,11 @@ uses
 	procedure Adventure.HandleUpdate(const dt: float);
 	var
 		delta, a, b: Vec2;
+		i: sint;
 	begin
 		if not Assigned(player) then raise Error('Не назначен игрок.');
 		if not Assigned(location) then raise Error('Не назначена локация.');
+		writeln(tostring(player^.pointon(vec2.make(0.5, 0))));
 
 		inherited HandleUpdate(dt);
 		if (controls <> []) and (playerControlMode = PlayerControlEnabled) then
@@ -140,6 +149,13 @@ uses
 				begin
 					a := min(location^.limits.A + 0.75 * mgr^.nvp, location^.limits.B);
 					b := max(location^.limits.B - 0.75 * mgr^.nvp, location^.limits.A);
+					for i := 0 to High(a.data) do
+						if a.data[i] > b.data[i] then
+						begin
+							a.data[i] := 0.5 * (a.data[i] + b.data[i]);
+							b.data[i] := a.data[i];
+
+						end;
 					camera.target := clamp(player^.local.trans + 0.6 * lastMovementDirection * mgr^.nvp, a, max(a, b));
 				end;
 		end;
@@ -164,7 +180,9 @@ uses
 		ac: pActor absolute acAsNode;
 		q: Quad;
 		rc: Location.RaycastResult;
-		dist, angle: float;
+		dist, angle, blink: float;
+		i: uint;
+		sz: Vec2;
 	begin
 		inherited HandleDraw;
 		if display then
@@ -175,7 +193,7 @@ uses
 			begin
 				if ac^.wieldingWeapon then
 				begin
-					dist := 1.5;
+					dist := ShotDistance;
 					angle := ac^.angle;
 					if location^.Raycast(ac^.HeartPos, Rotation2(ac^.angle).ToDirection, rc, ac) then
 						dist := clamp(sqrt(rc[0].sqrDistance) + (Distance(ac^.AimOrigin, rc[0].point) - Distance(ac^.HeartPos, rc[0].point)), 0, dist);
@@ -183,8 +201,9 @@ uses
 					// красная линия прицела
 					q.fields := [q.Field.Transform, q.Field.ColorAB];
 					q.transform := camera.viewTransform * Translate(ac^.AimOrigin) * Rotate(angle - HalfPi);
-					q.colorA := Vec4.Make(1, 0, 0, 0.2 * clamp((1.5 - dist) / 1.5, 0, 1));
-					q.colorB := Vec4.Make(1, 0, 0, 0.2);
+					blink := 0.5 + 0.5*2*abs(0.5 - frac(10*fxPhase));
+					q.colorA := Vec4.Make(1, 0, 0, blink * 0.2 * clamp((1.5 - dist) / 1.5, 0, 1));
+					q.colorB := Vec4.Make(1, 0, 0, blink * 0.2);
 					q.Draw(nil, Vec2.Make(-0.005, 0), Vec2.Make(0.01, dist), Vec2.Zero, Vec2.Ones);
 					gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
 					q.Draw(nil, Vec2.Make(-0.002, 0), Vec2.Make(0.004, dist), Vec2.Zero, Vec2.Ones);
@@ -199,6 +218,13 @@ uses
 			q.color := Vec4.Make(0.75 * smoothstep(5, 3, deathPhase), 0, 0, smoothstep(1, 3, deathPhase) * smoothstep(5, 3, deathPhase));
 			q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 		end;
+
+		for i := 1 to min(player^.bullets, 5) do
+		begin
+			if not Assigned(bullet) then bullet := Texture.Load(UI('bullet.png'));
+			sz := bullet^.ap.Aspect2(asp2_y1, 0.1);
+			Quad.DrawPlain(bullet, Vec2.Make(-mgr^.nvp.x, mgr^.nvp.y) + sz * Vec2.Make((i - 1) * 0.5, -1), sz, Vec2.Zero, Vec2.Ones);
+		end;
 	end;
 
 	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
@@ -210,7 +236,16 @@ uses
 					if PlayerDied and extra.Handle then PostDeathClick;
 					if playerControlMode = PlayerControlEnabled then
 					begin
-						if player^.wieldingWeapon and extra.Handle then player^.Fire;
+						if player^.wieldingWeapon and (player^.bullets > 0) and extra.Handle then
+						begin
+							player^.Fire;
+							dec(player^.bullets);
+							if player^.bullets = 0 then player^.UnwieldWeapon;
+
+							// Внимание, стрелять нужно по тому же лучу, по какому рисовался лазер.
+							// (Это может быть очевидно, но HeartPos ↔ AimOrigin... последнее логичнее, но даёт проблемки с упиранием пистолета в стены)
+							location^.Shot(player, player^.HeartPos, player^.HeartPos + ShotDistance * Rotation2(player^.angle).ToDirection);
+						end;
 						if extra.HandleSilent and location^.ActivateTriggerAt(camera.Unproject(pos), player) then extra.Handle;
 
 						if extra.Handle then
@@ -251,10 +286,11 @@ uses
 					key_1:
 						if playerControlMode = PlayerControlEnabled then
 							if player^.wieldingWeapon then UnwieldWeapon else
-							begin
-								player^.WieldWeapon;
-								UpdateCursor(lastCursorPos, yes);
-							end;
+								if player^.bullets > 0 then
+								begin
+									player^.WieldWeapon;
+									UpdateCursor(lastCursorPos, yes);
+								end;
 				end;
 			KeyRelease:
 				case key of
@@ -263,6 +299,30 @@ uses
 				end;
 		end;
 		inherited HandleKeyboard(action, key, extra);
+	end;
+
+	procedure CloseHintTimer(reason: Timer.DoneReason; param: pointer);
+	var
+		e: pAdventure absolute param;
+	begin
+		if reason in [Timeout, Stopped] then
+		begin
+			Release(e^.hintTimer);
+			e^.hint^.Detach;
+			Release(e^.hint);
+		end;
+	end;
+
+	procedure Adventure.OpenHint(const src: string; const timeout: float; process: Timer.ProcessCallback; const size: float = 0; const y: float = 0);
+	begin
+		if Assigned(hintTimer) then begin hintTimer^.Stop; Release(hintTimer); end;
+		if Assigned(hint) then begin hint^.Detach; Release(hint); end;
+		hint := new(pControl, Init(Texture.Load(UI(src)), []))^.NewRef;
+		hint^.size := IfThen(size <> 0, size, 0.5);
+		hint^.local := Translate(-mgr^.nvp.x, mgr^.nvp.y - hint^.CalculateRawSize.y + y);
+		mgr^.ui.Add(hint^.NewRef, id);
+		hintTimer := new(pTimer, Init(timeout, process, @CloseHintTimer, @self))^.NewRef;
+		mgr^.AddTimer(hintTimer, id);
 	end;
 
 	function Adventure.DirectionKeyToDir4(k: KeyboardKey): Dir4;

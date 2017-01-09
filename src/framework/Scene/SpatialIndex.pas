@@ -14,8 +14,8 @@ type
 	pBounding = ^Bounding;
 	Bounding = object
 	type
-      BaseEnum = (UnknownBase, BasedOnSphere, BasedOnAABB);
-   private
+		BaseEnum = (UnknownBase, BasedOnSphere, BasedOnAABB);
+	private
 		_base: BaseEnum;
 		_sphere: Sphere;
 		_aabb: AABB;

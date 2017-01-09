@@ -2465,7 +2465,7 @@ var
 	begin
 		if Assigned(group) then
 		begin
-			i := Index(@self, ppBinding(group^._bindings), length(group^._bindings));
+			i := Index(pointer(@self), pPointer(group^._bindings), length(group^._bindings));
 			if i >= 0 then
 			begin
 				group^._bindings[i] := group^._bindings[High(group^._bindings)];
@@ -2714,7 +2714,7 @@ var
 
 	function IndicatorGroup._GetID(const name: PoolString): sint;
 	begin
-		result := Index(name.ToIndex, pointer(_ids) + fieldoffset IndicatorData _ namae _, length(_ids), sizeof(IndicatorData));
+		result := Index(name.ToIndex, first_field _ids _ namae _, length(_ids), sizeof(_ids[0]));
 	{$ifdef Debug} if result < 0 then Log('Индикатора "' + name + '" не существует', logError); {$endif}
 	end;
 

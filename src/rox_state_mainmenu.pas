@@ -112,7 +112,7 @@ implementation
 
 			FadeIn:
 				begin
-               fade := min(fade + (0.5 + 1.5*ord(skipFx))*dt, 1.0);
+					fade := min(fade + (0.5 + 1.5*ord(skipFx))*dt, 1.0);
 					if fade = 1.0 then
 					begin
 						if uiState = UiShown then skipFx := no;

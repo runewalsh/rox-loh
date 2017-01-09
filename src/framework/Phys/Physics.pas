@@ -1462,12 +1462,8 @@ var
 		result := _NewtonHumanInfo(_newt);
 
 		if not (rpk_Static in PrimitiveKindInfo[_kind].flags) then
-		begin
-			result += ';';
-			if Pos(EOL, result) > 0 then result += EOL else result += ' ';
-			result += 'центр тяжести: ' + ToString(_massCenter) + ', '
-			          + 'момент инерции: ' + ToString(_inertiaMoment);
-		end;
+			result += Format(';{0}центр тяжести: {1}, момент инерции: {2}',
+				[IfThen(Pos(EOL, result) > 0, EOL, ' '), ToString(_massCenter), ToString(_inertiaMoment)]);
 	end;
 
 	function RigidPrimitive._Hash(prim: pRigidPrimitive): Hash.Value;

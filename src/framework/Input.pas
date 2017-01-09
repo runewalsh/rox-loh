@@ -166,12 +166,7 @@ type
 			event: ButtonEvent;
 		end;
 
-	private type
-		MappedButton = record
-			id: sint;
-			btn: Button;
-		end;
-	var
+	private
 		_b: array[Button] of boolean;
 		_s: array[Stick] of record
 			active: boolean;
@@ -179,7 +174,10 @@ type
 		end;
 		_pressed: array of Button;
 		_active: array of Stick;
-		_bMap: array of MappedButton;
+		_bMap: array of record
+			id: sint;
+			btn: Button;
+		end;
 
 		procedure _CallOnStickProcess(stk: Stick; const state: StickState);
 		procedure _CallOnButton(btn: Button; ev: ButtonEvent);
@@ -514,7 +512,7 @@ implementation
 
 	procedure GamepadInput.MapButton(id: sint; btn: GamepadInput.Button);
 	begin
-	{$ifdef Debug} Assert(Index(id, pointer(_bMap) + fieldoffset MappedButton _ id _, length(_bMap), sizeof(MappedButton)) < 0, 'duplicate button mapping'); {$endif}
+	{$ifdef Debug} Assert(Index(id, first_field _bMap _ id _, length(_bMap), sizeof(_bMap[0])) < 0, 'duplicate button mapping'); {$endif}
 		SetLength(_bMap, length(_bMap) + 1);
 		_bMap[High(_bMap)].id := id;
 		_bMap[High(_bMap)].btn := btn;
@@ -532,7 +530,7 @@ implementation
 	var
 		i: sint;
 	begin
-		i := Index(id, pointer(_bMap) + fieldoffset MappedButton _ id _, length(_bMap), sizeof(MappedButton));
+		i := Index(id, first_field _bMap _ id _, length(_bMap), sizeof(_bMap[0]));
 		result := i >= 0;
 		if result then btn := _bMap[i].btn;
 	end;
