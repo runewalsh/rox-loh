@@ -50,10 +50,11 @@ type
 		RunningVelocity = 0.8;
 		WalkingVelocity = 0.3;
 		ShotDistance = 1.5;
+	protected
+		procedure UnwieldWeapon; virtual;
 	private
 		function DirectionKeyToDir4(k: KeyboardKey): Dir4;
 		procedure UpdateCursor(const pos: Vec2; force: boolean);
-		procedure UnwieldWeapon;
 		function PlayerDied: boolean;
 		procedure PostDeathClick;
 	end;
@@ -127,7 +128,7 @@ uses
 	begin
 		if not Assigned(player) then raise Error('Не назначен игрок.');
 		if not Assigned(location) then raise Error('Не назначена локация.');
-		writeln(tostring(player^.pointon(vec2.make(0.5, 0))));
+		// writeln(tostring(player^.pointon(vec2.make(0.5, 0))));
 
 		inherited HandleUpdate(dt);
 		if (controls <> []) and (playerControlMode = PlayerControlEnabled) then
@@ -240,7 +241,7 @@ uses
 						begin
 							player^.Fire;
 							dec(player^.bullets);
-							if player^.bullets = 0 then player^.UnwieldWeapon;
+							if player^.bullets = 0 then UnwieldWeapon;
 
 							// Внимание, стрелять нужно по тому же лучу, по какому рисовался лазер.
 							// (Это может быть очевидно, но HeartPos ↔ AimOrigin... последнее логичнее, но даёт проблемки с упиранием пистолета в стены)
@@ -325,6 +326,11 @@ uses
 		mgr^.AddTimer(hintTimer, id);
 	end;
 
+	procedure Adventure.UnwieldWeapon;
+	begin
+		player^.UnwieldWeapon;
+	end;
+
 	function Adventure.DirectionKeyToDir4(k: KeyboardKey): Dir4;
 	begin
 		case k of
@@ -345,11 +351,6 @@ uses
 		if ht then Window.FromPointer(mgr^.win)^.cursor := Cursor1;
 		if not ht and (triggerHighlighted or force) then Window.FromPointer(mgr^.win)^.cursor := Cursor0;
 		triggerHighlighted := ht;
-	end;
-
-	procedure Adventure.UnwieldWeapon;
-	begin
-		player^.UnwieldWeapon;
 	end;
 
 	function Adventure.PlayerDied: boolean;

@@ -10,13 +10,16 @@ uses
 
 	procedure LoadBGM(var window: Window);
 	begin
+		window.state.bgm.MasterVolume := 1.0;
 		window.state.bgm.AddTheme(MainMenu.StateID).AddItem(Music('phantasy2.mid'));
 		window.state.bgm.AddTheme(Ep_Entry.EntryStateID).AddItem(Music('restoration1.mid'));
 		window.state.bgm.AddTheme(Ep_Bar.StateID).AddItem(Music('pressure5.mid'));
 		window.state.bgm.AddTheme(Ep_Entry.DepartStateID).AddItem(Music('machinecenter4.mid'));
 		window.state.bgm.AddTheme('over').AddItem(Music('over.mid'));
-		window.state.bgm.AddTheme(Ep_Mars.StateID).AddItem(Music('silentzone1.mid'));
-		window.state.bgm.AddTheme(Ep_Ship.StateID).FadeoutTime(0.7).AddItem(Music('stepup1.mid'));
+		window.state.bgm.AddTheme(Ep_Mars.StartingStateID).AddItem(Music('silentzone1.mid'));
+		window.state.bgm.AddTheme(Ep_Mars.AllOutsideStateID).AddItem(Music('silentzone1.mid'));
+		window.state.bgm.AddTheme(Ep_Ship.NormalStateID).FadeoutTime(0.7).AddItem(Music('stepup1.mid'));
+		window.state.bgm.AddTheme(Ep_Ship.BloodyStateID).FadeoutTime(0.7).AddItem(Music('somethingswrong.ogg'));
 	end;
 
 var

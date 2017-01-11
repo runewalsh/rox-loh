@@ -81,7 +81,7 @@ type
 		procedure Parse(const s: string);
 	const
 		Border = 0.03;
-		DefaultSentenceDelay = 2.0;
+		DefaultSentenceDelay = 1.5;
 	end;
 
 implementation

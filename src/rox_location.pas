@@ -77,6 +77,7 @@ type
 			hitParam: pointer;
 			uid: string;
 			function OnHit(proc: WallReceiveHit; param: pointer): pWallDesc;
+			function WithUid(const uid: string): pWallDesc;
 			procedure ReceiveHit(ac: pNode);
 		end;
 
@@ -110,6 +111,7 @@ type
 		function AddWall(const w: Rect; const flags: WallFlags = []): pWallDesc;
 		function AddWall(const w: Rect; const rot: Rotation2; const flags: WallFlags = []): pWallDesc;
 		function AddWall(n: pNode; const dA, dB: Vec2; const flags: WallFlags = []): pWallDesc;
+		function GetWall(const uid: string): pWallDesc;
 		procedure RemoveWall(const uid: string);
 
 		function ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
@@ -151,7 +153,7 @@ uses
 
 	function Node.PointOn(const rel: Vec2): Vec2;
 	begin
-		result := local.trans + rel * size;
+		result := local.trans + local.rot * rel * size;
 	end;
 
 	procedure Node.Detach;
@@ -279,6 +281,12 @@ uses
 	begin
 		hit := proc;
 		hitParam := param;
+		result := @self;
+	end;
+
+	function Location.WallDesc.WithUid(const uid: string): pWallDesc;
+	begin
+		self.uid := uid;
 		result := @self;
 	end;
 
@@ -429,10 +437,7 @@ uses
 			if Assigned(r[0].n) and InheritsFrom(TypeOf(r[0].n^), TypeOf(Actor)) then
 				pActor(r[0].n)^.ReceiveHit(shooter)
 			else if r[0].wall >= 0 then
-			begin
-				writeln(tostring(walls[r[0].wall].rect));
 				walls[r[0].wall].ReceiveHit(shooter);
-			end;
 		end;
 	end;
 
@@ -464,13 +469,21 @@ uses
 		result := AddWall(Rect.Make(n^.local.trans + dA, n^.local.trans + n^.size - dA - dB), n^.local.rot, flags);
 	end;
 
-	procedure Location.RemoveWall(const uid: string);
+	function Location.GetWall(const uid: string): pWallDesc;
 	var
 		id: sint;
 	begin
 		id := Index(uid, first_field walls _ uid _, length(walls), sizeof(walls[0]));
 		if id < 0 then raise Error('Стена {0} не найдена.', uid);
-		walls[id] := walls[High(walls)];
+		result := @walls[id];
+	end;
+
+	procedure Location.RemoveWall(const uid: string);
+	var
+		w: pWallDesc;
+	begin
+		w := GetWall(uid);
+		walls[w - pWallDesc(walls)] := walls[High(walls)];
 		SetLength(walls, length(walls) - 1);
 	end;
 

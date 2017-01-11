@@ -4,8 +4,8 @@ unit rox_ep_mars;
 interface
 
 uses
-	USystem, UMath, Utils, U_GL,
-	rox_decoration, rox_location, rox_world, rox_state_adventure, rox_paths, rox_gfx, rox_gl, rox_timer;
+	USystem, UMath, Utils, U_GL, UClasses, Random,
+	rox_decoration, rox_location, rox_world, rox_state_adventure, rox_paths, rox_gfx, rox_gl, rox_timer, rox_actor;
 
 type
 	pIris = ^Iris;
@@ -14,25 +14,49 @@ type
 		procedure HandleDraw(const view: Transform2); virtual;
 	end;
 
+	pFootprint = ^Footprint;
+	Footprint = object(Decoration)
+		life, baseAlpha: float;
+		procedure HandleUpdate(const dt: float); virtual;
+	end;
+
 	pEp_Mars = ^Ep_Mars;
 	Ep_Mars = object(Adventure)
 		ship, shipFire, eye: pDecoration;
 		iris: pIris;
 		baseIrisSize: Vec2;
-		state: (_1_SetupShip, _1_ShipFlying, _1_ShipFlied, _1_Fadeout, _2_SetupShip, MoveToShip, Idle);
+		state: (_1_SetupShip, _1_ShipFlying, _1_ShipFlied, _1_Fadeout, _2_SetupShip, MoveToShip, RedFlash, Idle);
 		stateTime: float;
+
+		blooddropTrigger: pTrigger;
+		bloodDropsOnFeet: uint;
+		lastBloodyFootprint: Vec2; // мусор при bloodDropsOnFeet = 0
+		nextFootprintL: boolean;
+		nextSentenceAboutEye: uint;
+
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
+		procedure HandleDeactivation; virtual;
 	private
 		procedure UpdateIris;
 		function ShipArrivalOrigin: Vec2;
 		function ShipStanding: Vec2;
+		function EyePos: Vec2;
+		function ReferencePlayerPositionForBloodyFootprint: Vec2;
+		procedure PlaceExplodedEyeLeftover;
+		function BaseEyeRect: Rect;
+		function ExplodedEyeRect: Rect;
 	const
-		StateID = 'ep_mars';
+		StartingStateID = 'ep_mars_starting';
+		EyeExplodedStateID = 'ep_mars_eye_exloded';
+		AllOutsideStateID = 'ep_mars_all_outside';
 		Fadeout1 = 1.0;
-		FASTER = 1/6;
+		PlayerPosAtExit: Vec2 = (data: (0.4, 0.23));
+		EyeCollision = 'eye';
+		BaseEyeSize: Vec2 = (data: (0.27, 0.27/100*60));
+		RedFlashTime = 3.0;
 	end;
 
 implementation
@@ -66,44 +90,132 @@ uses
 		gl.L.LoadIdentity;
 	end;
 
+	procedure Footprint.HandleUpdate(const dt: float);
+	begin
+		inherited HandleUpdate(dt);
+		life -= dt;
+		if life <= 0 then
+		begin
+			Detach;
+			exit;
+		end;
+		alpha := baseAlpha * min(1, life/30);
+	end;
+
+	procedure MovingToShipProceed(reason: Actor.MoveCallbackReason; param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		if reason <> TargetReached then exit;
+		e^.state := MoveToShip;
+	end;
+
 	procedure ActivateShipTrigger(t: pTrigger; activator: pNode; param: pointer);
 	var
 		e: pEp_Mars absolute param;
 	begin
 		if (activator <> pNode(e^.player)) or not t^.HasInside(activator) then exit;
-		e^.state := MoveToShip;
+		e^.playerControlMode := PlayerControlDisabled;
+		e^.player^.MoveTo(e^.ShipStanding + e^.PlayerPosAtExit, e^.WalkingVelocity, @MovingToShipProceed, e);
+	end;
+
+	procedure EyeReceiveHit(ac: pNode; param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		if ac <> pNode(e^.player) then exit;
+		Assert(Assigned(e^.iris));
+		e^.location^.Add((new(pDecoration, Init(Environment('explosion.png'),
+			Translate(e^.EyePos + Vec2.Make(-0.5*(0.27 * (232/100) - 0.27), 0)),
+			Vec2.Make(0.27 * (232/100), Deduce))))^.
+			SetAnim(Rect.Make(0, 0, 1/3, 1), 3, 0.5, yes));
+		e^.eye^.Detach; e^.eye := nil;
+		e^.iris^.Detach; e^.iris := nil;
+		e^.location^.RemoveWall(e^.EyeCollision);
+
+		e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
+		e^.world^.eyeExploded := yes;
+		e^.PlaceExplodedEyeLeftover;
+
+		if e^.state = Idle then
+		begin
+			e^.state := RedFlash;
+			e^.stateTime := 0;
+		end;
+	end;
+
+	function TestCommentOnEyeTrigger(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
+	var
+		e: pEp_Mars absolute param;
+	begin
+		Assert((pos = pos) and (t = t));
+		result := (n = pNode(e^.player)) and (not Assigned(e^.blooddropTrigger) or e^.blooddropTrigger^.HasInside(n));
+	end;
+
+	procedure Dialogue_1_CommentOnEye(t: pTrigger; activator: pNode; param: pointer);
+	var
+		e: pEp_Mars absolute param;
+		scenario: string;
+	begin
+		Assert(t = t);
+		if (activator <> pNode(e^.player)) or e^.dlg.Valid then exit;
+		if e^.world^.eyeExploded then scenario := 'rox [sizeX = 50/800]: 12.png' else
+		begin
+			case e^.nextSentenceAboutEye of
+				0: scenario := 'rox [face = scared.png, sizeX = 75/800]: 10.png';
+				else scenario := 'rox [sizeX = 190/800]: 11.png';
+			end;
+			e^.nextSentenceAboutEye := (e^.nextSentenceAboutEye + 1) mod 2;
+		end;
+		e^.dlg.Init(e, scenario);
 	end;
 
 	constructor Ep_Mars.Init(world: pWorld);
+	const
+		CommentOnEyeTriggerBias: Vec2 = (data: (0.05, 0.03));
+	var
+		stateId: string;
 	begin
-		inherited Init(StateID, world);
+		if world^.eyeExploded then stateId := EyeExplodedStateID
+		else stateId := StartingStateID;
+		inherited Init(stateId, world);
+
 		(new(pDecoration, Init(Environment('land.png'), Translate(-0.4, -0.5), Vec2.Make(2.7, Deduce))))^.SetLayer(-2)^.AddTo(location);
 		location^.AddWall(Rect.Make(-0.2, -0.1, 1.5, 0), 27.5 * Deg2Rad, [NotObstacleForBullets]);
-		location^.AddWall(Rect.Make(1.17, 0.65, 2.3, 0.7), [NotObstacleForBullets]);
+		location^.AddWall(Rect.Make(1.17, 0.65, 2.3, 0.7), 0.08, [NotObstacleForBullets]);
 		location^.AddWall(Rect.Make(2.2, -1, 2.3, 0.7), [NotObstacleForBullets]);
 		location^.AddWall(Rect.Make(Vec2.Make(0.475, -0.388) + Rotate((22 - 90) * Deg2Rad) * Vec2.PositiveX, Vec2.Make(0.475 + 2.2, -0.288)),
 			22 * Deg2Rad, [NotObstacleForBullets]);
 		location^.AddWall(Rect.Make(-0.35, -0.3, 1, 0), -23 * Deg2Rad, [NotObstacleForBullets]);
 		location^.AddObstacle(Circle.Make(0.67, 0.61, 0.3));
-		location^.AddObstacle(Circle.Make(2.05, 0.72, 0.1));
+		location^.AddObstacle(Circle.Make(2.06, 0.77, 0.11));
+		location^.AddWall(Rect.Make(2.1, 0.65, 2.3, 0.7), [NotObstacleForBullets]);
 
-		pNode(eye) := new(pDecoration, Init(Environment('land-eye.png'), Translate(-0.4 + 2.7*0.59, -0.5 + 2.7*(616/873)*0.47), Vec2.Make(0.27, Deduce)))^.
-			SetAnim(Rect.Make(0, 0, 1/4, 1), 4, 0.5, no)^.AddTo(location);
-		eye^.mirroredLoop := yes;
-		eye^.relHeart := Vec2.Make(0.5, 0.1);
+		if world^.eyeExploded then
+			PlaceExplodedEyeLeftover
+		else
+		begin
+			pNode(eye) := new(pDecoration, Init(Environment('land-eye.png'), Translate(EyePos), BaseEyeSize))^.
+				SetAnim(Rect.Make(0, 0, 1/4, 1), 4, 0.5, no)^.AddTo(location);
+			eye^.mirroredLoop := yes;
+			eye^.relHeart := Vec2.Make(0.5, 0.1);
 
-		baseIrisSize := Vec2.Make(0.05, 0.05);
-		pNode(iris) := new(pIris, Init(Environment('iris.png'), Translate(Vec2.Make(0.52, 0.5) * eye^.size), baseIrisSize))^.AddTo(location);
-		iris^.SetParent(eye);
-		location^.AddWall(Rect.Make(eye^.local.trans + Vec2.Make(0.1, 0.25) * eye^.size, eye^.local.trans + Vec2.Make(0.9, 0.35) * eye^.size));
+			baseIrisSize := Vec2.Make(0.05, 0.05);
+			pNode(iris) := new(pIris, Init(Environment('iris.png'), Translate(Vec2.Make(0.52, 0.5) * BaseEyeSize), baseIrisSize))^.AddTo(location);
+			iris^.SetParent(eye);
+
+			location^.AddWall(BaseEyeRect)^.OnHit(@EyeReceiveHit, @self)^.WithUid(EyeCollision);
+		end;
+		(new(pTrigger, Init(Translate(EyePos + CommentOnEyeTriggerBias), BaseEyeSize - 2*CommentOnEyeTriggerBias)))^.
+			WithCallbacks(@TestCommentOnEyeTrigger, nil, @Dialogue_1_CommentOnEye, @self)^.AddTo(location);
 
 		if self.world^.spaceshipArrivedOnMars then
 		begin
 			location^.limits := Rect.Make(-0.6, -0.5, 2.4, 1.3);
-			self.player^.local := Translate(0.54, -0.146);
+			self.player^.local := Translate(ShipStanding + PlayerPosAtExit - (self.player^.relHeart * self.player^.size));
 			self.player^.angle := HalfPi;
 			self.player^.AddTo(location);
-			(new(pTrigger, Init(Translate(ShipStanding + Vec2.Make(0.2, 0.2)), Vec2.Make(0.5, 0.1))))^.WithCallbacks(nil, nil, @ActivateShipTrigger, @self)^.AddTo(location);
+			(new(pTrigger, Init(Translate(ShipStanding + Vec2.Make(0.2, 0.2)), Vec2.Make(0.5, 0.15))))^.WithCallbacks(nil, nil, @ActivateShipTrigger, @self)^.AddTo(location);
 			state := _2_SetupShip;
 		end else
 		begin
@@ -147,6 +259,7 @@ uses
 	var
 		sp, spy: float;
 		pos: Vec2;
+		foot: pFootprint;
 	begin
 		stateTime += dt;
 		again: case state of
@@ -164,30 +277,47 @@ uses
 							AddTo(location)^.NewRef;
 						state := _1_ShipFlying;
 						stateTime := 0;
-						mgr^.AddTimer(new(pTimer, Init(FASTER*5.5, nil, @Dialogue_1, @self)), id);
+						mgr^.AddTimer(new(pTimer, Init(5.5, nil, @Dialogue_1, @self)), id);
 					end else
 					begin
-						location^.AddWall(Rect.Make(ship^.local.trans + Vec2.Make(0, 0.1), ship^.local.trans + Vec2.Make(0.7, 0.2)));
+						location^.AddWall(Rect.Make(ship^.local.trans + Vec2.Make(0, 0.1), ship^.local.trans + Vec2.Make(0.7, 0.15)));
 						state := Idle;
 					end;
 					goto again;
 				end;
 			_1_ShipFlying:
 				begin
-					sp := stateTime/(FASTER*6);
+					sp := stateTime/6;
 					if sp >= 1 then
 					begin
 						sp := 1;
 						state := _1_ShipFlied;
 					end;
 					if (sp >= 0.7) and Assigned(shipFire^.location) then shipFire^.Detach;
-					spy := clamp(stateTime/(FASTER*4), 0, 1);
+					spy := clamp(stateTime/4, 0, 1);
 					ship^.local := Translate(lerp(ShipArrivalOrigin, ShipStanding, Vec2.Make(-2*sqr(sp)/2+2*sp, -2*sqr(spy)/2+2*spy)));
 					camera.target := ship^.HeartPos + Vec2.Make((-mgr^.nvp.x - 0.5*ship^.size.x) * (1-sp), 0.5 - 1*(1-sp));
 				end;
+			RedFlash: if stateTime >= RedFlashTime then state := Idle;
 		end;
 
-		UpdateIris;
+		if Assigned(iris) then UpdateIris;
+		if (bloodDropsOnFeet > 0) and (SqrDistance(lastBloodyFootprint, ReferencePlayerPositionForBloodyFootprint) > sqr(0.04)) then
+		begin
+			foot := new(pFootprint, Init(Environment('footprint.png'),
+				Translate(ReferencePlayerPositionForBloodyFootprint) *
+				Rotate(player^.angle + HalfPi + GlobalRNG.GetFloat(-0.25, 0.25)) *
+				Translate(Vec2.Make(0.11*player^.size.x*IfThen(nextFootprintL, -1, 1), 0)
+					+ Vec2.Make(GlobalRNG.GetFloat(-0.006, 0.006), GlobalRNG.GetFloat(-0.006, 0.006))
+					- Vec2.Make(0.008)),
+				Vec2.Make(0.018, Deduce)));
+			foot^.life := 40.0;
+			foot^.baseAlpha := min(1, bloodDropsOnFeet / 15);
+			foot^.SetLayer(-1)^.AddTo(location);
+			lastBloodyFootprint := ReferencePlayerPositionForBloodyFootprint;
+			dec(bloodDropsOnFeet);
+			nextFootprintL := not nextFootprintL;
+		end;
 		inherited HandleUpdate(dt);
 
 		case state of
@@ -211,25 +341,94 @@ uses
 		result := Vec2.Make(0.15, -0.35);
 	end;
 
+	function Ep_Mars.EyePos: Vec2;
+	begin
+		result := Vec2.Make(-0.4 + 2.7*0.59, -0.5 + 2.7*(616/873)*0.47);
+	end;
+
+	function Ep_Mars.ReferencePlayerPositionForBloodyFootprint: Vec2;
+	begin
+		result := player^.PointOn(Vec2.Make(0.5, 0.12));
+	end;
+
+	function BlooddropTriggerTest(n: pNode; const pos: Vec2; t: pTrigger; param: pointer): boolean;
+	var
+		e: pEp_Mars absolute param;
+	begin
+		Assert((pos = pos) and (t = t));
+		result := (n = pNode(e^.player)) and
+			(((e^.eye^.HeartPos - e^.ReferencePlayerPositionForBloodyFootprint) * Vec2.Make(1, 3)).SqrLength < 0.046);
+	end;
+
+	procedure BlooddropTriggerEnterLeave(n: pNode; reason: Trigger.Reason; param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		if n <> pNode(e^.player) then exit;
+		case reason of
+			Entered:
+				begin
+					if e^.bloodDropsOnFeet = 0 then e^.lastBloodyFootprint := e^.ReferencePlayerPositionForBloodyFootprint;
+					e^.bloodDropsOnFeet := max(e^.bloodDropsOnFeet, 25);
+				end;
+		end;
+	end;
+
+	procedure Ep_Mars.PlaceExplodedEyeLeftover;
+	begin
+		Assert(not Assigned(eye));
+		pNode(eye) := new(pDecoration, Init(Environment('hole.png'), Translate(EyePos + Vec2.Make(-0.5*(0.27*(120/100) - 0.27), -0.02)),
+			Vec2.Make(0.27 * (135/100), Deduce)))^.AddTo(location)^.SetLayer(-1);
+		location^.AddWall(ExplodedEyeRect)^.WithUid(EyeCollision);
+
+		Assert(not Assigned(blooddropTrigger));
+		pNode(blooddropTrigger) := new(pTrigger, Init(Translate(EyePos), Vec2.Make(0.3, 0.1)))^.
+			WithCallbacks(@BlooddropTriggerTest, @BlooddropTriggerEnterLeave, nil, @self)^.AddTo(location);
+	end;
+
+	function Ep_Mars.BaseEyeRect: Rect;
+	begin
+		result := Rect.Make(EyePos + Vec2.Make(0.1, 0.45) * BaseEyeSize, EyePos + Vec2.Make(0.9, 0.55) * BaseEyeSize);
+	end;
+
+	function Ep_Mars.ExplodedEyeRect: Rect;
+	begin
+		result := Rect.MakeSize(BaseEyeRect.A + Vec2.Make(0.03, -0.002), BaseEyeRect.Size * Vec2.Make(0.85, 0.005));
+	end;
+
 	procedure Ep_Mars.HandleDraw;
 	var
 		q: Quad;
 	begin
 		inherited HandleDraw;
 		case state of
-			_1_Fadeout:
+			_1_Fadeout, RedFlash:
 				begin
 					q.fields := [q.Field.Color];
-					q.color := Vec4.Make(0, 0, 0, clamp(stateTime / Fadeout1, 0, 1));
+					case state of
+						_1_Fadeout: q.color := Vec4.Make(0, 0, 0, clamp(stateTime / Fadeout1, 0, 1));
+						else {RedFlash} q.color := Vec4.Make(0.8 - 0.4 * min(1.0, 3.0 * stateTime / RedFlashTime), 0.0, 0.0,
+							0.8 * min(1.0, 40.0 * stateTime / RedFlashTime) * smoothstep(1.0 - stateTime / RedFlashTime));
+					end;
 					q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 				end;
 		end;
+	end;
+
+	procedure Ep_Mars.HandleDeactivation;
+	var
+		priority: pModifiableValue;
+	begin
+		inherited HandleDeactivation;
+		priority := mgr^.bgm.Priority(id, no);
+		if Assigned(priority) then priority^.RemoveModifier('mute', no);
 	end;
 
 	procedure Ep_Mars.UpdateIris;
 	var
 		eyeTarget: Vec2;
 	begin
+		Assert(Assigned(iris));
 		case state of
 			_1_ShipFlying, _1_ShipFlied, _1_Fadeout: eyeTarget := ship^.HeartPos;
 			else eyeTarget := player^.local.trans + Vec2.Make(0.5, 0.9) * player^.size;

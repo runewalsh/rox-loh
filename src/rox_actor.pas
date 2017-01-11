@@ -83,7 +83,6 @@ type
 		procedure MoveBy(const delta: Vec2; velocity: float);
 		procedure MoveTo(const target: Vec2; velocity: float; const cb: MoveCallback; param: pointer);
 		procedure StopMoving;
-		function HeartPos: Vec2;
 		function AimOrigin: Vec2;
 
 		procedure RotateTo(const point: Vec2);
@@ -110,6 +109,7 @@ implementation
 	constructor Actor.Init(const size: Vec2; const tex: string; const texSize: Vec2);
 	begin
 		inherited Init(Transform2.Identity, size);
+		relHeart := Vec2.Make(0.5, 0.2);
 		self.tex := Texture.Load(tex);
 		self.texSize := texSize;
 		angle := -HalfPi;
@@ -322,11 +322,6 @@ implementation
 	begin
 		if mvMethod = MovingTo then ShotMoveCallback(MovingCanceled);
 		mvMethod := NotMoving;
-	end;
-
-	function Actor.HeartPos: Vec2;
-	begin
-		result := local.trans + local.rot * Vec2.Make(0.5, 0.2) * size;
 	end;
 
 	function Actor.AimOrigin: Vec2;

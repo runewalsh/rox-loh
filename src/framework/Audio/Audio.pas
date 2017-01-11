@@ -218,7 +218,6 @@ type
 		procedure ResetAllThemes;
 
 	const
-		MasterVolume = 0.5;
 		DefaultFadeInTime = 3.0;
 		DefaultFadeOutTime = 1.5;
 		MinTimeLeftToRemember = 10.0;
@@ -270,6 +269,7 @@ type
 		// playingItem и playing валидны-невалидны синхронно.
 		activeCam: pObject; // для этой «камеры» был вызван open
 		activeCamItem: pItemDesc; // nil, если нет
+		masterVol: float;
 	{$ifdef Debug} function Dump: string; {$endif}
 		procedure Lock(full: boolean);
 		procedure Unlock(full: boolean);
@@ -286,6 +286,8 @@ type
 		function TryRemoveItem(theme, item: uint): boolean;
 		function SoundRestToTimerDue(snd: pSound): uint;
 		function GetSavedPosition(var snd: Sound; const theme: ThemeDesc): float;
+	public
+		property MasterVolume: float read masterVol write masterVol;
 	const
 		ITEM_NAME_EXTRA_BITS         = 1;
 		ITEM_HAS_SAVED_POSITION_BITN = 0;
@@ -1354,6 +1356,7 @@ const
 		playingTheme := -1;
 		activeCam := nil;
 		activeCamItem := nil;
+		masterVol := 0.5;
 	end;
 
 	procedure MusicPlayer.Done;
@@ -1931,10 +1934,11 @@ const
 				Lock(no);
 			end;
 		end;
+		playingTheme := theme;
 		if item < 0 then exit;
 
 		// Переход к новому треку.
-		targetVol := themes[theme].items[item]^.volume * MasterVolume;
+		targetVol := themes[theme].items[item]^.volume * masterVol;
 		np := nil;
 		try
 			np := new(pSound, Init(themes[theme].items[item]^.stream, [Sound.StartPaused]));
@@ -1956,7 +1960,6 @@ const
 			if np^.QueryState = Sound.Playing then
 			begin
 				playing := np;
-				playingTheme := theme;
 				playingItem := item;
 				stopTimer := no;
 				ThreadTimer.Open(timer, @SwitchTrackTimer, @self, SoundRestToTimerDue(np), 0);

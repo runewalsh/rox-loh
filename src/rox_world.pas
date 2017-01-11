@@ -10,7 +10,7 @@ type
 	pWorld = ^World;
 	World = object(&Object)
 		player: pActor;
-		spaceshipBrought, spaceshipArrivedOnMars, firstAmmoProceed: boolean;
+		spaceshipBrought, spaceshipArrivedOnMars, firstAmmoProceed, eyeExploded: boolean;
 		nextTwinkleShotReaction: (TwinkleShotReaction1, TwinkleShotReaction2);
 		constructor Init;
 		destructor Done; virtual;

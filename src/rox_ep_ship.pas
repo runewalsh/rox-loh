@@ -19,17 +19,21 @@ type
 		valeraDlg1Stage: (ObzhoryEbaniye, RoxEsliTakHocheshIdiPervyi);
 		fadeMode: (NoFade, FadeIn);
 		fade: float;
+		closeHintOnUnwield: boolean;
 		constructor Init(world: pWorld; enter: EnterMode);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
 	const
-		StateID = 'ep_ship';
+		NormalStateID = 'ep_ship';
+		BloodyStateID = 'ep_ship_bloody';
 
 		TwinkleAngle1 = -Pi/4;
 		KazahAngle1 = -3*Pi/4;
 		ValeraAngle1 = Pi;
 		AmmoLoad = 5;
+	protected
+		procedure UnwieldWeapon; virtual;
 	end;
 
 	procedure GenericFakeHit(ac: pActor; shooter: pNode; e: pAdventure; const dlg: string);
@@ -148,20 +152,13 @@ uses
 		e^.player^.bullets := Max(e^.player^.bullets, e^.AmmoLoad);
 	end;
 
-	procedure ProcessShootHint(timer: pTimer; const dt: float; param: pointer);
-	var
-		e: pEp_Ship absolute param;
-	begin
-		Assert(dt = dt);
-		if e^.player^.bullets < e^.AmmoLoad then timer^.left := min(timer^.left, 2.0);
-	end;
-
 	procedure AddAmmoAndShowShootingHintAfterMonologue(param: pointer);
 	var
 		e: pEp_Ship absolute param;
 	begin
 		AddAmmo(e);
-		e^.OpenHint('hint-shoot.png', 20, @ProcessShootHint, 0.6, -0.1);
+		e^.OpenHint('hint-shoot.png', 20, nil, 0.6, -0.1);
+		e^.closeHintOnUnwield := yes;
 	end;
 
 	procedure AmmoActivate(t: pTrigger; activator: pNode; param: pointer);
@@ -219,9 +216,14 @@ uses
 
 	constructor Ep_Ship.Init(world: pWorld; enter: EnterMode);
 	var
-		floor, seat, ammo: pDecoration;
+		floor, seat, ammo, d: pDecoration;
+		stateId: string;
 	begin
-		inherited Init(StateID, world);
+		if world^.eyeExploded then
+			stateId := BloodyStateID
+		else
+			stateId := NormalStateID;
+		inherited Init(stateID, world);
 		location^.limits := Rect.Make(0.15, -0, 1.8, 0.6);
 		location^.AddWall(Rect.Make(0, 0.5, 2, 0.6));
 		location^.AddWall(Rect.Make(1.1, 0, 2.1, 0.1), 1.12);
@@ -231,25 +233,38 @@ uses
 		location^.AddWall(Rect.Make(0.11, 0.3, 0.55, 0.4), 1.1);
 		location^.AddWall(Rect.Make(0.21, 0, 0.5, 0.1), 1.8);
 
-		(new(pDecoration, Init(Environment('ship-extern.png'), Translate(Vec2.Make(66/311, -98/147) * floor^.size), Vec2.Make(floor^.size.x * (508/311), Deduce))))^.SetLayer(+1)^.AddTo(location);
+		(new(pDecoration, Init(Environment('ship-extern.png'), Translate(Vec2.Make(66/311, -98/147) * floor^.size), Vec2.Make(floor^.size.x * (508/311), Deduce))))^.
+			SetLayer(+1)^.AddTo(location);
 
 		pNode(door) := (new(pDecoration, Init(Environment('ship-door.png'), Translate(Vec2.Make(117/311, 91/147) * floor^.size), Vec2.Make(floor^.size.x * (84/311), Deduce))))^.
 			SetTexRect(Rect.Make(0, 0, 1/2, 1))^.AddTo(location);
 		location^.AddWall(Rect.Make(0.57, 0.4, 0.75, 0.5));
 		location^.AddWall(Rect.Make(0.53, 0.4, 0.65, 0.45), 1.1);
-		(new(pTrigger, Init(door^.local * Translate(0, 0.05), door^.size - Vec2.Make(0, 0.05))))^.
+		(new(pTrigger, Init(door^.local * Translate(0, -0.02), door^.size - Vec2.Make(0, -0.02))))^.
 			WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self)^.AddTo(location);
 
 		pNode(ammo) := (new(pDecoration, Init(Environment('ammo.png'), Translate(Vec2.Make(215/311, 86/147) * floor^.size), Vec2.Make(floor^.size.x * (74/311), Deduce))))^.AddTo(location);
-		location^.AddWall(Rect.Make(0.92, 0.38, 1.1, 0.45));
-		location^.AddWall(Rect.Make(0.86+0.02, 0.38, 0.97, 0.38+0.02), 1.12);
+		location^.AddWall(Rect.Make(0.92, 0.39, 1.1, 0.45));
+		location^.AddWall(Rect.Make(0.86+0.02, 0.39, 0.97, 0.39+0.02), 1.12);
 		location^.Add((new(pTrigger, Init(ammo^.local, ammo^.size)))^.WithCallbacks(nil, nil, @AmmoActivate, @self));
 
 		pNode(seat) := (new(pDecoration, Init(Environment('seat.png'), Translate(Vec2.Make(59/311, 67/147) * floor^.size), Vec2.Make(floor^.size.x * (61/311), Deduce))))^.AddTo(location);
 		location^.AddWall(Rect.Make(0.25, 0.25, 0.42, 0.3), [NotObstacleForBullets]);
 
-		(new(pDecoration, Init(Environment('leg.png'), Translate(Vec2.Make(148/311, 30/147) * floor^.size), Vec2.Make(floor^.size.x * (60/311), Deduce))))^.AddTo(location);
-		location^.AddObstacle(Circle.Make(0.72, 0.17, 0.06));
+		if self.world^.eyeExploded then
+		begin
+			pNode(d) := (new(pDecoration, Init(Environment('bone.png'), Translate(Vec2.Make(158/311, 30/147) * floor^.size),
+				Vec2.Make(floor^.size.x * (51/311), Deduce))))^.AddTo(location);
+			location^.AddWall(Rect.MakeSize(d^.local.trans, Vec2.Make(d^.size.x, 0.001)), 0.5);
+		end else
+		begin
+			(new(pDecoration, Init(Environment('leg.png'), Translate(Vec2.Make(148/311, 30/147) * floor^.size), Vec2.Make(floor^.size.x * (60/311), Deduce))))^.AddTo(location);
+			location^.AddObstacle(Circle.Make(0.72, 0.17, 0.06));
+		end;
+		(new(pDecoration, Init(Environment('splat2.png'), Translate(Vec2.Make(47/311, 15/147) * floor^.size), Vec2.Make(floor^.size.x * (232/311), Deduce))))^.
+			SetLayer(-1)^.AddTo(location);
+		(new(pDecoration, Init(Environment('splat3.png'), Translate(Vec2.Make(110/311, 32/147) * floor^.size), Vec2.Make(floor^.size.x * (68/311), Deduce))))^.
+			SetLayer(-1)^.AddTo(location);
 
 		valera := CreateKolobok('valera');
 		valera^.angle := ValeraAngle1;
@@ -282,7 +297,7 @@ uses
 				end;
 			EnterThroughDoor:
 				begin
-					player^.local := Translate(0.4, 0.2);
+					player^.local := Translate(0.51, 0.28);
 					player^.angle := -HalfPi;
 				end;
 		end;
@@ -324,6 +339,16 @@ uses
 					q.color := Vec4.Make(0, 0, 0, 1 - fade);
 					q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 				end;
+		end;
+	end;
+
+	procedure Ep_Ship.UnwieldWeapon;
+	begin
+		inherited UnwieldWeapon;
+		if closeHintOnUnwield then
+		begin
+			closeHintOnUnwield := no;
+			if Assigned(hintTimer) then hintTimer^.left := min(hintTimer^.left, 3.0);
 		end;
 	end;
 
