@@ -28,11 +28,13 @@ type
 
 		MoveCallbackReason = (MovingCanceled, TargetReached);
 
+		MoveCallbackWoReasonOrActor = procedure(param: pointer); // вызывается только при TargetReached
 		MoveCallbackWoActor = procedure(reason: MoveCallbackReason; param: pointer);
 		MoveCallbackWithActor = procedure(reason: MoveCallbackReason; ac: pActor; param: pointer);
-		MoveCallbackKind = (MoveCallbackNotSet, UseMoveCallbackWoActor, UseMoveCallbackWithActor);
+		MoveCallbackKind = (MoveCallbackNotSet, UseMoveCallbackWoReasonOrActor, UseMoveCallbackWoActor, UseMoveCallbackWithActor);
 		MoveCallback = record
 		case kind: MoveCallbackKind of
+			UseMoveCallbackWoReasonOrActor: (wora: MoveCallbackWoReasonOrActor);
 			UseMoveCallbackWoActor: (woa: MoveCallbackWoActor);
 			UseMoveCallbackWithActor: (wa: MoveCallbackWithActor);
 		end;
@@ -92,7 +94,7 @@ type
 		procedure UnwieldWeapon;
 		procedure SetupAimOrigins(const orig: array of Vec2);
 		procedure Fire;
-		procedure OnHit(proc: ReceiveHitCallback; param: pointer);
+		function OnHit(proc: ReceiveHitCallback; param: pointer): pActor;
 		procedure ReceiveHit(shooter: pNode);
 	private
 		procedure SwitchMove(method: MoveTargeter);
@@ -101,6 +103,7 @@ type
 		procedure ShotMoveCallback(reason: MoveCallbackReason);
 	end;
 	operator :=(null: pointer): Actor.MoveCallback;
+	operator :=(wora: Actor.MoveCallbackWoReasonOrActor): Actor.MoveCallback;
 	operator :=(woa: Actor.MoveCallbackWoActor): Actor.MoveCallback;
 	operator :=(wa: Actor.MoveCallbackWithActor): Actor.MoveCallback;
 
@@ -379,8 +382,9 @@ implementation
 		ForceState('firing');
 	end;
 
-	procedure Actor.OnHit(proc: ReceiveHitCallback; param: pointer);
+	function Actor.OnHit(proc: ReceiveHitCallback; param: pointer): pActor;
 	begin
+		result := @self;
 		onReceiveHit := proc;
 		receiveHitParam := param;
 	end;
@@ -427,6 +431,7 @@ implementation
 	procedure Actor.ShotMoveCallback(reason: MoveCallbackReason);
 	begin
 		case mvCb.kind of
+			UseMoveCallbackWoReasonOrActor: if reason = TargetReached then mvCb.wora(mvParam);
 			UseMoveCallbackWoActor: mvCb.woa(reason, mvParam);
 			UseMoveCallbackWithActor: mvCb.wa(reason, @self, mvParam);
 		end;
@@ -434,6 +439,7 @@ implementation
 	end;
 
 	operator :=(null: pointer): Actor.MoveCallback; begin Assert(not Assigned(null)); result.kind := MoveCallbackNotSet; end;
+	operator :=(wora: Actor.MoveCallbackWoReasonOrActor): Actor.MoveCallback; begin result.kind := UseMoveCallbackWoReasonOrActor; result.wora := wora; end;
 	operator :=(woa: Actor.MoveCallbackWoActor): Actor.MoveCallback;   begin result.kind := UseMoveCallbackWoActor; result.woa := woa; end;
 	operator :=(wa: Actor.MoveCallbackWithActor): Actor.MoveCallback; begin result.kind := UseMoveCallbackWithActor; result.wa := wa; end;
 

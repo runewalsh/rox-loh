@@ -158,19 +158,16 @@ implementation
 		e^.OpenHint('hint-move.png', 8, @ProcessMovementHint);
 	end;
 
-	procedure PlayerWalkedIn(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	procedure PlayerWalkedIn(param: pointer);
 	var
 		e: pEp_Entry absolute param;
 	begin
-		Assert(ac = ac);
-		Assert(reason = TargetReached);
-
-		e^.dlg.Init(e, 'rox [face = indifferent.png, sizeX = 0.5]: 0.png >>' +
-			'rox [face = saliva.png, sizeX = 0.6]: 1.png >>' +
-			'rox [face = scared.png, sizeX = 0, delay = 0.5]: - >>' +
-			'rox [face = scared-refl.png, sizeX = 0, delay = 0.5]: - >>' +
-			'rox [face = scared.png, sizeX = 0.15, delay = 1]: 2.png >>' +
-			'rox [sizeX = 0.4]: 3.png')^.Callbacks(nil, @MonologueFinished, e);
+		e^.dlg.Init(e, 'rox [face = indifferent.png]: 0.png >>' +
+			'rox [face = saliva.png]: 1.png >>' +
+			'rox [face = scared.png, delay = 0.5]: - >>' +
+			'rox [face = scared-refl.png, delay = 0.5]: - >>' +
+			'rox [face = scared.png, delay = 1]: 2.png >>' +
+			'rox: 3.png')^.Callbacks(nil, @MonologueFinished, e);
 	end;
 
 	procedure ShipActivate(t: pTrigger; activator: pNode; param: pointer);
@@ -191,14 +188,13 @@ implementation
 		e^.PostSmokeToDoor;
 	end;
 
-	procedure Depart_2(reason: Timer.DoneReason; param: pointer);
+	procedure Depart_2(param: pointer);
 	// Валера в корабле.
 	var
 		e: pEp_Entry absolute param;
 	begin
-		if reason <> Timeout then exit;
 		Assert(not e^.dlg.Valid);
-		e^.dlg.Init(e, 'valera [face = shine.png, sizeX = 170/800]: 3.png')^.Callbacks(nil, @Depart_3, e);
+		e^.dlg.Init(e, 'valera [face = shine.png]: 3.png')^.Callbacks(nil, @Depart_3, e);
 	end;
 
 	procedure Depart_1(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
@@ -208,7 +204,7 @@ implementation
 	begin
 		if reason <> TargetReached then exit;
 		ac^.Detach;
-		e^.mgr^.AddTimer(new(pTimer, Init(2.0, nil, @Depart_2, e)), e^.id);
+		e^.AddTimer(2.0, nil, @Depart_2, e);
 	end;
 
 	procedure Depart_5_ShiftCameraUp(t: pTimer; const dt: float; param: pointer);
@@ -220,15 +216,14 @@ implementation
 		e^.camera.target := e^.camera.target + Vec2.Make(0, e^.camVel * dt);
 	end;
 
-	procedure Depart_4_WaitForShiftCameraUp(reason: Timer.DoneReason; param: pointer);
+	procedure Depart_4_WaitForShiftCameraUp(param: pointer);
 	var
 		e: pEp_Entry absolute param;
 	begin
-		if reason <> Timeout then exit;
 		e^.cameraMode := LookPredefined;
 		e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
 		e^.state := CameraUp; e^.stateTime := 0;
-		e^.mgr^.AddTimer(new(pTimer, Init(2, @Depart_5_ShiftCameraUp, nil, e)), e^.id);
+		e^.AddTimer(2, @Depart_5_ShiftCameraUp, nil, e);
 	end;
 
 	procedure Ep_Entry.HandleUpdate(const dt: float);
@@ -260,7 +255,7 @@ implementation
 								location^.limits.B.data[0] += 2.2;
 								ship := new(pDecoration, Init(Environment('ship.png'), Translate(mgr^.nvp.x + 0.8, -0.5), Vec2.Make(0.9, Deduce)))^.NewRef;
 								shipFire := new(pDecoration, Init(Environment('ship-fire.png'), Translate(ship^.size * Vec2.Make((-9-91)/283, (-23+10)/177)),
-									Vec2.Make(0.9 * (168/283), Deduce)))^.SetAnim(Rect.MakeSize(Vec2.Zero, Vec2.Make(1/3, 1)), 3, 0.3, no)^.SetLayer(+1)^.SetParent(ship)^.
+									Vec2.Make(0.9 * (168/283), Deduce)))^.SetAnim(Rect.MakeSize(Vec2.Zero, Vec2.Make(1/3, 1)), 3, 0.3, [])^.SetLayer(+1)^.SetParent(ship)^.
 									NewRef;
 								(new(pDecoration, Init(Character('valera', 'in_ship.png'), Translate(ship^.size * Vec2.Make(239/283, 90/177)),
 									Vec2.Make(0.9 * (21/283), Deduce))))^.SetParent(ship)^.AddTo(location);
@@ -284,7 +279,7 @@ implementation
 				end;
 			Flying, Flied, CameraUp:
 				begin
-					shipAcc := min(shipAcc + (2*shipAcc+0.001)*dt, 1000);
+					shipAcc := min(shipAcc + (4*shipAcc+0.01)*dt, 1000);
 					shipVel := min(shipVel + shipAcc * dt, 10);
 					ship^.local := ship^.local * Translate(shipVel * dt, 0);
 					if ship^.local.rot.ToAngle < MaxShipAngle then ship^.local.rot *= Rotation2(min(0.2*shipVel*dt, MaxShipAngle - ship^.local.rot.ToAngle));
@@ -310,11 +305,11 @@ implementation
 							begin
 								for i := 0 to High(Flames) do
 									(new(pDecoration, Init(Environment('flame.png'), door^.local * Translate(Flames[i].pos), Vec2.Make(Flames[i].size))))^.
-										SetAnim(Rect.MakeSize(0, 0, 1/3, 1), 3, 0.3, no)^.SetLayer(+1)^.AddTo(location);
+										SetAnim(Rect.MakeSize(0, 0, 1/3, 1), 3, 0.3, [])^.SetLayer(+1)^.AddTo(location);
 								door^.texRect := Rect.MakeSize(2/3, 0, 1/3, 1);
 								Release(wall^.tex);
 								wall^.tex := Texture.Load(Environment('brick_burnt.png'));
-								mgr^.AddTimer(new(pTimer, Init(3.5, nil, @Depart_4_WaitForShiftCameraUp, @self)), id);
+								AddTimer(3.5, nil, @Depart_4_WaitForShiftCameraUp, @self);
 								state := Flied;
 							end;
 						Flied: flash := Max(flash - 0.5 * dt, 0);
@@ -362,11 +357,10 @@ implementation
 		inherited HandleKeyboard(action, key, extra);
 	end;
 
-	procedure SmokeTimer(reason: Timer.DoneReason; param: pointer);
+	procedure SmokeTimer(param: pointer);
 	var
 		e: pEp_Entry absolute param;
 	begin
-		if reason <> Timeout then exit;
 		if (e^.state <> Flying) or (e^.ship^.local.trans.x > 4 * e^.mgr^.nvp.x) then exit;
 
 		repeat
@@ -386,7 +380,7 @@ implementation
 	procedure Ep_Entry.PostSmokeToDoor;
 	begin
 		smokeTimeout += 0.15;
-		mgr^.AddTimer(new(pTimer, Init(0.15 / clamp(10 * shipVel, 1, 4), nil, @SmokeTimer, @self)), id);
+		AddTimer(0.15 / clamp(10 * shipVel, 1, 4), nil, @SmokeTimer, @self);
 	end;
 
 end.

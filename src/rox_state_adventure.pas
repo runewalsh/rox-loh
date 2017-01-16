@@ -322,8 +322,7 @@ uses
 		hint^.size := IfThen(size <> 0, size, 0.5);
 		hint^.local := Translate(-mgr^.nvp.x, mgr^.nvp.y - hint^.CalculateRawSize.y + y);
 		mgr^.ui.Add(hint^.NewRef, id);
-		hintTimer := new(pTimer, Init(timeout, process, @CloseHintTimer, @self))^.NewRef;
-		mgr^.AddTimer(hintTimer, id);
+		hintTimer := AddTimer(timeout, process, @CloseHintTimer, @self)^.NewRef;
 	end;
 
 	procedure Adventure.UnwieldWeapon;

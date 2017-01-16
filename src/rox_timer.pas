@@ -12,14 +12,22 @@ type
 	type
 		DoneReason = (Timeout, Stopped, Emergency);
 		ProcessCallback = procedure(timer: pTimer; const dt: float; param: pointer);
-		DoneCallback = procedure(reason: DoneReason; param: pointer);
+
+		DoneCallbackWithReason = procedure(reason: DoneReason; param: pointer);
+		DoneCallbackWithoutReason = procedure(param: pointer); // вызывается только при reason = Timeout
+
+		DoneCallback = record
+		case kind: (DoneCallbackNotSet, UseDoneCallbackWithReason, UseDoneCallbackWithoutReason) of
+			UseDoneCallbackWithReason: (withReason: DoneCallbackWithReason);
+			UseDoneCallbackWithoutReason: (withoutReason: DoneCallbackWithoutReason);
+		end;
 	var
 		left: float;
 		onProcess: ProcessCallback;
 		onDone: DoneCallback;
 		param: pointer;
 
-		constructor Init(const timeout: float; onProcess: ProcessCallback; onDone: DoneCallback; param: pointer);
+		constructor Init(const timeout: float; onProcess: ProcessCallback; const onDone: DoneCallback; param: pointer);
 		destructor Done; virtual;
 		procedure Update(const dt: float);
 		function Dead: boolean;
@@ -28,10 +36,13 @@ type
 	private
 		procedure ShotDone(reason: DoneReason);
 	end;
+	operator :=(null: pointer): Timer.DoneCallback;
+	operator :=(withReason: Timer.DoneCallbackWithReason): Timer.DoneCallback;
+	operator :=(withoutReason: Timer.DoneCallbackWithoutReason): Timer.DoneCallback;
 
 implementation
 
-	constructor Timer.Init(const timeout: float; onProcess: ProcessCallback; onDone: DoneCallback; param: pointer);
+	constructor Timer.Init(const timeout: float; onProcess: ProcessCallback; const onDone: DoneCallback; param: pointer);
 	begin
 		inherited Init;
 		self.left := timeout;
@@ -82,13 +93,21 @@ implementation
 		dn: DoneCallback;
 	begin
 		left := -1;
-		if Assigned(onDone) then
+		if onDone.kind <> DoneCallbackNotSet then
 		begin
 			dn := onDone;
 			onDone := nil;
-			dn(reason, param);
+			case dn.kind of
+				UseDoneCallbackWithReason: dn.withReason(reason, param);
+				UseDoneCallbackWithoutReason: if reason = Timeout then dn.withoutReason(param);
+				else Assert(no);
+			end;
 		end;
 	end;
+
+	operator :=(null: pointer): Timer.DoneCallback; begin Assert(not Assigned(null)); result.kind := DoneCallbackNotSet; end;
+	operator :=(withReason: Timer.DoneCallbackWithReason): Timer.DoneCallback; begin result.kind := UseDoneCallbackWithReason; result.withReason := withReason; end;
+	operator :=(withoutReason: Timer.DoneCallbackWithoutReason): Timer.DoneCallback; begin result.kind := UseDoneCallbackWithoutReason; result.withoutReason := withoutReason; end;
 
 end.
 

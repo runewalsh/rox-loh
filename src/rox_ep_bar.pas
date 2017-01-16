@@ -65,19 +65,16 @@ uses
 		if t^.HasInside(e^.player) then e^.state := MovingOutsideRequested;
 	end;
 
-	procedure Dialogue_4(reason: Timer.DoneReason; param: pointer);
+	procedure Dialogue_4(param: pointer);
 	var
 		e: pEp_Bar absolute param;
 	begin
-		if reason = Timeout then
-		begin
-			e^.world^.spaceshipBrought := yes;
-			if e^.obrubMood = ObrubGettingAngry then e^.obrubMood := ObrubAngry;
-			e^.playerControlMode := PlayerControlEnabled;
-			e^.player^.idclip := no;
+		e^.world^.spaceshipBrought := yes;
+		if e^.obrubMood = ObrubGettingAngry then e^.obrubMood := ObrubAngry;
+		e^.playerControlMode := PlayerControlEnabled;
+		e^.player^.idclip := no;
 
-			if not e^.dlg.Valid then e^.dlg.Init(e, 'rox [sizeX = 630/800]: 6.png');
-		end;
+		if not e^.dlg.Valid then e^.dlg.Init(e, 'rox: 6.png');
 	end;
 
 	procedure Dialogue_4_QuitScene(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
@@ -112,19 +109,17 @@ uses
 		if done then t^.Stop;
 	end;
 
-	procedure StartRolling(reason: Timer.DoneReason; param: pointer);
+	procedure StartRolling(param: pointer);
 	var
 		e: pEp_Bar absolute param;
 	begin
-		if reason <> Timeout then exit;
-		e^.mgr^.AddTimer(new(pTimer, Init(99, @RollKoloboks, nil, e)), e^.id);
+		e^.AddTimer(99, @RollKoloboks, nil, e);
 	end;
 
 	procedure Dialogue_3(param: pointer);
 	// Конец диалога: все убегают, Рокс поворачивается вслед и выдаёт последнюю фразу.
 	var
 		e: pEp_Bar absolute param;
-		t: pTimer;
 	begin
 		e^.twinkle^.idclip := yes;
 		e^.twinkle^.MoveTo(e^.door^.HeartPos + Vec2.Make(0.03, 0.03), lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.45), @Dialogue_4_QuitScene, nil);
@@ -134,13 +129,10 @@ uses
 
 		e^.valera^.idclip := yes;
 		e^.valera^.MoveTo(e^.door^.HeartPos, lerp(Ep_Bar.WalkingVelocity, Ep_Bar.RunningVelocity, 0.37), @Dialogue_4_QuitScene, nil);
-		// e^.mgr^.AddTimer(new(pTimer, Init(1, nil, @StartRolling, e)), e^.id);
-		StartRolling(Timeout, e);
+		StartRolling(e);
 
 		e^.player^.RotateTo(e^.door^.HeartPos);
-
-		t := new(pTimer, Init(1.6, nil, @Dialogue_4, e));
-		e^.mgr^.AddTimer(t, e^.id);
+		e^.AddTimer(1.6, nil, @Dialogue_4, e);
 	end;
 
 	procedure RotateFour(at: pActor; e: pEp_Bar);
@@ -170,26 +162,23 @@ uses
 		end;
 	end;
 
-	procedure Dialogue_2(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	procedure Dialogue_2(param: pointer);
 	// Рокс пришёл, начало диалога.
 	var
 		e: pEp_Bar absolute param;
 	begin
-		Assert(ac = ac);
-		Assert(reason = TargetReached);
-
 		e^.player^.RotateTo(e^.player^.HeartPos + Vec2.PositiveY);
 		if e^.dlg.Valid then e^.dlg.Done;
 		e^.dlg.Init(e,
-			{0} 'valera [sizeX = 220/800]: 0.png >>' +
-			{1} 'rox [sizeX = 560/800]: 4.png >>' +
-			{2} 'valera [sizeX = 620/800]: 1.png >>' +
-			{3} 'rox [face = x-eyes.png, sizeX = 230/800]: 5.png >>' +
-			{4} 'twinkle [face = eyes-closed.png, sizeX = 540/800]: 0.png >>' +
-			{5} 'kazah [face = suspicious.png, sizeX = 470/800]: 0.png >>' +
-			{6} 'twinkle [face = x-eyes.png, sizeX = 348/800]: 1.png >>' +
-			{7} 'kazah [sizeX = 108/800]: 1.png >>' +
-			{8} 'valera [sizeX = 200/800]: 2.png')^.Callbacks(@Dialogue_2_Item, @Dialogue_3, e);
+			{0} 'valera: 0.png >>' +
+			{1} 'rox: 4.png >>' +
+			{2} 'valera: 1.png >>' +
+			{3} 'rox [face = x-eyes.png]: 5.png >>' +
+			{4} 'twinkle [face = eyes-closed.png]: 0.png >>' +
+			{5} 'kazah [face = suspicious.png]: 0.png >>' +
+			{6} 'twinkle [face = x-eyes.png]: 1.png >>' +
+			{7} 'kazah: 1.png >>' +
+			{8} 'valera: 2.png')^.Callbacks(@Dialogue_2_Item, @Dialogue_3, e);
 		RotateFour(e^.player, e);
 	end;
 
@@ -221,12 +210,11 @@ uses
 		e^.obrub^.RotateTo(e^.player^.HeartPos);
 	end;
 
-	procedure Obrub_Shot(reason: Timer.DoneReason; param: pointer);
+	procedure Obrub_Shot(param: pointer);
 	var
 		e: pEp_Bar absolute param;
 		v: Vec2;
 	begin
-		if reason <> Timeout then exit;
 		e^.obrub^.Fire;
 
 		v := e^.player^.HeartPos - e^.obrub^.AimOrigin;
@@ -249,7 +237,7 @@ uses
 	begin
 		e^.obrubState := ObrubFiring;
 		e^.obrub^.WieldWeapon;
-		e^.mgr^.AddTimer(new(pTimer, Init(2, @Obrub_Aim, @Obrub_Shot, e)), e^.id);
+		e^.AddTimer(2, @Obrub_Aim, @Obrub_Shot, e);
 	end;
 
 	procedure Dialogue_Obrub_1(t: pTrigger; activator: pNode; param: pointer);
@@ -264,12 +252,12 @@ uses
 		case e^.obrubMood of
 			ObrubIndifferent:
 				begin
-					e^.dlg.Init(e, 'obrubens [face = teasing.png, sizeX = 240/800]: 0.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
+					e^.dlg.Init(e, 'obrubens [face = teasing.png]: 0.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
 					e^.obrubMood := ObrubAnnoyed;
 				end;
 			ObrubAnnoyed, ObrubGettingAngry:
 				begin
-					e^.dlg.Init(e, 'obrubens [face = annoyed.png, sizeX = 58/800, letterTimeout = 0.3]: 1.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
+					e^.dlg.Init(e, 'obrubens [face = annoyed.png, letterTimeout = 0.3]: 1.png')^.Callbacks(nil, @Dialogue_Obrub_RestartWandering, e);
 					if e^.world^.spaceshipBrought then
 						e^.obrubMood := ObrubAngry
 					else
@@ -279,7 +267,7 @@ uses
 				begin
 					t^.Detach;
 					e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
-					e^.dlg.Init(e, 'obrubens [face = mad.png, sizeX = 100/800, letterTimeout = 0.2, delay = 1]: 2.png')^.Callbacks(nil, @Dialogue_Obrub_2, e);
+					e^.dlg.Init(e, 'obrubens [face = mad.png, letterTimeout = 0.2, delay = 1]: 2.png')^.Callbacks(nil, @Dialogue_Obrub_2, e);
 					e^.dlg.skippable := no;
 				end;
 		end;
@@ -371,15 +359,10 @@ uses
 		inherited Done;
 	end;
 
-	procedure ObrubTimerProcess(timer: pTimer; const dt: float; param: pointer); forward;
-	procedure ObrubTimerShot(reason: Timer.DoneReason; param: pointer); forward;
-
-	procedure ObrubMoved(reason: Actor.MoveCallbackReason; ac: pActor; param: pointer);
+	procedure ObrubMoved(param: pointer);
 	var
 		e: pEp_Bar absolute param;
 	begin
-		Assert(ac = ac);
-		if reason <> TargetReached then exit;
 		case e^.obrubState of
 			ObrubStanding, ObrubStandingAndWatching: ;
 			ObrubWalking: e^.SetupObrubWandering;
@@ -397,12 +380,11 @@ uses
 		end;
 	end;
 
-	procedure ObrubTimerShot(reason: Timer.DoneReason; param: pointer);
+	procedure ObrubTimerShot(param: pointer);
 	var
 		e: pEp_Bar absolute param;
 		target: Vec2;
 	begin
-		if reason <> Timeout then exit;
 		case e^.obrubState of
 			ObrubStanding, ObrubStandingAndWatching:
 				begin
@@ -445,8 +427,7 @@ uses
 		else
 			obrubState := ObrubStanding;
 		StopObrubWandering;
-		obrubTimer := new(pTimer, Init(GlobalRNG.GetFloat(4.0, 9.0), @ObrubTimerProcess, @ObrubTimerShot, @self))^.NewRef;
-		mgr^.AddTimer(obrubTimer, id);
+		obrubTimer := AddTimer(GlobalRNG.GetFloat(4.0, 9.0), @ObrubTimerProcess, @ObrubTimerShot, @self)^.NewRef;
 	end;
 
 	procedure Ep_Bar.StopObrubWandering;

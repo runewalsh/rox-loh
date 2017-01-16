@@ -16,6 +16,7 @@ type
 	State = object
 		mgr: pStateManager;
 		id: string;
+		timers: array of pTimer;
 		constructor Init(const id: string);
 		destructor Done; virtual;
 
@@ -30,6 +31,10 @@ type
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 		procedure HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); virtual;
 		function QuerySwitchOff: boolean; virtual;
+
+		function AddTimer(const timeout: float; onProcess: Timer.ProcessCallback; const onDone: Timer.DoneCallback; param: pointer): pTimer;
+	private
+		procedure RemoveTimer(id: sint);
 	end;
 
 	StateManager = object
@@ -45,10 +50,6 @@ type
 		ui: UserInterface;
 		nvp, invp: Vec2;
 		viewportAp: AspectPair;
-		timers: array of record
-			t: pTimer;
-			id: string;
-		end;
 		switchedDuringLastUpdate: boolean;
 
 		procedure Invalidate;
@@ -59,8 +60,6 @@ type
 		procedure Switch(another: pState);
 		procedure Push(another: pState);
 		procedure Pop;
-
-		procedure AddTimer(timer: pTimer; const id: string);
 
 		procedure Update(const dt: float);
 		procedure Draw;
@@ -73,7 +72,6 @@ type
 		procedure CheckCanSwitch;
 		function InternalTrySwitch(another: pState; pushing: boolean): boolean;
 		procedure ExternalSwitch(another: pState; pushing: boolean);
-		procedure RemoveTimer(id: sint);
 	const
 		CorrectMagic = 'SMGR';
 		IncorrectMagic = '!smg';
@@ -91,7 +89,11 @@ uses
 	end;
 
 	destructor State.Done;
+	var
+		i: sint;
 	begin
+		for i := High(timers) downto 0 do
+			RemoveTimer(i);
 	end;
 
 	procedure State.HandleActivation;
@@ -110,12 +112,37 @@ uses
 		if Assigned(priority) then priority^.RemoveModifier('mgr');
 	end;
 
-	procedure State.HandleUpdate(const dt: float); begin Assert(@dt = @dt); end;
+	procedure State.HandleUpdate(const dt: float);
+	var
+		i: sint;
+	begin
+		for i := High(timers) downto 0 do
+		begin
+			timers[i]^.Update(dt);
+			if timers[i]^.Dead then RemoveTimer(i);
+		end;
+	end;
+
 	procedure State.HandleDraw; begin end;
 	function State.QueryDeactivate: boolean; begin result := yes; end;
 	procedure State.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); begin Assert((@action = @action) and (@pos = @pos) and (@extra = @extra)); end;
 	procedure State.HandleKeyboard(action: KeyboardAction; key: KeyboardKey; var extra: HandlerExtra); begin Assert((@action = @action) and (@key = @key) and (@extra = @extra)); end;
 	function State.QuerySwitchOff: boolean; begin result := yes; end;
+
+	function State.AddTimer(const timeout: float; onProcess: Timer.ProcessCallback; const onDone: Timer.DoneCallback; param: pointer): pTimer;
+	begin
+		result := new(pTimer, Init(timeout, onProcess, onDone, param));
+		SetLength(timers, length(timers) + 1);
+		timers[High(timers)] := result^.NewRef;
+	end;
+
+	procedure State.RemoveTimer(id: sint);
+	begin
+		timers[id]^.Emergency;
+		Release(timers[id]);
+		timers[id] := timers[High(timers)];
+		SetLength(timers, length(timers) - 1);
+	end;
 
 	procedure StateManager.Invalidate;
 	begin
@@ -149,7 +176,6 @@ uses
 		i: sint;
 	begin
 		if state = pointer(@self) then exit;
-		for i := High(timers) downto 0 do RemoveTimer(i);
 		if Assigned(state) then begin dispose(state, Done); state := nil; end;
 		if Assigned(switching.&to) then begin dispose(switching.&to, Done); switching.&to := nil; end;
 		for i := 0 to High(previous) do dispose(previous[i], Done);
@@ -184,18 +210,7 @@ uses
 		Switch(top);
 	end;
 
-	procedure StateManager.AddTimer(timer: pTimer; const id: string);
-	begin
-		if Index(timer, first_field timers _ t _, length(timers), sizeof(timers[0])) >= 0 then
-			raise Error('Таймер добавлен дважды.');
-		SetLength(timers, length(timers) + 1);
-		timers[High(timers)].t := timer^.NewRef;
-		timers[High(timers)].id := id;
-	end;
-
 	procedure StateManager.Update(const dt: float);
-	var
-		i: sint;
 	begin
 		switchedDuringLastUpdate := no;
 		if Assigned(switching.&to) then
@@ -206,12 +221,6 @@ uses
 				switching.&to := nil;
 				exit;
 			end;
-		end;
-
-		for i := High(timers) downto 0 do
-		begin
-			timers[i].t^.Update(dt);
-			if timers[i].t^.Dead then RemoveTimer(i);
 		end;
 
 		state^.HandleUpdate(dt);
@@ -272,7 +281,6 @@ uses
 	function StateManager.InternalTrySwitch(another: pState; pushing: boolean): boolean;
 	var
 		id: string;
-		i: sint;
 	begin
 		result := no;
 		id := state^.id;
@@ -293,8 +301,6 @@ uses
 		if result then
 		begin
 			ui.RemoveGroup(id);
-			for i := High(timers) downto 0 do
-				if timers[i].id = id then RemoveTimer(i);
 			state := another;
 			another^.mgr := @self;
 			another^.HandleActivation;
@@ -321,14 +327,6 @@ uses
 			switching.&to := another;
 			switching.push := pushing;
 		end;
-	end;
-
-	procedure StateManager.RemoveTimer(id: sint);
-	begin
-		timers[id].t^.Emergency;
-		Release(timers[id].t);
-		timers[id] := timers[High(timers)];
-		SetLength(timers, length(timers) - 1);
 	end;
 
 end.

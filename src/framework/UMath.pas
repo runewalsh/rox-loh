@@ -94,9 +94,9 @@ type
 		LinearData = array[0 .. veclen - 1] of base_type;
 	var
 		data: LinearData;
-		function Make(const x: base_type): vec; static;
-		function Make(const {$define one := item} comma_separated: base_type): vec; static;
-	{$if veclen = 3} function Make(const xy: pair2; const z: base_type): vec; static; {$endif}
+		function Make(const x: base_type): vec; static; cinline
+		function Make(const {$define one := item} comma_separated: base_type): vec; static; cinline
+	{$if veclen = 3} function Make(const xy: pair2; const z: base_type): vec; static; cinline {$endif}
 	{$if veclen = 4}
 		function Make(const v: pair3; const w: base_type): vec; static;
 		function Make(const a, b: pair2): vec; static;

@@ -17,7 +17,7 @@ uses
 		window.state.bgm.AddTheme(Ep_Entry.DepartStateID).AddItem(Music('machinecenter4.mid'));
 		window.state.bgm.AddTheme('over').AddItem(Music('over.mid'));
 		window.state.bgm.AddTheme(Ep_Mars.StartingStateID).AddItem(Music('silentzone1.mid'));
-		window.state.bgm.AddTheme(Ep_Mars.AllOutsideStateID).AddItem(Music('silentzone1.mid'));
+		window.state.bgm.AddTheme(Ep_Mars.AllOutsideStateID).AddItem(Music('violation.mid'));
 		window.state.bgm.AddTheme(Ep_Ship.NormalStateID).FadeoutTime(0.7).AddItem(Music('stepup1.mid'));
 		window.state.bgm.AddTheme(Ep_Ship.BloodyStateID).FadeoutTime(0.7).AddItem(Music('somethingswrong.ogg'));
 	end;
@@ -79,7 +79,7 @@ begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
-	minFrameTime := Ticks.FromSeconds(1/80);
+	//minFrameTime := Ticks.FromSeconds(1/80);
 	ParseCommandLine;
 
 	try
@@ -97,7 +97,7 @@ begin
 			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 			gl.ClearColor(0.01, 0.06, 0.015, 1);
 
-			window.state.Switch(new(pEp_Ship{pEp_Mars}{pEp_Entry}{pMainMenu}{pMv_Flight}, Init(new(pWorld, Init), AutoTransition)));
+			window.state.Switch(new({pEp_Ship}pEp_Mars{pEp_Entry}{pMainMenu}{pMv_Flight}, Init(new(pWorld, Init), {AutoTransition}yes)));
 			ResetCumTime;
 			lastDt := 0.0;
 			repeat

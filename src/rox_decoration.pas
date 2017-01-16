@@ -12,18 +12,26 @@ const
 type
 	pDecoration = ^Decoration;
 	Decoration = object(Node)
+	type
+		FlagEnum = (DontLoop, Oneshot, Mirror);
+		FlagSet = set of FlagEnum;
+		DrawBeforeHook = procedure(const view: Transform2; param: pointer);
+	var
 		tex: pTexture;
 		texRect: Rect;
 		animFrames: uint;
 		phase, animLen: float;
-		oneshot, mirroredLoop, deducedX, deducedY, additive: boolean;
+		flags: FlagSet;
+		deducedX, deducedY, additive: boolean;
 		alpha: float;
+		drawBefore: DrawBeforeHook;
+		drawBeforeParam: pointer;
 		constructor Init(const tex: string; const local: Transform2; const size: Vec2);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw(const view: Transform2); virtual;
 		function SetTexRect(const rect: Rect): pDecoration;
-		function SetAnim(const base: Rect; const frames: uint; const len: float; oneshot: boolean): pDecoration;
+		function SetAnim(const base: Rect; const frames: uint; const len: float; flags: FlagSet): pDecoration;
 		function CurrentFrame: float;
 	private
 		procedure ReDeduce;
@@ -54,7 +62,9 @@ implementation
 		begin
 			phase += dt;
 			if phase >= animLen then
-				if oneshot then Detach else phase := modf(phase, animLen);
+				if Oneshot in flags then Detach else
+					if DontLoop in flags then phase := animLen else
+						phase := modf(phase, animLen);
 		end;
 	end;
 
@@ -62,6 +72,7 @@ implementation
 	var
 		q: Quad;
 	begin
+		if Assigned(drawBefore) then drawBefore(view, drawBeforeParam);
 		q.fields := [q.Field.Transform];
 		if Assigned(parent) then q.transform := view * parent^.local * local else q.transform := view * local;
 		if additive then gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
@@ -80,12 +91,12 @@ implementation
 		result := @self;
 	end;
 
-	function Decoration.SetAnim(const base: Rect; const frames: uint; const len: float; oneshot: boolean): pDecoration;
+	function Decoration.SetAnim(const base: Rect; const frames: uint; const len: float; flags: FlagSet): pDecoration;
 	begin
 		texRect := base;
 		animFrames := frames;
 		animLen := len;
-		self.oneshot := oneshot;
+		self.flags := flags;
 		ReDeduce;
 		result := @self;
 	end;
@@ -95,17 +106,18 @@ implementation
 		df: uint;
 	begin
 		Assert(animFrames > 0);
-		if mirroredLoop then
+		if Mirror in flags then
 		begin
 			df := 2 * animFrames;
 			result := floor(phase / max(animLen, 0.1) * (df - 2));
-			if result >= df - 2 then result := 0;
+			if result >= df - 2 then
+				if ([Oneshot, DontLoop] * flags <> []) and (df >= 3) then result := df - 3 else result := 0;
 			if result >= animFrames then result := animFrames - 2 - (result - animFrames);
 		end else
 		begin
 			result := floor(phase / max(animLen, 0.1) * animFrames);
 			if result >= animFrames then
-				if oneshot then result := animFrames - 1 else result := 0;
+				if ([Oneshot, DontLoop] * flags <> []) and (df >= 3) then result := animFrames - 1 else result := 0;
 		end;
 	end;
 

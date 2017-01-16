@@ -363,6 +363,8 @@ type
 		procedure _Init(newDims: sint; newPath: pDimensionalPath);
 		procedure _SetPath(newPath: pDimensionalPath);
 	public
+		procedure Invalidate;
+		function Valid: boolean;
 		procedure Init(newDims: sint);
 		procedure Init(newPath: pDimensionalPath);
 		procedure Done;
@@ -2628,22 +2630,30 @@ var
 		if Assigned(newPath) then SetRef(_path, newPath);
 	end;
 
+	procedure DimensionalMove.Invalidate;
+	begin
+		_path := nil;
+	end;
+
+	function DimensionalMove.Valid: boolean;
+	begin
+		result := Assigned(_path);
+	end;
+
 	procedure DimensionalMove.Init(newDims: sint);
 	begin
-		System.Initialize(self);
 		_Init(newDims, nil);
 	end;
 
 	procedure DimensionalMove.Init(newPath: pDimensionalPath);
 	begin
-		System.Initialize(self);
 		_Init(0, newPath);
 	end;
 
 	procedure DimensionalMove.Done;
 	begin
+		if not Valid then exit;
 		Release(_path);
-		System.Finalize(self);
 	end;
 
 	procedure DimensionalMove.Process(const dt: float);

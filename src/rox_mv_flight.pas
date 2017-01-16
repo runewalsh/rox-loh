@@ -67,7 +67,7 @@ uses
 			Translate(lerp(Vec2.Make(0, -3*mgr^.nvp.y), Vec2.Zero, sin(HalfPi * clamp(time/3, 0, 1)))) *
 			Rotate(-1.2 * smoothstep(SongLength - 0.5, SongLength, time)) *
 			Scale2(1 - 0.99 * smoothstep(SongLength - 0.5, SongLength, time));
-		if time > SongLength + 0.5 then mgr^.Switch(new(pEp_Mars, Init(world)));
+		if time > SongLength + 0.5 then mgr^.Switch(new(pEp_Mars, Init(world, no)));
 	end;
 
 	procedure Mv_Flight.HandleDraw;

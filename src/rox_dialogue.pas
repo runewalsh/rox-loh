@@ -22,7 +22,7 @@ type
 		nextSym: sint;
 		sum: pUint8;
 		sumSize: UintVec2;
-		nextLetterTimeout, letterTimeout: float;
+		nextLetterTimeout, letterTimeout, nameDx: float;
 		skip, sumDirty: boolean;
 
 		constructor Init(const char, pic, sentence: string);
@@ -41,6 +41,7 @@ type
 	public const
 		StartingSymbolThreshold = High(uint8) div 2;
 		FloodFillThreshold = (High(uint8) * 6) div 7;
+		AssumedFullPixelWidth = 930;
 		PicSize = 0.3;
 		NameHeight = 0.1;
 		FirstLetterTimeoutK = 3;
@@ -52,7 +53,7 @@ type
 	type
 		ItemDesc = object
 			char, pic, sentence: string;
-			size, delay, letterTimeout: float;
+			delay, letterTimeout: float;
 		end;
 
 		ItemEvent = (ItemStart);
@@ -86,6 +87,16 @@ type
 
 implementation
 
+	function NameOffset(const name: string): float;
+	begin
+		case name of
+			'obrubens': result := -0.1;
+			'rox', 'valera': result := -0.18;
+			'kazah': result := -0.2;
+			else result := 0.0;
+		end;
+	end;
+
 	procedure TextBox.SymDesc.Done;
 	begin
 		FreeMem(data);
@@ -96,6 +107,7 @@ implementation
 		si: pImageResource;
 	begin
 		inherited Init(nil, []);
+		nameDx := NameOffset(char);
 		self.pic := Texture.Load(Face(char, pic));
 		self.name := Texture.Load(Character(char, 'name.png'));
 
@@ -167,7 +179,8 @@ implementation
 		q.fields := [q.Field.Transform];
 		q.transform := local;
 		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5 * GuessBorder), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
-		q.Draw(name, Vec2.Make(pic^.ap.Aspect2Item(asp2_x1, 0, PicSize), rawSize.y + 0.5 * GuessBorder), name^.ap.Aspect2(asp2_y1, NameHeight), Vec2.Zero, Vec2.Ones);
+		q.Draw(name,
+			Vec2.Make(pic^.ap.Aspect2Item(asp2_x1, 0, PicSize) * (1 + nameDx), rawSize.y + 0.5 * GuessBorder), name^.ap.Aspect2(asp2_y1, NameHeight), Vec2.Zero, Vec2.Ones);
 	end;
 
 	procedure TextBox.Advance(n: uint);
@@ -401,7 +414,7 @@ type
 
 			try
 				if not Assigned(na^.tex) then na^.size := 0 else
-					na^.size := 2 * state^.mgr^.nvp.x * items[nextItem].size - 2 * Border;
+					na^.size := 2 * state^.mgr^.nvp.x * {items[nextItem].size}na^.sumSize.x / TextBox.AssumedFullPixelWidth - 2 * Border;
 				na^.local.trans := -state^.mgr^.nvp + Vec2.Make(Border);
 				na^.local.trans.y := max(na^.local.trans.y, -state^.mgr^.nvp.y + Border - na^.CalculateRawSize.y + 0.3);
 				inc(nextItem);
@@ -449,10 +462,9 @@ type
 		try
 			repeat
 				// персонаж: реплика
-				// персонаж [face = эмоция, sizeX = размер по X, delay = пауза после реплики]: реплика
+				// персонаж [face = эмоция, delay = пауза после реплики]: реплика
 				if not t.MaybeTokenEndingWith(ni.char, ['[', ':']) then begin t.ExpectEnd; break; end;
 				ni.pic := 'indifferent.png';
-				ni.size := 1.0;
 				ni.delay := DefaultSentenceDelay;
 				ni.letterTimeout := 0;
 				if t.Maybe('[') then
@@ -461,7 +473,6 @@ type
 					begin
 						case id of
 							'face': begin t.Expect('='); ni.pic := t.ScanTokenEndingWith([',', ']']); end;
-							'sizeX': begin t.Expect('='); ni.size := t.ScanFloatToken; if t.Maybe('/') then ni.size /= t.ScanFloatToken; end;
 							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
 							'letterTimeout': begin t.Expect('='); ni.letterTimeout := t.ScanFloatToken; end;
 							else raise t.UnknownIdentifier(cp);
