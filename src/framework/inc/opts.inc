@@ -10,7 +10,6 @@
                                                                 // (на то, что есть, он бросается интерналэррорами).
 
 {$packset default} {$packenum default}
-{$fputype sse42}
 
 {$define cinline:= {$ifndef Debug} inline; {$endif}}
 {$define ConstructorFailed:=begin Done; System.Finalize(self); Fail; end}

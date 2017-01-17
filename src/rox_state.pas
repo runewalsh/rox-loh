@@ -35,6 +35,8 @@ type
 		function AddTimer(const timeout: float; onProcess: Timer.ProcessCallback; const onDone: Timer.DoneCallback; param: pointer): pTimer;
 	private
 		procedure RemoveTimer(id: sint);
+	public const
+		MuteMainTheme = 'mute';
 	end;
 
 	StateManager = object
@@ -109,7 +111,11 @@ uses
 		priority: pModifiableValue;
 	begin
 		priority := mgr^.bgm.Priority(id, no);
-		if Assigned(priority) then priority^.RemoveModifier('mgr');
+		if Assigned(priority) then
+		begin
+			priority^.RemoveModifier('mgr');
+			priority^.RemoveModifier(MuteMainTheme, no);
+		end;
 	end;
 
 	procedure State.HandleUpdate(const dt: float);

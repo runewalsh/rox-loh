@@ -24,7 +24,6 @@ type
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleActivation; virtual;
-		procedure HandleDeactivation; virtual;
 
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
@@ -134,12 +133,6 @@ implementation
 			mgr^.bgm.Rewind(1.0 - time);
 	end;
 
-	procedure Ep_Entry.HandleDeactivation;
-	begin
-		mgr^.bgm.Priority(id)^.RemoveModifier('mute', no);
-		inherited HandleDeactivation;
-	end;
-
 	procedure ProcessMovementHint(timer: pTimer; const dt: float; param: pointer);
 	var
 		e: pEp_Entry absolute param;
@@ -221,7 +214,7 @@ implementation
 		e: pEp_Entry absolute param;
 	begin
 		e^.cameraMode := LookPredefined;
-		e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
+		e^.mgr^.bgm.Priority(e^.id)^.SetModifier(e^.MuteMainTheme, op_Set, 0, +999);
 		e^.state := CameraUp; e^.stateTime := 0;
 		e^.AddTimer(2, @Depart_5_ShiftCameraUp, nil, e);
 	end;
@@ -279,7 +272,7 @@ implementation
 				end;
 			Flying, Flied, CameraUp:
 				begin
-					shipAcc := min(shipAcc + (4*shipAcc+0.01)*dt, 1000);
+					shipAcc := min(shipAcc + (2*shipAcc+0.001)*dt, 1000);
 					shipVel := min(shipVel + shipAcc * dt, 10);
 					ship^.local := ship^.local * Translate(shipVel * dt, 0);
 					if ship^.local.rot.ToAngle < MaxShipAngle then ship^.local.rot *= Rotation2(min(0.2*shipVel*dt, MaxShipAngle - ship^.local.rot.ToAngle));

@@ -9,7 +9,7 @@
         <MainUnitHasCreateFormStatements Value="False"/>
         <MainUnitHasTitleStatement Value="False"/>
       </Flags>
-      <SessionStorage Value="InProjectDir"/>
+      <SessionStorage Value="InIDEConfig"/>
       <MainUnit Value="0"/>
       <Title Value="rox"/>
       <UseAppBundle Value="False"/>
@@ -67,7 +67,7 @@
         <FormatVersion Value="1"/>
       </local>
     </RunParams>
-    <Units Count="22">
+    <Units Count="23">
       <Unit0>
         <Filename Value="rox.lpr"/>
         <IsPartOfProject Value="True"/>
@@ -156,6 +156,10 @@
         <Filename Value="..\src\rox_ep_mars.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit21>
+      <Unit22>
+        <Filename Value="..\src\rox_mv_ending.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit22>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

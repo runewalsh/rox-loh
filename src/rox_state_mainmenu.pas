@@ -4,7 +4,7 @@ unit rox_state_mainmenu;
 interface
 
 uses
-	USystem, Errors, UMath, Utils, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_ep_entry, rox_paths;
+	USystem, Errors, UMath, Utils, UClasses, U_GL, GLBase, GLUtils, rox_state, rox_gl, rox_gfx, rox_ui, rox_ep_entry, rox_paths;
 
 type
 	pMainMenu = ^MainMenu;
@@ -30,7 +30,6 @@ type
 		destructor Done; virtual;
 
 		procedure HandleActivation; virtual;
-
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
 
@@ -122,7 +121,11 @@ implementation
 
 			Idle: ;
 
-			StartingNewGame: if stateTime >= 2.5 then mgr^.Switch(new(pEp_Entry, Init(nil)));
+			StartingNewGame:
+				begin
+					if stateTime >= 1.9 then mgr^.bgm.Priority(id)^.SetModifier(MuteMainTheme, op_Set, 0, +999);
+					if stateTime >= 2.5 then mgr^.Switch(new(pEp_Entry, Init(nil)));
+				end;
 		end;
 		if state > Prepare then bgTime := modf(bgTime + dt, PrettyTimeCycle);
 		stateTime += dt;

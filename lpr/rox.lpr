@@ -6,7 +6,7 @@ uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl, rox_paths, rox_world,
 	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure,
-	rox_ep_entry, rox_ep_bar, rox_mv_flight, rox_ep_mars, rox_ep_ship;
+	rox_ep_entry, rox_ep_bar, rox_mv_flight, rox_ep_mars, rox_ep_ship, rox_mv_ending;
 
 	procedure LoadBGM(var window: Window);
 	begin
@@ -20,6 +20,7 @@ uses
 		window.state.bgm.AddTheme(Ep_Mars.AllOutsideStateID).AddItem(Music('violation.mid'));
 		window.state.bgm.AddTheme(Ep_Ship.NormalStateID).FadeoutTime(0.7).AddItem(Music('stepup1.mid'));
 		window.state.bgm.AddTheme(Ep_Ship.BloodyStateID).FadeoutTime(0.7).AddItem(Music('somethingswrong.ogg'));
+		window.state.bgm.AddTheme(Mv_Ending.StateID).AddItem(Music('brackynews1.mid'));
 	end;
 
 var
@@ -79,7 +80,7 @@ begin
 	AppInfo.Feedback := 'Обратная связь: https://telegram.me/rika_ichinose';
 	units.InitializeAll;
 	window.Invalidate;
-	//minFrameTime := Ticks.FromSeconds(1/80);
+	minFrameTime := Ticks.FromSeconds(1/80);
 	ParseCommandLine;
 
 	try
@@ -97,7 +98,7 @@ begin
 			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 			gl.ClearColor(0.01, 0.06, 0.015, 1);
 
-			window.state.Switch(new({pEp_Ship}pEp_Mars{pEp_Entry}{pMainMenu}{pMv_Flight}, Init(new(pWorld, Init), {AutoTransition}yes)));
+			window.state.Switch(new({pEp_Ship}pEp_Mars{pEp_Entry}{pMainMenu}{pMv_Flight}{pMv_Ending}, Init(new(pWorld, Init), yes)));
 			ResetCumTime;
 			lastDt := 0.0;
 			repeat

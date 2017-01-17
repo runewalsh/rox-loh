@@ -17,7 +17,7 @@ uses
 
 implementation
 
-	function Cursor(const filename: string): string;          begin result := UI('cursor/' + filename); end;
+	function Cursor(const filename: string): string;          begin result := Paths.MiscLibs + filename; end;
 	function UI(const filename: string): string;              begin result := Paths.Data + 'ui/' + filename; end;
 	function Environment(const filename: string): string;     begin result := Paths.Data + 'environment/' + filename; end;
 	function Fx(const filename: string): string;              begin result := Paths.Data + 'fx/' + filename; end;

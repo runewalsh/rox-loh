@@ -45,7 +45,7 @@ type
 type
 	Quad = object
 	type
-	scoped_enum_ Field = (Z, TexZ, Color, ColorAB, Transform); _end
+	scoped_enum_ Field = (Z, TexZ, Color, ColorAB, ColorABHoriz, Transform); _end
 	var
 		fields: set of Field;
 		z: float;
@@ -328,6 +328,7 @@ var
 		data: array[0 .. 3*4 + 3*4 + 4*4 - 1] of gl.float;
 		vp, n: uint;
 		t, a, b, c, d: Vec2;
+		col: pVec4;
 	begin
 		a := Vec2.Make(pos.x, pos.y + size.y);
 		b := pos;
@@ -422,11 +423,13 @@ var
 			gl.L.DisableClientState(gl.L.TEXTURE_COORD_ARRAY);
 		end;
 
-		if Field.ColorAB in fields then
+		if [Field.ColorAB, Field.ColorABHoriz] * fields <> [] then
 		begin
 			data[vp+0] := colorA.x; data[vp+1] := colorA.y; data[vp+2] := colorA.z; data[vp+3] := colorA.w;
-			data[vp+4] := colorB.x; data[vp+5] := colorB.y; data[vp+6] := colorB.z; data[vp+7] := colorB.w;
-			data[vp+8] := colorA.x; data[vp+9] := colorA.y; data[vp+10] := colorA.z; data[vp+11] := colorA.w;
+			if Field.ColorAB in fields then col := @colorB else col := @colorA;
+			data[vp+4] := col^.x; data[vp+5] := col^.y; data[vp+6] := col^.z; data[vp+7] := col^.w;
+			if Field.ColorAB in fields then col := @colorA else col := @colorB;
+			data[vp+8] := col^.x; data[vp+9] := col^.y; data[vp+10] := col^.z; data[vp+11] := col^.w;
 			data[vp+12] := colorB.x; data[vp+13] := colorB.y; data[vp+14] := colorB.z; data[vp+15] := colorB.w;
 
 			gl.L.EnableClientState(gl.L.COLOR_ARRAY);
@@ -438,7 +441,7 @@ var
 		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 4);
 		if Field.Color in fields then gl.L.Color4f(1, 1, 1, 1);
 
-		if Field.ColorAB in fields then
+		if [Field.ColorAB, Field.ColorABHoriz] * fields <> [] then
 			gl.L.DisableClientState(gl.L.COLOR_ARRAY);
 
 		if Assigned(tex) then

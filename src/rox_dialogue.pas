@@ -4,16 +4,18 @@ unit rox_dialogue;
 interface
 
 uses
-	USystem, UClasses, UMath, Algo, Human, Utils, Streams, U_GL, GLBase, {$ifdef Debug} ULog, {$endif} GLUtils, TextProcessing,
-	rox_gl, rox_state, rox_gfx, rox_ui, rox_paths;
+	USystem, UClasses, UMath, Algo, Human, Utils, Streams, U_GL, GLBase, GLUtils, TextProcessing,
+	rox_gl, rox_state, rox_gfx, rox_ui, rox_paths, rox_win;
 
 type
 	pTextBox = ^TextBox;
 	TextBox = object(Control)
 	type
+		SymFlags = set of (IsPunctuation, HasSpaceAfter, HasNewlineAfter);
 		SymDesc = object
 			data: pUint8;
 			pos, size: UintVec2;
+			flags: SymFlags;
 			procedure Done;
 		end;
 	var
@@ -23,7 +25,7 @@ type
 		sum: pUint8;
 		sumSize: UintVec2;
 		nextLetterTimeout, letterTimeout, nameDx: float;
-		skip, sumDirty: boolean;
+		skip, sumDirty, newlined: boolean;
 
 		constructor Init(const char, pic, sentence: string);
 		destructor Done; virtual;
@@ -31,6 +33,7 @@ type
 		procedure Draw; virtual;
 		procedure Advance(n: uint);
 		function Finished: boolean;
+		function Dump: string;
 
 		procedure HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra); virtual;
 	private
@@ -45,7 +48,8 @@ type
 		PicSize = 0.3;
 		NameHeight = 0.1;
 		FirstLetterTimeoutK = 3;
-		DefaultLetterTimeout = 0.05;
+		DefaultLetterTimeout = 0.045;
+		DefaultRelativePunctuationBonus = 5.0;
 	end;
 
 	pDialogue = ^Dialogue;
@@ -56,7 +60,7 @@ type
 			delay, letterTimeout: float;
 		end;
 
-		ItemEvent = (ItemStart);
+		ItemEvent = (ItemStart, ItemNewline);
 		ItemCallback = procedure(id: uint; what: ItemEvent; param: pointer);
 		DoneCallback = procedure(param: pointer);
 	var
@@ -78,6 +82,7 @@ type
 		procedure Update(const dt: float);
 		function Finished: boolean;
 		procedure Skip;
+		procedure ForceFace(const char, pic: string);
 	private
 		procedure Parse(const s: string);
 	const
@@ -117,6 +122,7 @@ implementation
 			try
 				Prepare(si^.im, rox_paths.Dialogue(char, sentence));
 				sumSize := si^.im.Size.XY;
+				Con.WriteLine(Dump);
 			finally
 				Release(si);
 			end;
@@ -151,8 +157,14 @@ implementation
 		while (nextSym < length(syms)) and (nextLetterTimeout < 0) do
 		begin
 			// if skip then begin skip := no; nextLetterTimeout := letterTimeout; end;
+			if ([IsPunctuation, HasSpaceAfter] * syms[nextSym].flags = [IsPunctuation, HasSpaceAfter]) and
+				not ((nextSym + 1 > High(syms)) or (IsPunctuation in syms[nextSym + 1].flags))
+			then
+				nextLetterTimeout += letterTimeout * DefaultRelativePunctuationBonus
+			else
+				nextLetterTimeout += letterTimeout;
+			newlined := newlined or ((nextSym < High(syms)) and (HasNewlineAfter in syms[nextSym].flags));
 			Advance(1);
-			nextLetterTimeout += letterTimeout;
 			if nextSym >= length(syms) then skip := no;
 		end;
 
@@ -212,6 +224,22 @@ implementation
 	function TextBox.Finished: boolean;
 	begin
 		result := nextSym >= length(syms);
+	end;
+
+	function GetSym(id: uint; param: pointer): string;
+	var
+		p: pTextBox absolute param;
+	begin
+		result := 'S';
+		if IsPunctuation in p^.syms[id].flags then result := ',' else result := 'S';
+		if id < uint(length(p^.syms)) then
+			if HasNewlineAfter in p^.syms[id].flags then result += EOL else
+				if HasSpaceAfter in p^.syms[id].flags then result += ' ';
+	end;
+
+	function TextBox.Dump: string;
+	begin
+		result := SeparatedList.Join(length(syms), @GetSym, @self, SeparatedList.Empty + '(-)');
 	end;
 
 	procedure TextBox.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);
@@ -296,15 +324,198 @@ type
 		end;
 	end;
 
+	// Прямоугольник сканируется по столбцам сверху вниз слева направо.
+	// Если найден занятый пиксель, с него заливается весь символ.
+	//
+	// -ДИАКРИТИКА-
+	// Такая заливка могла залить точку над «ё» (или, наоборот, её «е»-часть):
+	//   .   x           x   x
+	//
+	//   xxxxx           .....
+	//  x     x         .     .
+	//  xxxxxxx   или   .......
+	//  x               .
+	//   xxxxx           .....
+	//
+	// На этот случай проверяем окрестность залитой части: прямоугольник с x-координатами по её ширине и y-координатами ya~yb.
+	//   o   x          |X|||X|
+	//   |              |||||||
+	//   Xxxxx          |ooooo|
+	//  x|    x         o|||||o
+	//  xXxxxxx   или   ooooooo
+	//  x|              o||||||
+	//   Xxxxx          |ooooo|
+	//
+	// Если попались незалитые части оригинальной картинки (отмечены «Х»), пробуем залить с них тоже.
+	// Если оказалось, что проекция новой залитой части на Ox полностью содержит проекцию исходной, или наоборот — новая включается в символ.
+	// Условие с проекциями пропустит диакритику над и под символом, но отклонит «Д» в таком случае:
+	//
+	//  ||XXxxxx
+	//  |X||    x
+	//  ||||     x
+	//  ooo|     x
+	//  |||o     x
+	//  |ooo  xxxx
+	//  o||o x   x
+	//  oooo  xxx
+	//
+	// Если часть включена в символ, повторяем процесс для неё (т. к. если залита одна точка «ё», вторая зальётся только на третьем проходе).
+	//
+	// Для оптимизации:
+	// 1) Из рассмотрения полностью исключаются прямоугольники, описанные вокруг уже залитых частей.
+	//    (Хвостик Й, залезающий внутрь «И»-части, всё равно будет обнаружен, пока торчит и наружу).
+	//    Если этого не сделать, нужно будет отмечать залитые или сверять попиксельно, чтобы не войти в бесконечный цикл.
+	// 2) Число проходов ограничивается 3 (Ё самая сложная).
+
+	// -ПУНКТУАЦИЯ-
+	// Если одна из сторон результирующего символа меньше 2/5 меньшей стороны «эталона»
+	// (подпадают «.» (точка), «,» (запятая), «—» (тире))
+	// (сейчас эталонной считается первая найденная в картинке буква)
+	// или внизу символа была «точка» с двумя такими сторонами (подпадают «?» или «!»)
+	// символ считается символом пунктуации — задержка после него увеличивается, имитируя произношение.
+
 	procedure TextBox.ScanRowForSymbols(img: pUint8; ya, yb: uint; const size: UintVec2);
 	var
-		x, y: uint;
+		parts: array[0 .. 2] of FloodFill.Result;
+		nParts: sint;
+		boundMin, boundMax: UintVec2;
+
+		function AlreadyFilled(x, y: uint; const also: array of FloodFill.Result): boolean;
+		var
+			i: sint;
+		begin
+			for i := 0 to nParts - 1 do
+				if InRange(x, parts[i].min.x, parts[i].max.x) and InRange(y, parts[i].min.y, parts[i].max.y) then
+					exit(yes);
+
+			// по filled.contains медленно будет, наверное
+			for i := 0 to High(also) do
+				if InRange(x, also[i].min.x, also[i].max.x) and InRange(y, also[i].min.y, also[i].max.y) then
+					exit(yes);
+
+			result := no;
+		end;
+
+		function TestFellow(const srcMin, srcMax, fellowMin, fellowMax: UintVec2): boolean;
+		var
+			srcAllowance, fellowAllowance, sa, sb, fa, fb: uint;
+		begin
+			// проекция ранее залитых частей на Ox содержит проекцию новой, или наоборот
+			// допуск — четверть ширины части, вхождение в которую проверяется
+			srcAllowance := (srcMax.x - srcMin.x + 1 + 3) div 4;
+			fellowAllowance := (fellowMax.x - fellowMin.x + 1 + 3) div 4;
+
+			// srcMin.x ~ srcMax.x с учётом допуска
+			sa := srcMin.x - min(srcMin.x, srcAllowance);
+			sb := srcMax.x + srcAllowance;
+
+			// fellowMin.x ~ fellowMax.x с учётом допуска
+			fa := fellowMin.x - min(fellowMin.x, fellowAllowance);
+			fb := fellowMax.x + fellowAllowance;
+
+			result :=
+				InRange(srcMin.x, fa, fb) and InRange(srcMax.x, fa, fb) or
+				InRange(fellowMin.x, sa, sb) and InRange(fellowMax.x, sa, sb);
+		end;
+
+		function SearchForFellows: boolean;
+		label &finally;
+		var
+			x, y, nIgnore: uint;
+			fp: FloodParam;
+			ignore: array[0 .. 1] of FloodFill.Result; // чтобы тысячу раз не проходиться заливкой ото всех засвеченных пикселей того «Д» из комментария
+			referencePart, newPart: ^FloodFill.Result;
+		begin
+			Assert(@ignore = @ignore); // "does not seem to be initialized"
+			nIgnore := 0;
+			referencePart := @parts[nParts - 1];
+			result := no;
+
+			y := ya;
+			while y <= yb do
+			begin
+				// оптимизация: Y исходной части пропускаются сразу (пользуясь тем, что вся диакритика выше/ниже)
+				if (y < referencePart^.min.y) or (y > referencePart^.max.y) then
+				begin
+					x := referencePart^.min.x;
+					while x <= referencePart^.max.x do
+					begin
+						if (img[y * size.x + x] <= StartingSymbolThreshold) and not AlreadyFilled(x, y, Slice(ignore, nIgnore)) then
+						begin
+							fp.img := img;
+							fp.width := size.x;
+							newPart := @parts[nParts];
+							FloodFill.FourWay(newPart^, UintVec2.Make(x, y), size, @FloodTest, @fp);
+
+							if TestFellow(boundMin, boundMax, newPart^.min, newPart^.max) then
+							begin
+								result := yes;
+								boundMin := min(boundMin, newPart^.min);
+								boundMax := max(boundMax, newPart^.max);
+								inc(nParts);
+								if nParts > High(parts) then goto &finally;
+							end else
+								if nIgnore <= High(ignore) then
+								begin
+									ignore[nIgnore] := newPart^;
+									inc(nIgnore);
+								end else
+								begin
+									Warning(Format('TextBox.ScanRowForSymbols.TryFindFellow: nIgnore > 2 (обработано символов: {0}, x = {1}, y = {2}, ' +
+										'newPart.min = {3}, newPart.max = {4})', [length(syms), x, y, ToString(newPart^.min), ToString(newPart^.max)]));
+									newPart^.Done;
+								end;
+						end;
+
+						inc(x);
+					end;
+				end;
+				inc(y);
+			end;
+
+		&finally:
+			while nIgnore > 0 do
+			begin
+				dec(nIgnore);
+				ignore[nIgnore].Done;
+			end;
+		end;
+
+		function ReferenceSymbolSize: uint;
+		begin
+			result := min(syms[0].size.x, syms[0].size.y);
+		end;
+
+		function DetectPunctuationBySize(const symSize: UintVec2): boolean;
+		begin
+			result := (symSize.x < (2 * ReferenceSymbolSize + 4) div 5) or (symSize.y < (2 * ReferenceSymbolSize + 4) div 5);
+		end;
+
+		function DetectPunctuation(const sym: SymDesc): boolean;
+		var
+			i: uint;
+		begin
+			result := DetectPunctuationBySize(sym.size);
+			if not result then
+				for i := 0 to nParts - 1 do
+					result := result or
+						(parts[i].min.y > sym.pos.y + (sym.size.y * 3 + 3) div 4) and DetectPunctuationBySize(parts[i].max - parts[i].min + UintVec2.Ones);
+		end;
+
+		function DetectSpace(const a, b: SymDesc): boolean;
+		begin
+			result := (b.pos.x >= a.pos.x + a.size.x) and ((b.pos.x >= (a.pos.x + a.size.x) + (ReferenceSymbolSize + 3) div 4))
+		end;
+
+	var
+		x, y, i: uint;
 		fp: FloodParam;
-		f: FloodFill.Result;
 		sym: ^SymDesc;
 		it: FloodFill.PointSet.Iterator;
 		p: pUintVec2;
+		starting: sint;
 	begin
+		starting := length(syms);
 		x := 0;
 		while x < size.x do
 		begin
@@ -313,30 +524,45 @@ type
 			begin
 				if img[y * size.x + x] <= StartingSymbolThreshold then
 				begin
+					nParts := 0;
 					fp.img := img;
 					fp.width := size.x;
-					FloodFill.FourWay(f, UintVec2.Make(x, y), size, @FloodTest, @fp);
+					FloodFill.FourWay(parts[nParts], UintVec2.Make(x, y), size, @FloodTest, @fp);
+					boundMin := parts[nParts].min;
+					boundMax := parts[nParts].max;
+					inc(nParts);
+					while (nParts <= High(parts)) and SearchForFellows do ;
 
 					SetLength(syms, length(syms) + 1);
 					sym := @syms[High(syms)];
-					sym^.pos := f.min;
-					sym^.size := f.max - f.min + UintVec2.Ones;
+					sym^.pos := boundMin;
+					sym^.size := boundMax - boundMin + UintVec2.Ones;
 					sym^.data := GetMem(sym^.size.Product * sizeof(uint8));
 					Zero(sym^.data, sym^.size.Product * sizeof(uint8));
 
-					it := f.filled.GetIterator;
-					while f.filled.Next(it) do
+					for i := 0 to nParts - 1 do
 					begin
-						p := f.filled.GetKey(it);
-						sym^.data[(p^.y - f.min.y) * sym^.size.x + (p^.x - f.min.x)] := High(uint8) - img[p^.y * size.x + p^.x];
-						img[p^.y * size.x + p^.x] := High(uint8);
+						it := parts[i].filled.GetIterator;
+						while parts[i].filled.Next(it) do
+						begin
+							p := parts[i].filled.GetKey(it);
+							sym^.data[(p^.y - boundMin.y) * sym^.size.x + (p^.x - boundMin.x)] := High(uint8) - img[p^.y * size.x + p^.x];
+							img[p^.y * size.x + p^.x] := High(uint8);
+						end;
+						parts[i].Done;
 					end;
-					f.Done;
+
+					sym^.flags := [];
+					if DetectPunctuation(sym^) then sym^.flags += [IsPunctuation];
+					if (High(syms) > starting) and DetectSpace(syms[High(syms) - 1], sym^) then
+						syms[High(syms) - 1].flags += [HasSpaceAfter];
 				end;
 				inc(y);
 			end;
 			inc(x);
 		end;
+
+		if High(syms) >= starting then syms[High(syms)].flags += [HasSpaceAfter, HasNewlineAfter];
 	end;
 
 	function TextBox.GuessBorder: float;
@@ -402,7 +628,12 @@ type
 					active^.Detach;
 					Release(active);
 				end;
-			end;
+			end else
+				if active^.newlined then
+				begin
+					if Assigned(onItem) then onItem(nextItem - 1, ItemNewline, param);
+					active^.newlined := no;
+				end;
 		end;
 
 		if not Assigned(active) and not Finished then
@@ -447,6 +678,15 @@ type
 			active^.skip := yes;
 			// увеличение времени паузы на часть пропускаемого времени (саму паузу тоже можно пропустить, отдельно)
 			if not active^.Finished then finalTimeout += 0.5 * active^.letterTimeout * (length(active^.syms) - active^.nextSym);
+		end;
+	end;
+
+	procedure Dialogue.ForceFace(const char, pic: string);
+	begin
+		if Assigned(active) then
+		begin
+			SetRef(active^.pic, Texture.Load(Face(char, pic)));
+			ReleaseWeak(active^.pic);
 		end;
 	end;
 

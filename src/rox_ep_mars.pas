@@ -48,7 +48,6 @@ type
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
 		procedure HandleDraw; virtual;
-		procedure HandleDeactivation; virtual;
 	private
 		procedure CreateShipFire;
 		procedure UpdateIris;
@@ -60,14 +59,14 @@ type
 		function BaseEyeRect: Rect;
 		function ExplodedEyeRect: Rect;
 		procedure RotateFour(const at: Vec2; ignore: pNode);
-		procedure DrawShipFireBacklight(const view: Transform2; const latPhase, longPhase: float; pass: uint; const stretch: Vec2; const alphaK: float);
+		procedure DrawShipFireBacklight(const view: Transform2; const latPhase, longPhase, normStep: float; pass: uint; const stretch: Vec2; const alphaK: float);
 		procedure ApplyActorsOffset(const delta: Vec2);
 		procedure SwitchState(state: StateEnum);
 	const
 		StartingStateID = 'ep_mars_starting';
 		EyeExplodedStateID = 'ep_mars_eye_exloded';
 		AllOutsideStateID = 'ep_mars_all_outside';
-		Fadeout1 = 1.3;
+		Fadeout1 = 1.0;
 		PlayerPosAtExit: Vec2 = (data: (0.4, 0.23));
 		EyeCollision = 'eye';
 		BaseEyeSize: Vec2 = (data: (0.27, 0.27/100*60));
@@ -76,12 +75,13 @@ type
 		ShipFireLongPhaseVelocity = 18.0;
 		ShipFireShowingTime = 2.0;
 		BlueFlashTime = 3.0;
+		FadeoutToEndingTime = 1.5;
 	end;
 
 implementation
 
 uses
-	rox_ep_ship, rox_ep_bar;
+	rox_ep_ship, rox_ep_bar, rox_mv_ending;
 
 	procedure Iris.HandleDraw(const view: Transform2);
 	var
@@ -157,7 +157,7 @@ uses
 		e^.iris^.Detach; e^.iris := nil;
 		e^.location^.RemoveWall(e^.EyeCollision);
 
-		e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
+		e^.mgr^.bgm.Priority(e^.id)^.SetModifier(e^.MuteMainTheme, op_Set, 0, +999);
 		e^.world^.eyeExploded := yes;
 		e^.fadeoutMovingToShipThisTime := yes;
 		e^.PlaceExplodedEyeLeftover;
@@ -207,11 +207,11 @@ uses
 
 		for pass := 0 to 1 do
 		begin
-			e^.DrawShipFireBacklight(view, e^.shipFirePhase, e^.shipFirePhase, pass, e^.shipFireStretch, smoothstep(e^.shipFireAlpha));
+			e^.DrawShipFireBacklight(view, e^.shipFirePhase, e^.shipFirePhase, 0, pass, e^.shipFireStretch, smoothstep(e^.shipFireAlpha));
 			for i := 1 to Steps - 1 do
 				if e^.shipFirePhase > i*Pi/Steps/e^.ShipFireLatPhaseVelocity then
 					e^.DrawShipFireBacklight(view, e^.shipFirePhase - i*Pi/Steps/e^.ShipFireLatPhaseVelocity,
-						e^.shipFirePhase - i*Pi/Steps/e^.ShipFireLongPhaseVelocity, pass, e^.shipFireStretch, smoothstep(e^.shipFireAlpha));
+						e^.shipFirePhase - i*Pi/Steps/e^.ShipFireLongPhaseVelocity, i/(Steps-1), pass, e^.shipFireStretch, smoothstep(e^.shipFireAlpha));
 		end;
 	end;
 
@@ -245,64 +245,11 @@ uses
 	var
 		e: pEp_Mars absolute param;
 	begin
-		Assert(e = e);
 		if reason <> TargetReached then exit;
 		ac^.RotateTo(ac^.HeartPos - Vec2.Make(1, 1));
 
 		if ac = e^.kazah then
-			e^.AddTimer(2.0, nil, @Scene_2_StartWaitingForKazahSentence, e);
-	end;
-
-	procedure Scene_2_JumpProcess(timer: pTimer; const dt: float; param: pointer);
-	var
-		e: pEp_Mars absolute param;
-	begin
-		Assert(e^.jump.Valid and (timer = timer));
-		if not e^.jump.Finished then e^.jump.Process(dt);
-		e^.ApplyActorsOffset(Vec2.Make(0, 0.15 * e^.jump.CurrentF));
-	end;
-
-	procedure Scene_2_JumpDone(param: pointer);
-	var
-		e: pEp_Mars absolute param;
-	begin
-		Assert(e^.jump.Valid and not e^.dlg.Valid);
-		e^.jump.Done;
-		e^.dlg.Init(e, 'valera [face = gloomy.png]: 13.png');
-		e^.ApplyActorsOffset(Vec2.Zero);
-		e^.valera^.idclip := yes;
-		e^.valera^.MoveTo(Vec2.Make(0, -0.1), e^.RunningVelocity, @Scene_2_RotateAfterShip, e);
-
-		e^.player^.idclip := yes;
-		e^.player^.MoveTo(Vec2.Make(0.14, -0.14), e^.RunningVelocity, @Scene_2_RotateAfterShip, e);
-
-		e^.twinkle^.idclip := yes;
-		e^.twinkle^.MoveTo(Vec2.Make(0.28, -0.18), e^.RunningVelocity, @Scene_2_RotateAfterShip, e);
-
-		e^.kazah^.idclip := yes;
-		e^.kazah^.MoveTo(Vec2.Make(0.42, -0.22), e^.RunningVelocity, @Scene_2_RotateAfterShip, e);
-	end;
-
-	procedure Scene_2_Jump(param: pointer);
-	var
-		e: pEp_Mars absolute param;
-	begin
-		e^.roxLocalBase := e^.player^.local;
-		e^.valeraLocalBase := e^.valera^.local;
-		e^.twinkleLocalBase := e^.twinkle^.local;
-		e^.kazahLocalBase := e^.kazah^.local;
-		Assert(not e^.jump.Valid);
-		e^.jump.Init(1);
-		e^.jump.path^.AddAUA(0.0, 0.0, 10.0, -5.0, 0.0, 0.3, 0, 0);
-		e^.AddTimer(e^.jump.path^.len, @Scene_2_JumpProcess, @Scene_2_JumpDone, e);
-	end;
-
-	procedure Scene_2_RotateAtFlash(param: pointer);
-	var
-		e: pEp_Mars absolute param;
-	begin
-		e^.SwitchState(BlueFlash);
-		e^.RotateFour(e^.ship^.PointOn(Vec2.Make(1, 0.5)), nil);
+			e^.AddTimer(3.5, nil, @Scene_2_StartWaitingForKazahSentence, e);
 	end;
 
 	procedure Scene_2_ProcessFlight(timer: pTimer; const dt: float; param: pointer);
@@ -333,6 +280,66 @@ uses
 		e^.AddTimer(99.0, @Scene_2_ProcessFlight, nil, e);
 	end;
 
+	procedure Scene_2_JumpProcess(timer: pTimer; const dt: float; param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		Assert(e^.jump.Valid and (timer = timer));
+		if not e^.jump.Finished then e^.jump.Process(dt);
+		e^.ApplyActorsOffset(Vec2.Make(0, 0.15 * e^.jump.CurrentF));
+	end;
+
+	procedure Scene_2_JumpDone(param: pointer);
+	var
+		e: pEp_Mars absolute param;
+		vel: float;
+	begin
+		Assert(e^.jump.Valid and not e^.dlg.Valid);
+		e^.jump.Done;
+		e^.dlg.Init(e, 'valera [face = gloomy.png]: 13.png');
+		e^.ApplyActorsOffset(Vec2.Zero);
+		vel := lerp(e^.WalkingVelocity, e^.RunningVelocity, 0.75);
+		e^.valera^.idclip := yes;
+		e^.valera^.MoveTo(Vec2.Make(0, -0.1), vel, @Scene_2_RotateAfterShip, e);
+
+		e^.player^.idclip := yes;
+		e^.player^.MoveTo(Vec2.Make(0.14, -0.14), vel, @Scene_2_RotateAfterShip, e);
+
+		e^.twinkle^.idclip := yes;
+		e^.twinkle^.MoveTo(Vec2.Make(0.28, -0.18), vel, @Scene_2_RotateAfterShip, e);
+
+		e^.kazah^.idclip := yes;
+		e^.kazah^.MoveTo(Vec2.Make(0.42, -0.22), vel, @Scene_2_RotateAfterShip, e);
+	end;
+
+	procedure Scene_2_Jump(param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		e^.roxLocalBase := e^.player^.local;
+		e^.valeraLocalBase := e^.valera^.local;
+		e^.twinkleLocalBase := e^.twinkle^.local;
+		e^.kazahLocalBase := e^.kazah^.local;
+		Assert(not e^.jump.Valid);
+		e^.jump.Init(1);
+		e^.jump.path^.AddAUA(0.0, 0.0, 10.0, -5.0, 0.0, 0.3, 0, 0);
+		e^.AddTimer(e^.jump.path^.len, @Scene_2_JumpProcess, @Scene_2_JumpDone, e);
+	end;
+
+	procedure Scene_2_RotateAtFlash(param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		e^.RotateFour(e^.ship^.PointOn(Vec2.Make(1, 0.5)), nil);
+	end;
+
+	procedure Scene_2_StartFlash(param: pointer);
+	var
+		e: pEp_Mars absolute param;
+	begin
+		e^.SwitchState(BlueFlash);
+	end;
+
 	procedure Scene_2_ProcessShipFire(timer: pTimer; const dt: float; param: pointer);
 	var
 		e: pEp_Mars absolute param;
@@ -350,9 +357,10 @@ uses
 		e^.shipFireAlpha := 1.0;
 		e^.AddTimer(99.0, @Scene_2_ProcessShipFire, nil, e);
 		e^.AddTimer(e^.ShipFireShowingTime, nil, @Scene_2_StartFlight, e);
+		e^.AddTimer(max(0.1, (e^.ShipFireShowingTime - 0.5) - 0.3 - 0.3 - 0.2), nil, @Scene_2_StartFlash, e);
 		e^.AddTimer(max(0.1, (e^.ShipFireShowingTime - 0.5) - 0.3 - 0.3), nil, @Scene_2_RotateAtFlash, e);
 		e^.AddTimer(max(0.1, (e^.ShipFireShowingTime - 0.5) - 0.3), nil, @Scene_2_Jump, e);
-		e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
+		e^.mgr^.bgm.Priority(e^.id)^.SetModifier(e^.MuteMainTheme, op_Set, 0, +999);
 	end;
 
 	procedure Scene_2_DialogueItem(id: uint; what: Dialogue.ItemEvent; param: pointer);
@@ -530,16 +538,12 @@ uses
 				end;
 			_1_ShipFlying:
 				begin
-					sp := stateTime/6;
-					if sp >= 1 then
-					begin
-						sp := 1;
-						SwitchState(_1_ShipFlied);
-					end;
+					sp := min(stateTime/6, 1);
 					if (sp >= 0.7) and Assigned(shipFire) and Assigned(shipFire^.location) then begin shipFire^.Detach; shipFire := nil; end;
 					spy := clamp(stateTime/4, 0, 1);
 					ship^.local := Translate(lerp(ShipArrivalOrigin, ShipStanding, Vec2.Make(-2*sqr(sp)/2+2*sp, -2*sqr(spy)/2+2*spy)));
 					camera.target := ship^.HeartPos + Vec2.Make((-mgr^.nvp.x - 0.5*ship^.size.x) * (1-sp), 0.5 - 1*(1-sp));
+					if sp = 1 then SwitchState(_1_ShipFlied);
 				end;
 			RedFlash: if stateTime >= RedFlashTime then SwitchState(Idle);
 			BlueFlash: if stateTime >= BlueFlashTime then SwitchState(Idle);
@@ -565,20 +569,14 @@ uses
 		inherited HandleUpdate(dt);
 
 		case state of
-			_1_Fadeout, FadeoutMovingToShip, FadeoutToEnding:
+			_1_Fadeout:
 				if stateTime > Fadeout1 then
-					case state of
-						_1_Fadeout:
-							begin
-								world^.spaceshipArrivedOnMars := yes;
-								mgr^.Switch(new(pEp_Ship, Init(world, AutoTransition)));
-							end;
-						FadeoutToEnding:
-							begin
-								// mgr^.Switch(new(pEnding, Init(world)))
-							end;
-						else {FadeoutMovingToShip} mgr^.Switch(new(pEp_Ship, Init(world, EnterThroughDoorWithFadeIn)));
-					end;
+				begin
+					world^.spaceshipArrivedOnMars := yes;
+					mgr^.Switch(new(pEp_Ship, Init(world, AutoTransition)));
+				end;
+			FadeoutToEnding: if stateTime > FadeoutToEndingTime then mgr^.Switch(new(pMv_Ending, Init(world)));
+			FadeoutMovingToShip: if stateTime > Fadeout1 then mgr^.Switch(new(pEp_Ship, Init(world, EnterThroughDoorWithFadeIn)));
 			MoveToShip: mgr^.Switch(new(pEp_Ship, Init(world, EnterThroughDoor)));
 		end;
 	end;
@@ -594,7 +592,8 @@ uses
 				begin
 					q.fields := [q.Field.Color];
 					case state of
-						_1_Fadeout, FadeoutMovingToShip, FadeoutToEnding: q.color := Vec4.Make(0, 0, 0, smoothstep(0, Fadeout1, stateTime));
+						_1_Fadeout, FadeoutMovingToShip: q.color := Vec4.Make(0, 0, 0, smoothstep(0, Fadeout1, stateTime));
+						FadeoutToEnding: q.color := Vec4.Make(0, 0, 0, smoothstep(0, FadeoutToEndingTime, stateTime));
 						RedFlash:
 							begin
 								k := min(1.0, 40.0 * stateTime / RedFlashTime) * smoothstep(1.0 - stateTime / RedFlashTime);
@@ -613,15 +612,6 @@ uses
 					gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 				end;
 		end;
-	end;
-
-	procedure Ep_Mars.HandleDeactivation;
-	var
-		priority: pModifiableValue;
-	begin
-		inherited HandleDeactivation;
-		priority := mgr^.bgm.Priority(id, no);
-		if Assigned(priority) then priority^.RemoveModifier('mute', no);
 	end;
 
 	procedure Ep_Mars.CreateShipFire;
@@ -722,7 +712,7 @@ uses
 		Maybe(valera);
 	end;
 
-	procedure Ep_Mars.DrawShipFireBacklight(const view: Transform2; const latPhase, longPhase: float; pass: uint; const stretch: Vec2; const alphaK: float);
+	procedure Ep_Mars.DrawShipFireBacklight(const view: Transform2; const latPhase, longPhase, normStep: float; pass: uint; const stretch: Vec2; const alphaK: float);
 	const
 		BaseColor: Vec3 = (data: (0.3, 0.6, 0.9));
 	var
@@ -738,9 +728,9 @@ uses
 		b := ship^.PointOn(Vec2.Make(0.9, 0.05));
 		dynamicWeight := max(0, 1-1.0*abs(stretch.x));
 		d := Rotation2(Pi/2 * smoothstep(ShipFireShowingTime, 0, latPhase) +
-			0.2*smoothstep(0.5, 0.5 + ShipFireShowingTime, latPhase)*sin(ShipFireLatPhaseVelocity*latPhase)*(1-0.5*pass)*dynamicWeight +
+			0.2*smoothstep(0.5, 0.5 + ShipFireShowingTime, latPhase)*lerp(2*normStep-1, sin(ShipFireLatPhaseVelocity*latPhase), dynamicWeight)*(1-0.5*pass) +
 			0.1*(1-pass)) *
-			Vec2.Make(0.8 + 0.15*sin(ShipFireLongPhaseVelocity*longPhase) * dynamicWeight, 0);
+			Vec2.Make(0.8 + 0.2*lerp(2*normStep-1, sin(ShipFireLongPhaseVelocity*longPhase), dynamicWeight), 0);
 
 		for i := 0 to 4 do
 		begin
@@ -748,8 +738,8 @@ uses
 				0: begin point := ship^.PointOn(Vec2.Make(0.75, 0.4)); color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0.4); end;
 				1: begin point := a; color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0.4); end;
 				2: begin point := b; color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0.4); end;
-				3: begin point := a + d + stretch; color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0); end;
-				4: begin point := b + Vec2.Make(d.x + stretch.x, -d.y - stretch.y); color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0); end;
+				3: begin point := a + d + stretch*Vec2.Make(1, 1-0.7*pass); color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0); end;
+				4: begin point := b + Vec2.Make(d.x + stretch.x, -d.y - stretch.y*(1-0.7*pass)); color := Vec4.Make(BaseColor.x, BaseColor.y, BaseColor.z, 0); end;
 			end;
 
 			vertices[i] := view * point * invp;

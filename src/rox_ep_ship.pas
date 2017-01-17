@@ -59,8 +59,8 @@ uses
 	begin
 		Assert(@param = @param);
 		result := (n = pNode(e^.player)) and
-			Rect.Make(t^.local.trans, t^.local.trans + t^.size).Contains(pos) and
-			(abs(Angle(t^.PointOn(Vec2.Make(0.5, 0.5)) - pos, Rotation2(pActor(n)^.angle).ToDirection)) < Pi/4);
+			Rect.Make(t^.local.trans + Vec2.Make(0, -0.04), t^.local.trans + t^.size).Contains(pos) and
+			(abs(Angle(t^.PointOn(Vec2.Make(0.5, 0.5)) - pos, Rotation2(pActor(n)^.angle).ToDirection)) < Pi/5);
 	end;
 
 	procedure DoorTrigger(n: pNode; reason: Trigger.Reason; param: pointer);
@@ -282,7 +282,7 @@ uses
 			SetTexRect(Rect.Make(0, 0, 1/2, 1))^.AddTo(location);
 		location^.AddWall(Rect.Make(0.57, 0.4, 0.75, 0.5));
 		location^.AddWall(Rect.Make(0.53, 0.4, 0.65, 0.45), 1.1);
-		(new(pTrigger, Init(door^.local * Translate(0, -0.02), door^.size - Vec2.Make(0, -0.02))))^.
+		(new(pTrigger, Init(door^.local * Translate(0.05, -0.0), door^.size + Vec2.Make(2 * -0.05, 0.0))))^.
 			WithCallbacks(@DoorTest, @DoorTrigger, @DoorActivate, @self)^.AddTo(location);
 
 		pNode(ammo) := (new(pDecoration, Init(Environment('ammo.png'), Translate(Vec2.Make(215/311, 86/147) * floor^.size), Vec2.Make(floor^.size.x * (74/311), Deduce))))^.AddTo(location);
@@ -317,17 +317,19 @@ uses
 			valera^.angle := PredefinedValeraAngle;
 			valera^.SetParent(seat);
 			valera^.local := seat^.local * Translate(0.0, 0.04);
-			pNode(valeraTrig) := (new(pTrigger, Init(valera^.local, valera^.size + Vec2.Make(0.05, 0))))^.WithCallbacks(nil, nil, @Dialogue_Valera, @self)^.AddTo(location);
+			pNode(valeraTrig) := (new(pTrigger, Init(valera^.local, valera^.size + Vec2.Make(0.04, 0))))^.WithCallbacks(nil, nil, @Dialogue_Valera, @self)^.AddTo(location);
 
 			pNode(twinkle) := CreateKolobok('twinkle')^.OnHit(@TwinkleHit, @self)^.AddTo(location);
 			twinkle^.angle := PredefinedTwinkleAngle;
 			if self.world^.eyeExploded then twinkle^.local := Translate(0.7, 0.1) else twinkle^.local := Translate(0.57, 0.18);
-			pNode(twinkleTrig) := (new(pTrigger, Init(twinkle^.local, twinkle^.size)))^.WithCallbacks(nil, nil, @Dialogue_Twinkle, @self)^.AddTo(location);
+			pNode(twinkleTrig) := (new(pTrigger, Init(twinkle^.local * Translate(0, -0.01), twinkle^.size + Vec2.Make(0, -0.01))))^.
+				WithCallbacks(nil, nil, @Dialogue_Twinkle, @self)^.AddTo(location);
 
 			pNode(kazah) := CreateKolobok('kazah')^.OnHit(@KazahHit, @self)^.AddTo(location);
 			kazah^.angle := PredefinedKazahAngle;
 			if self.world^.eyeExploded then kazah^.local := Translate(0.85, 0.15) else kazah^.local := Translate(0.77, 0.2);
-			pNode(kazahTrig) := (new(pTrigger, Init(kazah^.local, kazah^.size)))^.WithCallbacks(nil, nil, @Dialogue_Kazah, @self)^.AddTo(location);
+			pNode(kazahTrig) := (new(pTrigger, Init(kazah^.local * Translate(0, -0.01), kazah^.size + Vec2.Make(0, -0.01))))^.
+				WithCallbacks(nil, nil, @Dialogue_Kazah, @self)^.AddTo(location);
 		end;
 
 		case enter of
@@ -374,7 +376,7 @@ uses
 			case fadeMode of
 				FadeIn: fadeVel := 0.75;
 				RedFlash: fadeVel := 3.0;
-				else {FadeOut} fadeVel := 0.5;
+				else {FadeOut} fadeVel := 0.7;
 			end;
 			fade := min(fade + fadeVel*dt, 1.0);
 			if fade >= 1.0 then

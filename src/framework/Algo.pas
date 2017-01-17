@@ -558,21 +558,19 @@ end_unchecked
 			rest := (rest shl 8) or uint(pByte(data)^);
 			data += 1;
 
-			while (restBits >= 5) or ((size = 0) and (restBits > 0)) do
+			while restBits >= 5 do
 			begin
 				inc(n);
-				if restBits >= 5 then
-				begin
-					result[n] := sample[1 + rest shr (restBits - 5)];
-					restBits -= 5;
-					rest := rest and (1 shl restBits - 1);
-				end else
-				begin
-					result[n] := sample[1 + rest];
-					restBits := 0;
-					rest := 0;
-				end;
+				result[n] := sample[1 + rest shr (restBits - 5)];
+				restBits -= 5;
+				rest := rest and (1 shl restBits - 1);
 			end;
+		end;
+
+		if restBits > 0 then
+		begin
+			inc(n);
+			result[n] := sample[1 + rest];
 		end;
 		SetLength(result, n);
 	end;
@@ -580,9 +578,9 @@ end_unchecked
 	function design(value: sint): uint;
 	begin
 		if value >= 0 then
-			result := 2 * value
+			result := 2 * uint(value)
 		else
-			result := 2 * -value - 1;
+			result := 2 * uint(-(value + 1)) + 1; // 2 * -value - 1, устойчивое к Low(sint)
 	end;
 
 	function ensign(value: uint): sint;

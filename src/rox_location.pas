@@ -32,7 +32,7 @@ type
 	pNodesArray = ^NodesArray;
 	NodesArray = array of pNode;
 
-	pTrigger = ^Trigger;
+	pTrigger = ^Trigger; ppTrigger = ^pTrigger;
 	Trigger = object(&Node)
 	type
 		Reason = (Entered, Leaved);
@@ -114,7 +114,7 @@ type
 		function GetWall(const uid: string): pWallDesc;
 		procedure RemoveWall(const uid: string);
 
-		function ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
+		function ActivateTriggerAt(const pos: Vec2; activator: pNode; justTest: ppTrigger = nil): boolean;
 		function ActivateTriggerFor(activator: pNode): boolean;
 		function ShouldHighlightTrigger(const pos: Vec2): boolean;
 	private
@@ -487,7 +487,7 @@ uses
 		SetLength(walls, length(walls) - 1);
 	end;
 
-	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode): boolean;
+	function Location.ActivateTriggerAt(const pos: Vec2; activator: pNode; justTest: ppTrigger = nil): boolean;
 	var
 		i: sint;
 	begin
@@ -497,7 +497,10 @@ uses
 				triggers[i]^.HasInside(activator)
 			then
 			begin
-				triggers[i]^.onActivate(triggers[i], activator, triggers[i]^.param);
+				if Assigned(justTest) then
+					justTest^ := triggers[i]
+				else
+					triggers[i]^.onActivate(triggers[i], activator, triggers[i]^.param);
 				exit(yes);
 			end;
 		result := no;

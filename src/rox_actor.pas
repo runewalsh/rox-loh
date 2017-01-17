@@ -98,7 +98,7 @@ type
 		procedure ReceiveHit(shooter: pNode);
 	private
 		procedure SwitchMove(method: MoveTargeter);
-		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
+		function MoveByStep(const delta: Vec2; const by: float; moved: pVec2; collided: pBoolean): boolean;
 		function RotateStep(const target: float; const by: float): boolean;
 		procedure ShotMoveCallback(reason: MoveCallbackReason);
 	end;
@@ -127,8 +127,9 @@ implementation
 
 	procedure Actor.HandleUpdate(const dt: float);
 	var
-		moved: Vec2;
-		detached: boolean;
+		moved, pt: Vec2;
+		detached, collided: boolean;
+		trig: pTrigger;
 	begin
 		if length(states) = 0 then raise Error('Актору не заданы состояния.');
 		realMovementVel := 0;
@@ -145,7 +146,7 @@ implementation
 			MovingBy:
 				begin
 					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
-						MoveByStep(mvPointOrDelta, mvVel * dt, @moved);
+						MoveByStep(mvPointOrDelta, mvVel * dt, @moved, nil);
 					mvMethod := NotMoving;
 
 					// location^.ActivateTriggerAt(HeartPos, @self);
@@ -153,27 +154,33 @@ implementation
 					// иногда удобно, иногда нежелательно, так что лучше настраивать для каждого, а пока убрал
 				end;
 			MovingTo:
+				if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
 				begin
-					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
-						if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil) then
+					if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil, @collided) then
+					begin
+						if mvCb.kind <> MoveCallbackNotSet then
 						begin
-							if mvCb.kind <> MoveCallbackNotSet then
-							begin
-								MakeRef(@self);
-								try
-									ShotMoveCallback(TargetReached);
-									detached := not Assigned(location);
-								finally
-									ReleaseWeak(@self);
-								end;
-								if detached then exit;
+							MakeRef(@self);
+							try
+								ShotMoveCallback(TargetReached);
+								detached := not Assigned(location);
+							finally
+								ReleaseWeak(@self);
 							end;
-							mvMethod := NotMoving;
+							if detached then exit;
 						end;
+						mvMethod := NotMoving;
+					end;
 
 					// а вот здесь безусловное автосрабатывание уже получше смотрится
 					// (но всё равно для чего-то, что игрок может активировать случайно, лучше настраивать)
-					if mvMethod = NotMoving then location^.ActivateTriggerAt(mvPointOrDelta, @self);
+					if ((mvMethod = NotMoving) or collided) and
+						location^.ActivateTriggerAt(mvPointOrDelta, @self, @trig) and trig^.HasInside(@self) then
+					begin
+						pt := mvPointOrDelta;
+						StopMoving;
+						location^.ActivateTriggerAt(pt, @self);
+					end;
 				end;
 		end;
 
@@ -404,7 +411,7 @@ implementation
 		mvMethod := method;
 	end;
 
-	function Actor.MoveByStep(const delta: Vec2; const by: float; moved: pVec2): boolean;
+	function Actor.MoveByStep(const delta: Vec2; const by: float; moved: pVec2; collided: pBoolean): boolean;
 	var
 		m: Vec2;
 		sql: float;
@@ -412,7 +419,12 @@ implementation
 		sql := delta.SqrLength;
 		result := sqr(by) >= sql;
 		if result then m := delta else m := delta * (by / sqrt(sql));
-		if not idclip and location^.Collide(Collision, m, @self) and (m.SqrLength < 0.001*by) then mvMethod := NotMoving;
+		if not idclip and location^.Collide(Collision, m, @self) then
+		begin
+			if Assigned(collided) then collided^ := yes;
+			if m.SqrLength <= 0.0003*by then mvMethod := NotMoving;
+		end else
+			if Assigned(collided) then collided^ := no;
 		local.trans += m;
 		if Assigned(moved) then moved^ := m;
 		realMovementVel := m.Length;

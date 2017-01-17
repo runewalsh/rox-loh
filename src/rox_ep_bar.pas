@@ -19,7 +19,6 @@ type
 		constructor Init(world: pWorld);
 		destructor Done; virtual;
 		procedure HandleUpdate(const dt: float); virtual;
-		procedure HandleDeactivation; virtual;
 	private
 		state: (Setup, Idle, MovingOutsideRequested);
 		procedure SetupObrubWandering;
@@ -266,7 +265,7 @@ uses
 			ObrubAngry:
 				begin
 					t^.Detach;
-					e^.mgr^.bgm.Priority(e^.id)^.SetModifier('mute', op_Set, 0, +999);
+					e^.mgr^.bgm.Priority(e^.id)^.SetModifier(e^.MuteMainTheme, op_Set, 0, +999);
 					e^.dlg.Init(e, 'obrubens [face = mad.png, letterTimeout = 0.2, delay = 1]: 2.png')^.Callbacks(nil, @Dialogue_Obrub_2, e);
 					e^.dlg.skippable := no;
 				end;
@@ -412,12 +411,6 @@ uses
 				end;
 			MovingOutsideRequested: mgr^.Switch(new(pEp_Entry, Init(world)));
 		end;
-	end;
-
-	procedure Ep_Bar.HandleDeactivation;
-	begin
-		mgr^.bgm.Priority(id)^.RemoveModifier('mute', no);
-		inherited HandleDeactivation;
 	end;
 
 	procedure Ep_Bar.SetupObrubWandering;
