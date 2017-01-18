@@ -347,6 +347,7 @@ uses
 				end;
 		end;
 		location^.Add(player);
+		self.world^.ChangePlayerOutfit(GenericOutfit);
 	end;
 
 	destructor Ep_Ship.Done;
@@ -362,7 +363,10 @@ uses
 		fadeVel: float;
 	begin
 	again: case state of
-			Setup: state := Idle;
+			Setup:
+				begin
+					state := Idle;
+				end;
 		end;
 
 		if (state = MovingOutsideRequested) or (state = FadingOutForMovingOutside) and (fadeMode = NoFade) then

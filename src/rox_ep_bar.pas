@@ -27,7 +27,7 @@ type
 		StateID = 'ep_bar';
 	end;
 
-	function CreateKolobok(const char: string): pActor;
+	function CreateKolobok(const char: string; const model: string = ''): pActor;
 	procedure RotateActors(const actors: array of pActor; const target: Vec2);
 
 implementation
@@ -430,9 +430,9 @@ uses
 		Release(obrubTimer);
 	end;
 
-	function CreateKolobok(const char: string): pActor;
+	function CreateKolobok(const char: string; const model: string = ''): pActor;
 	begin
-		result := new(pActor, Init(Vec2.Make(0.14, 0.14), Character(char, 'model.png'), Vec2.Make(1/2, 1/9)))^.NewRef;
+		result := new(pActor, Init(Vec2.Make(0.14, 0.14), Character(char, IfThen(model <> '', model, 'model.png')), Vec2.Make(1/2, 1/9)))^.NewRef;
 		result^.AddState('idle', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', []);
 		result^.AddState('walk', Vec2.Make(0, 0), 2, 8, 0.6, 'idle', [MovingState]);
 		result^.AddState('hit', Vec2.Make(0, 8/9), 1, 1, 0.3, 'idle', []);

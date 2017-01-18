@@ -1,12 +1,13 @@
 {$include opts.inc}
 {$R *.res}
+{$define NoteFPS}
 program rox;
 
 uses
 	USystem, Utils, UMath, UClasses, GLUtils, Windowing,
 	rox_win, rox_gfx, rox_gl, rox_paths, rox_world,
 	rox_ui, rox_state, rox_state_mainmenu, rox_state_adventure,
-	rox_ep_entry, rox_ep_bar, rox_mv_flight, rox_ep_mars, rox_ep_ship, rox_mv_ending;
+	rox_ep_entry, rox_ep_bar, rox_mv_flight, rox_ep_mars, rox_ep_ship, rox_mv_ending, rox_dialogue;
 
 	procedure LoadBGM(var window: Window);
 	begin
@@ -24,21 +25,26 @@ uses
 	end;
 
 var
-	prevTime, curTime, time, minFrameTime, cumTime, cumTimeWithoutSleep: Ticks;
+	prevTime, curTime, time, minFrameTime: Ticks;
 	lastDt: float;
 	cumTimeFrames: uint;
 	err: gl.enum;
 	ignoreOpenGLErrors: boolean = no;
-	fpsNote: WindowCaption.Cookie;
 	window: rox_win.Window;
+{$ifdef NoteFPS}
+	cumTime, cumTimeWithoutSleep: Ticks;
+	fpsNote: WindowCaption.Cookie;
 	note: string;
+{$endif}
 
 	procedure ResetCumTime;
 	begin
 		prevTime := Ticks.Get;
+	{$ifdef NoteFPS}
 		cumTime := Ticks.Zero;
 		cumTimeWithoutSleep := Ticks.Zero;
 		cumTimeFrames := 0;
+	{$endif}
 	end;
 
 	procedure ParseCommandLine;
@@ -87,7 +93,7 @@ begin
 		try
 			window.Open;
 			window.cursor := Cursor0;
-			fpsNote := WindowCaption.Cookie.Empty;
+		{$ifdef NoteFPS} fpsNote := WindowCaption.Cookie.Empty; {$endif}
 			LoadBGM(window);
 
 			gl.PixelStorei(gl.PACK_ALIGNMENT, 1);
@@ -98,15 +104,15 @@ begin
 			gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);
 			gl.ClearColor(0.01, 0.06, 0.015, 1);
 
-			window.state.Switch(new({pEp_Ship}pEp_Mars{pEp_Entry}{pMainMenu}{pMv_Flight}{pMv_Ending}, Init(new(pWorld, Init), yes)));
+			window.state.Switch(new(pMainMenu, Init));
 			ResetCumTime;
 			lastDt := 0.0;
-			repeat
-				if not window.Process(lastDt) then break;
+			while window.Process(lastDt) do
+			begin
 				if window.WasDeactivatedDuringLastProcess or window.state.switchedDuringLastUpdate then
 					ResetCumTime
 				else
-					cumTimeFrames += window.RedrawsDuringLastProcess;
+				{$ifdef NoteFPS} cumTimeFrames += window.RedrawsDuringLastProcess {$endif};
 
 				err := gl.GetError();
 				if (err <> gl.NO_ERROR) and not ignoreOpenGLErrors then
@@ -119,7 +125,7 @@ begin
 
 				curTime := Ticks.Get;
 				time := curTime - prevTime;
-				if time.ToSeconds < 1 then cumTimeWithoutSleep += time;
+			{$ifdef NoteFPS} if time.ToSeconds < 1 then cumTimeWithoutSleep += time; {$endif}
 				if time < MinFrameTime then
 				begin
 					Thread.Sleep(MinFrameTime - time);
@@ -129,10 +135,11 @@ begin
 
 				if time.ToSeconds < 1 then
 				begin
-					cumTime += time;
+				{$ifdef NoteFPS} cumTime += time; {$endif}
 					lastDt := time.ToSeconds;
 				end;
 
+			{$ifdef NoteFPS}
 				if (cumTime.ToSeconds >= 1) and (cumTimeFrames > 3) then
 				begin
 					note := 'FPS: ' + ToString(cumTimeFrames / cumTime.ToSeconds);
@@ -141,10 +148,11 @@ begin
 					window.caption.SetNote(fpsNote, note);
 					ResetCumTime;
 				end;
+			{$endif}
 				prevTime := curTime;
-			until no;
+			end;
 		finally
-			window.caption.RemoveNote(fpsNote);
+		{$ifdef NoteFPS} window.caption.RemoveNote(fpsNote); {$endif}
 			window.Close;
 		end;
 	except

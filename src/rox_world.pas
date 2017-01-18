@@ -4,17 +4,22 @@ interface
 
 uses
 	USystem, UMath,
-	rox_actor, rox_paths;
+	rox_actor, rox_paths, rox_gfx;
 
 type
 	pWorld = ^World;
 	World = object(&Object)
+	type
+		PlayerOutfit = (GenericOutfit, SpaceSuit);
+	var
 		player: pActor;
+		currentPlayerOutfit: PlayerOutfit;
 		spaceshipBrought, spaceshipArrivedOnMars, firstAmmoProceed, eyeExploded, everyoneFled, shipEyeBlinkProceed: boolean;
 		nextTwinkleShotReaction: (TwinkleShotReaction1, TwinkleShotReaction2);
 		shipSplatValeraDlgProceed, shipSplatTwinkleDlgProceed, shipSplatKazahDlgProceed: uint;
 		constructor Init;
 		destructor Done; virtual;
+		procedure ChangePlayerOutfit(&to: PlayerOutfit);
 	end;
 
 implementation
@@ -39,6 +44,20 @@ implementation
 	begin
 		Release(player);
 		inherited Done;
+	end;
+
+	procedure World.ChangePlayerOutfit(&to: PlayerOutfit);
+	var
+		model: pTexture;
+	begin
+		if currentPlayerOutfit = &to then exit;
+		case &to of
+			SpaceSuit: model := Texture.Load(Character('rox', 'suit.png'));
+			else model := Texture.Load(Character('rox', 'model.png'));
+		end;
+		SetRef(player^.tex, model);
+		Release(model);
+		currentPlayerOutfit := &to;
 	end;
 
 end.

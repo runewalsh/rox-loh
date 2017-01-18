@@ -5,3 +5,5 @@
 И уж точно не на легаси-OpenGL.  
 
 Почему вообще легаси? Я подумал, что так будет надёжней. А потом не удержался, заюзал `TEXTURE_SWIZZLE` и наткнулся на [`ARB_texture_swizzle issue 7`](https://www.opengl.org/registry/specs/ARB/texture_swizzle.txt). Вынужден признать: баги шейдеров — меньшее зло по сравнению со взаимодействием легаси и пока-не-легаси.
+
+![ship.gif](res/ship.gif)

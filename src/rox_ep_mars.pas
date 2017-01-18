@@ -445,6 +445,7 @@ uses
 			self.player^.local := Translate(ShipStanding + PlayerPosAtExit - (self.player^.relHeart * self.player^.size));
 			self.player^.angle := HalfPi;
 			self.player^.AddTo(location);
+			self.world^.ChangePlayerOutfit(SpaceSuit);
 			(new(pTrigger, Init(Translate(ShipStanding + Vec2.Make(0.2, 0.2)), Vec2.Make(0.5, 0.15))))^.WithCallbacks(nil, nil, @ActivateShipTrigger, @self)^.AddTo(location);
 			SwitchState(_2_SetupShip);
 			self.doFadeIn := doFadeIn;
@@ -457,19 +458,19 @@ uses
 
 		if self.world^.everyoneFled then
 		begin
-			valera := CreateKolobok('valera')^.OnHit(@ValeraHit, @self);
+			valera := CreateKolobok('valera', 'suit.png')^.OnHit(@ValeraHit, @self);
 			valera^.local := Translate(EyePos + Vec2.Make(-0.12, -0.03));
 			valera^.angle := 0;
 			location^.Add(valera);
 			(new(pTrigger, Init(valera^.local, valera^.size)))^.WithCallbacks(nil, nil, @Dialogue_2, @self)^.AddTo(location);
 
-			twinkle := CreateKolobok('twinkle')^.OnHit(@TwinkleHit, @self);
+			twinkle := CreateKolobok('twinkle', 'suit.png')^.OnHit(@TwinkleHit, @self);
 			twinkle^.local := Translate(EyePos + Vec2.Make(-0.05, 0.09));
 			twinkle^.angle := -Pi/4;
 			location^.Add(twinkle);
 			(new(pTrigger, Init(twinkle^.local, twinkle^.size)))^.WithCallbacks(nil, nil, @Dialogue_2, @self)^.AddTo(location);
 
-			kazah := CreateKolobok('kazah')^.OnHit(@KazahHit, @self);
+			kazah := CreateKolobok('kazah', 'suit.png')^.OnHit(@KazahHit, @self);
 			kazah^.local := Translate(EyePos + Vec2.Make(0.22, 0.09));
 			kazah^.angle := -Pi*(3/4);
 			location^.Add(kazah);
@@ -758,14 +759,9 @@ uses
 		gl.L.VertexPointer(2, gl.FLOAT_TYPE, sizeof(vertices[0]), @vertices[0, 0]);
 		gl.L.ColorPointer(4, gl.FLOAT_TYPE, sizeof(colors[0]), @colors[0, 0]);
 
-		if pass = 0 then
-			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 5)
-		else
-		begin
-			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
-			gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 5);
-			gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-		end;
+		if pass = 1 then gl.BlendFunc(gl.SRC_ALPHA, gl.ONE);
+		gl.DrawArrays(gl.TRIANGLE_STRIP, 0, 5);
+		if pass = 1 then gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
 		gl.L.DisableClientState(gl.L.COLOR_ARRAY);
 		gl.L.EnableClientState(gl.L.TEXTURE_COORD_ARRAY);

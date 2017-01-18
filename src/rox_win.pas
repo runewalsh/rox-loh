@@ -6,6 +6,7 @@ interface
 uses
 	ctypes, Windows, USystem, Errors, DynamicLoader, UMath, Utils, Human, Windowing, Input, GLUtils, Audio, rox_state, rox_paths;
 
+	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
 	procedure Warning(const msg: string);
 
 const
@@ -82,6 +83,18 @@ uses
 
 type
 	Win = WindowsSpecific;
+
+	function ShrinkToAspect(const size, aspect: UintVec2): UintVec2;
+	var
+		rx, ry: uint;
+	begin
+		if not aspect.Positive then exit(UintVec2.Zero);
+		rx := size.x * aspect.y;
+		ry := size.y * aspect.x;
+		if rx > ry then result := UintVec2.Make((ry + aspect.y div 2) div aspect.y, size.y) else
+			if rx < ry then result := UintVec2.Make(size.x, (rx + aspect.x div 2) div aspect.x) else
+				result := size;
+	end;
 
 	procedure Warning(const msg: string);
 	begin

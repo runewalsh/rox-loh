@@ -24,8 +24,8 @@ type
 		nextSym: sint;
 		sum: pUint8;
 		sumSize: UintVec2;
-		nextLetterTimeout, letterTimeout, nameDx: float;
-		skip, sumDirty, newlined: boolean;
+		nextLetterTimeout, letterTimeout, nameDx, newlineDelay: float;
+		skip, sumDirty, newlined, skipMeNextTime: boolean;
 
 		constructor Init(const char, pic, sentence: string);
 		destructor Done; virtual;
@@ -57,7 +57,7 @@ type
 	type
 		ItemDesc = object
 			char, pic, sentence: string;
-			delay, letterTimeout: float;
+			delay, letterTimeout, newlineDelay: float;
 		end;
 
 		ItemEvent = (ItemStart, ItemNewline);
@@ -94,12 +94,8 @@ implementation
 
 	function NameOffset(const name: string): float;
 	begin
-		case name of
-			'obrubens': result := -0.1;
-			'rox', 'valera': result := -0.18;
-			'kazah': result := -0.2;
-			else result := 0.0;
-		end;
+		Assert(@name = @name);
+		result := 0;
 	end;
 
 	procedure TextBox.SymDesc.Done;
@@ -122,7 +118,6 @@ implementation
 			try
 				Prepare(si^.im, rox_paths.Dialogue(char, sentence));
 				sumSize := si^.im.Size.XY;
-				Con.WriteLine(Dump);
 			finally
 				Release(si);
 			end;
@@ -137,6 +132,7 @@ implementation
 
 		letterTimeout := DefaultLetterTimeout;
 		nextLetterTimeout := FirstLetterTimeoutK * letterTimeout;
+		newlineDelay := DefaultLetterTimeout;
 	end;
 
 	destructor TextBox.Done;
@@ -156,14 +152,18 @@ implementation
 		nextLetterTimeout -= dt * (1 + 7*ord(skip));
 		while (nextSym < length(syms)) and (nextLetterTimeout < 0) do
 		begin
-			// if skip then begin skip := no; nextLetterTimeout := letterTimeout; end;
 			if ([IsPunctuation, HasSpaceAfter] * syms[nextSym].flags = [IsPunctuation, HasSpaceAfter]) and
 				not ((nextSym + 1 > High(syms)) or (IsPunctuation in syms[nextSym + 1].flags))
 			then
 				nextLetterTimeout += letterTimeout * DefaultRelativePunctuationBonus
 			else
 				nextLetterTimeout += letterTimeout;
-			newlined := newlined or ((nextSym < High(syms)) and (HasNewlineAfter in syms[nextSym].flags));
+
+			if (nextSym > 0) and (HasNewlineAfter in syms[nextSym - 1].flags) and (nextSym < High(syms)) then
+			begin
+				newlined := yes;
+				nextLetterTimeout := max(nextLetterTimeout, newlineDelay);
+			end;
 			Advance(1);
 			if nextSym >= length(syms) then skip := no;
 		end;
@@ -190,9 +190,9 @@ implementation
 
 		q.fields := [q.Field.Transform];
 		q.transform := local;
-		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.5 * GuessBorder), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
+		q.Draw(pic, Vec2.Make(0, rawSize.y + 0.0 * GuessBorder), pic^.ap.Aspect2(asp2_x1, PicSize), Vec2.Zero, Vec2.Ones);
 		q.Draw(name,
-			Vec2.Make(pic^.ap.Aspect2Item(asp2_x1, 0, PicSize) * (1 + nameDx), rawSize.y + 0.5 * GuessBorder), name^.ap.Aspect2(asp2_y1, NameHeight), Vec2.Zero, Vec2.Ones);
+			Vec2.Make(pic^.ap.Aspect2Item(asp2_x1, 0, PicSize) * (1 + nameDx), rawSize.y + 0.0 * GuessBorder), name^.ap.Aspect2(asp2_y1, NameHeight), Vec2.Zero, Vec2.Ones);
 	end;
 
 	procedure TextBox.Advance(n: uint);
@@ -230,9 +230,8 @@ implementation
 	var
 		p: pTextBox absolute param;
 	begin
-		result := 'S';
 		if IsPunctuation in p^.syms[id].flags then result := ',' else result := 'S';
-		if id < uint(length(p^.syms)) then
+		if id + 1 < uint(length(p^.syms)) then
 			if HasNewlineAfter in p^.syms[id].flags then result += EOL else
 				if HasSpaceAfter in p^.syms[id].flags then result += ' ';
 	end;
@@ -247,7 +246,7 @@ implementation
 		case action of
 			MouseLClick:
 				if CalculateTransparentRect(pStateManager(ui^._mgr)^.nvp, GuessBorder).Contains(pos) and extra.Handle then
-					skip := yes;
+					skipMeNextTime := yes;
 		end;
 		inherited HandleMouse(action, pos, extra);
 	end;
@@ -273,7 +272,7 @@ type
 		f: FloodFill.Result;
 	begin
 		if src.format <> GLformat_R then
-			raise Error('{0}: текст ожидается в grayscale.', StreamPath.Human(errfn));
+			raise Error('{0}: текст ожидается в grayscale без альфы.', StreamPath.Human(errfn));
 
 		img := nil;
 		try
@@ -402,8 +401,8 @@ type
 		begin
 			// проекция ранее залитых частей на Ox содержит проекцию новой, или наоборот
 			// допуск — четверть ширины части, вхождение в которую проверяется
-			srcAllowance := (srcMax.x - srcMin.x + 1 + 3) div 4;
-			fellowAllowance := (fellowMax.x - fellowMin.x + 1 + 3) div 4;
+			srcAllowance := (srcMax.x - srcMin.x + 1 + 5) div 6;
+			fellowAllowance := (fellowMax.x - fellowMin.x + 1 + 5) div 6;
 
 			// srcMin.x ~ srcMax.x с учётом допуска
 			sa := srcMin.x - min(srcMin.x, srcAllowance);
@@ -620,6 +619,12 @@ type
 	begin
 		if Assigned(active) then
 		begin
+			if active^.skipMeNextTime then
+			begin
+				active^.skipMeNextTime := no;
+				Skip;
+			end;
+
 			if active^.Finished then
 			begin
 				finalTimeout -= dt;
@@ -645,7 +650,7 @@ type
 
 			try
 				if not Assigned(na^.tex) then na^.size := 0 else
-					na^.size := 2 * state^.mgr^.nvp.x * {items[nextItem].size}na^.sumSize.x / TextBox.AssumedFullPixelWidth - 2 * Border;
+					na^.size := 2 * state^.mgr^.nvp.x * na^.sumSize.x / TextBox.AssumedFullPixelWidth - 2 * Border;
 				na^.local.trans := -state^.mgr^.nvp + Vec2.Make(Border);
 				na^.local.trans.y := max(na^.local.trans.y, -state^.mgr^.nvp.y + Border - na^.CalculateRawSize.y + 0.3);
 				inc(nextItem);
@@ -707,6 +712,7 @@ type
 				ni.pic := 'indifferent.png';
 				ni.delay := DefaultSentenceDelay;
 				ni.letterTimeout := 0;
+				ni.newlineDelay := 0;
 				if t.Maybe('[') then
 				begin
 					while t.MaybeTokenEndingWith(id, [',', ']', '='], cp) do
@@ -715,6 +721,7 @@ type
 							'face': begin t.Expect('='); ni.pic := t.ScanTokenEndingWith([',', ']']); end;
 							'delay': begin t.Expect('='); ni.delay := t.ScanFloatToken; end;
 							'letterTimeout': begin t.Expect('='); ni.letterTimeout := t.ScanFloatToken; end;
+							'newlineDelay': begin t.Expect('='); ni.newlineDelay := t.ScanFloatToken; end;
 							else raise t.UnknownIdentifier(cp);
 						end;
 						if not t.Maybe(',') then break;

@@ -220,12 +220,13 @@ uses
 			q.Draw(nil, -mgr^.nvp, 2 * mgr^.nvp, Vec2.Zero, Vec2.Ones);
 		end;
 
-		for i := 1 to min(player^.bullets, 5) do
-		begin
-			if not Assigned(bullet) then bullet := Texture.Load(UI('bullet.png'));
-			sz := bullet^.ap.Aspect2(asp2_y1, 0.1);
-			Quad.DrawPlain(bullet, Vec2.Make(-mgr^.nvp.x, mgr^.nvp.y) + sz * Vec2.Make((i - 1) * 0.5, -1), sz, Vec2.Zero, Vec2.Ones);
-		end;
+		if cameraMode = LookAfterPlayer then
+			for i := 1 to min(player^.bullets, 5) do
+			begin
+				if not Assigned(bullet) then bullet := Texture.Load(UI('bullet.png'));
+				sz := bullet^.ap.Aspect2(asp2_y1, 0.1);
+				Quad.DrawPlain(bullet, Vec2.Make(-mgr^.nvp.x, mgr^.nvp.y) + sz * Vec2.Make((i - 1) * 0.5, -1), sz, Vec2.Zero, Vec2.Ones);
+			end;
 	end;
 
 	procedure Adventure.HandleMouse(action: MouseAction; const pos: Vec2; var extra: HandlerExtra);

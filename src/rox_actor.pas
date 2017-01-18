@@ -58,6 +58,7 @@ type
 		mvParam: pointer;
 
 		rtMethod: (NotRotating, RotatingToPoint);
+		rtVel: float;
 		rtPoint: Vec2;
 		idclip: boolean;
 
@@ -117,6 +118,7 @@ implementation
 		self.texSize := texSize;
 		angle := -HalfPi;
 		forcedState := -1;
+		rtVel := 10.0;
 	end;
 
 	destructor Actor.Done;
@@ -145,7 +147,7 @@ implementation
 					if wieldingWeapon then SwitchToState('idle-wpn') else SwitchToState('idle');
 			MovingBy:
 				begin
-					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), 10.0 * dt) then
+					if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta.y, mvPointOrDelta.x), rtVel * dt) then
 						MoveByStep(mvPointOrDelta, mvVel * dt, @moved, nil);
 					mvMethod := NotMoving;
 
@@ -154,7 +156,7 @@ implementation
 					// иногда удобно, иногда нежелательно, так что лучше настраивать для каждого, а пока убрал
 				end;
 			MovingTo:
-				if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), 10.0 * dt) then
+				if wieldingWeapon or (rtMethod <> NotRotating) or RotateStep(ArcTan2(mvPointOrDelta - HeartPos), rtVel * dt) then
 				begin
 					if MoveByStep(mvPointOrDelta - HeartPos, mvVel * dt, nil, @collided) then
 					begin
@@ -188,7 +190,7 @@ implementation
 			NotRotating: ;
 			RotatingToPoint:
 				begin
-					if RotateStep(ArcTan2(rtPoint - HeartPos), 10.0 * dt) then
+					if RotateStep(ArcTan2(rtPoint - HeartPos), rtVel * dt) then
 						rtMethod := NotRotating;
 				end;
 		end;
