@@ -244,6 +244,7 @@ var
 		im.Init(s);
 		result := nil;
 		try
+			clamp := RepeatTexture;
 			if (GLImageFormatsInfo[im.format].nChannels in [2, 4]) or (Pos('[c]', s^.path) > 0) then clamp := ClampTexture;
 			if Pos('[tile]', s^.path) > 0 then clamp := RepeatTexture;
 			if Pos('[z-tile]', s^.path) > 0 then clamp := ClampXYRepeatZ;

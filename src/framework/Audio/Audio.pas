@@ -304,7 +304,7 @@ var
 		window: PtrUint;
 	end =
 	(
-		device: 1;
+		device: -1;
 		sampleRate: 44100;
 		window: 0
 	);

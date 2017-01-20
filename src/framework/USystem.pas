@@ -729,6 +729,7 @@ type
 		function FilenameNoExt(const fn: string): string; static;
 		function Temp: string; static;
 		function Working: string; static;
+		function Executable: string; static;
 
 	type
 		Enumerator = class
@@ -1448,7 +1449,7 @@ type
 		end;
 	end;
 
-	function Paths.DLL(const name: string): string; begin result := Libs + Platform + '/' + name + '.' + DllExt; end;
+	function Paths.DLL(const name: string): string; begin result := Folder.Executable + Libs + Platform + '/' + name + '.' + DllExt; end;
 	function Paths.Logs: string;                    begin result := TempBase + LogsFolder; end;
 	function Paths.Cache: string;                   begin result := TempBase + CacheFolder; end;
 
@@ -5766,6 +5767,16 @@ FPC_3_BUG writeable_const_ CachedTempFolder: string = ''; _end // рапорту
 	{$else} {$error Folder.Working unimplemented} {$endif}
 	end;
 
+	function Folder.Executable: string;
+	writeable_const_ Cached: string = ''; _end
+	begin
+		result := Cached; if result <> '' then exit;
+	{$ifdef Windows}
+		result := Win.FromWideFileName(Win.ModuleFileNameW(yes));
+	{$else} {$error ExecFileName unimplemented} {$endif}
+		Cached := result;
+	end;
+
 	function Folder.Enumerator.IsFolder: boolean; begin result := file_Folder in what; end;
 	function Folder.Enumerator.IsFile: boolean;   begin result := file_JustFile in what; end;
 
@@ -6092,7 +6103,7 @@ const
 			case result[i] of
 				FileSeparator: result[i] := SystemSeparator;
 			{$if defined(Debug) and defined(Windows)}
-				'\': raise Error('Ожидается разделитель файлов ' + FileSeparator + ' (' + fileName + ').' + EOL + GetBackTrace);
+				'\': raise Error('Ожидается разделитель файлов ' + FileSeparator + ': ' + fileName + '.');
 			{$endif}
 			end;
 	end;
@@ -6107,7 +6118,7 @@ const
 			case result[i] of
 				SystemSeparator: result[i] := FileSeparator;
 			{$if defined(Debug) and defined(Windows)}
-				FileSeparator: raise Error('В системных именах файлов ожидается разделитель ' + SystemSeparator + '.');
+				FileSeparator: raise Error('В системных именах файлов ожидается разделитель ' + SystemSeparator + ': ' + fileName + '.');
 			{$endif}
 			end;
 	end;
@@ -7261,9 +7272,11 @@ end_unchecked
 	end;
 
 	class function Win.ModuleFileNameW(path: boolean): widestring;
+	writeable_const_ Cached: array[boolean] of widestring = ('', ''); _end
 	var
 		len: SizeInt;
 	begin
+		result := Cached[path]; if result <> '' then exit;
 		result := QueryString(@QueryModuleFileName, 'имени исполняемого файла');
 
 		if path then
@@ -7272,6 +7285,7 @@ end_unchecked
 			while (len > 0) and (result[len] <> '\') do dec(len);
 			SetLength(result, len);
 		end;
+		Cached[path] := result;
 	end;
 
 	class function Win.TimeoutOrInfinite(timeoutMs: uint): dword;
@@ -7311,8 +7325,11 @@ end_unchecked
 	class function Win.OperationFailed(const what: string; code: dword = 0): Exception; begin result := USystem.Error(OperationFailedMessage(what, code)); end;
 
 	class function Win.FileLoadError(const fn: string; code: dword): Exception;
+	var
+		msg: string;
 	begin
-		result := USystem.Error(ToSystemFileName(fn) + ': ' + LowercaseFirst(DescribeError(code)));
+		msg := ToSystemFileName(fn) + ': ' + LowercaseFirst(DescribeError(code));
+		result := USystem.Error(msg);
 	end;
 
 	class function Win.Lowercase(const s: string): string;

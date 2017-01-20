@@ -56,7 +56,7 @@ type
 		function DirectionKeyToDir4(k: KeyboardKey): Dir4;
 		procedure UpdateCursor(const pos: Vec2; force: boolean);
 		function PlayerDied: boolean;
-		procedure PostDeathClick;
+		procedure PostDeathClick; // Внимание, может уничтожить self.
 	end;
 
 implementation
@@ -235,7 +235,11 @@ uses
 			MouseLClick:
 				begin
 					if dlg.Valid and not dlg.Finished and dlg.Skippable and extra.Handle then dlg.Skip;
-					if PlayerDied and extra.Handle then PostDeathClick;
+					if PlayerDied and extra.Handle then
+					begin
+						PostDeathClick;
+						exit;
+					end;
 					if playerControlMode = PlayerControlEnabled then
 					begin
 						if player^.wieldingWeapon and (player^.bullets > 0) and extra.Handle then
@@ -283,8 +287,12 @@ uses
 					key_Z:
 						if extra.Handle then
 							if dlg.Valid and dlg.Skippable and not dlg.Finished then dlg.Skip
-							else if PlayerDied then PostDeathClick
-							else if playerControlMode = PlayerControlEnabled then location^.ActivateTriggerFor(player);
+							else if PlayerDied then
+							begin
+								PostDeathClick;
+								exit;
+							end else
+								if playerControlMode = PlayerControlEnabled then location^.ActivateTriggerFor(player);
 					key_1:
 						if playerControlMode = PlayerControlEnabled then
 							if player^.wieldingWeapon then UnwieldWeapon else

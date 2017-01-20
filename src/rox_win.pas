@@ -516,7 +516,6 @@ type
 					if openSucceed then PostQuitMessage(0);
 				end;
 			WM_CLOSE: AnimateWindow(handle, 200, AW_HIDE or AW_BLEND);
-			WM_CHAR: {$ifdef use_console} UTF8.CodepointToString(wparam) {$endif};
 		end;
 		Result := DefWindowProcW(wnd, msg, wparam, lparam);
 	end;
